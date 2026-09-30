@@ -1,0 +1,22 @@
+.health-check {
+  max-width: 640px;
+  margin: 80px auto;
+  padding: 0 24px;
+  text-align: left;
+}
+
+.status {
+  font-size: 16px;
+  padding: 12px 16px;
+  border-radius: 6px;
+}
+
+.status-ok {
+  background: #e6ffed;
+  color: #036b26;
+}
+
+.status-error {
+  background: #ffeef0;
+  color: #86181d;
+}
