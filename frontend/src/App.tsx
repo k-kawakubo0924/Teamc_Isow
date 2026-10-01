@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router'
 import HealthCheckPage from './pages/HealthCheckPage'
+import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import SignUpPage from './pages/SignUpPage'
 
@@ -7,10 +8,10 @@ import SignUpPage from './pages/SignUpPage'
 function App() {
   return (
     <Routes>
-      {/* ホーム画面ができるまでは疎通確認画面を置く */}
-      <Route path="/" element={<HealthCheckPage />} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/register" element={<SignUpPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/health" element={<HealthCheckPage />} />
     </Routes>
   )
 }

@@ -23,14 +23,26 @@ export class ApiError extends Error {
 const CONNECTION_ERROR_MESSAGE = 'サーバーに接続できませんでした。時間をおいて再度お試しください。'
 const UNEXPECTED_ERROR_MESSAGE = 'エラーが発生しました。時間をおいて再度お試しください。'
 
-export async function postJson<T>(path: string, body: unknown): Promise<T> {
+export function postJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+/** token を渡すと Authorization: Bearer ヘッダーを付ける（認証が必要なAPI用） */
+export function getJson<T>(path: string, token?: string | null): Promise<T> {
+  return request<T>(path, {
+    method: 'GET',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+}
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`${API_BASE_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+    res = await fetch(`${API_BASE_URL}${path}`, init)
   } catch {
     throw new ApiError(0, null, CONNECTION_ERROR_MESSAGE)
   }

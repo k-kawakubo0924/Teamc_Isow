@@ -12,6 +12,7 @@ import {
   type SignUpField,
   type SignUpForm,
 } from '../validation/authRules'
+import { ErrorBanner } from './ErrorBanner'
 import './auth.css'
 
 const EMPTY_FORM: SignUpForm = { email: '', phoneNumber: '', password: '', username: '' }
@@ -170,17 +171,6 @@ function SignUpPage() {
         </div>
       )}
     </main>
-  )
-}
-
-function ErrorBanner({ message }: { message: string }) {
-  return (
-    <div className="auth-banner" role="alert">
-      <span className="auth-banner-icon" aria-hidden="true">
-        !
-      </span>
-      <p>{message}</p>
-    </div>
   )
 }
 

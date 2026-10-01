@@ -73,7 +73,8 @@ npm install
 npm run dev
 ```
 
-- `http://localhost:5173` を開くと、バックエンドの `/api/health` を呼び出した結果が画面に表示されます。
+- `http://localhost:5173/health` を開くと、バックエンドの `/api/health` を呼び出した結果が画面に表示されます（疎通確認用）。
+- `http://localhost:5173/register` で新規会員登録、`http://localhost:5173/login` でログインができます。
 
 ## 環境変数一覧
 
@@ -106,5 +107,5 @@ npm run dev
 
 ## 現段階でやっていないこと
 
-- 認証・投稿・一覧・通知などの機能
-- テーブル設計（エンティティ・マイグレーション）
+- 投稿・一覧・通知などの機能（認証は `feature/auth` で実装中）
+- マイグレーション（開発中は `spring.jpa.hibernate.ddl-auto=update` でテーブルを自動作成している）

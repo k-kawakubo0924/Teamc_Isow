@@ -79,3 +79,16 @@ export function formatPhoneNumber(value: string): string {
   if (digits.length === 10) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`
   return digits
 }
+
+export type LoginForm = {
+  email: string
+  password: string
+}
+
+/** ログインは未入力のみチェックする（形式の違いは、サーバーが認証失敗として返す） */
+export function validateLogin(form: LoginForm): Partial<Record<keyof LoginForm, string>> {
+  const errors: Partial<Record<keyof LoginForm, string>> = {}
+  if (normalizeEmail(form.email) === '') errors.email = 'メールアドレスを入力してください'
+  if (form.password.trim() === '') errors.password = 'パスワードを入力してください'
+  return errors
+}

@@ -214,3 +214,60 @@
   text-align: center;
   color: var(--color-text-muted);
 }
+
+/* ---- ログイン画面（design/Login.png） ---- */
+
+/* ログイン画面はサブタイトルが無いため、ロゴの下を広めに空ける */
+.auth-logo-spaced {
+  margin-bottom: 40px;
+}
+
+.auth-field-tight {
+  margin-bottom: 10px;
+}
+
+.auth-forgot {
+  margin-bottom: 20px;
+}
+
+/* リンクの見た目のボタン（遷移先が無い操作に使う） */
+.auth-text-button {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.auth-text-button:hover {
+  text-decoration: underline;
+}
+
+.auth-forgot-notice {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.auth-button-wide {
+  min-width: 112px;
+}
+
+.auth-footer-spaced {
+  margin: 48px 0 12px;
+}
+
+/* 枠線だけのボタン。Link（a 要素）にも使うため中央寄せを指定する */
+.auth-button-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--color-text);
+  background: #fff;
+  color: var(--color-accent);
+  text-decoration: none;
+}
