@@ -27,7 +27,7 @@ public class AuthService {
     }
 
     /** request は正規化・入力チェック済みであること */
-    public RegisterResponse register(RegisterRequest request) {
+    public UserResponse register(RegisterRequest request) {
         throwIfDuplicated(request);
 
         User user = new User(
@@ -36,7 +36,7 @@ public class AuthService {
                 passwordEncoder.encode(request.password()),
                 request.username());
         try {
-            return RegisterResponse.from(userRepository.saveAndFlush(user));
+            return UserResponse.from(userRepository.saveAndFlush(user));
         } catch (DataIntegrityViolationException e) {
             // チェックの直後に同じ値で別の登録が入った場合。一意制約違反を重複エラーとして返す
             throwIfDuplicated(request);
@@ -56,6 +56,25 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
         return jwtTokenService.issue(user.get());
+    }
+
+    /**
+     * トークンの sub（ユーザーID）からログイン中のユーザーを返す。
+     * トークンは正しいがユーザーが存在しない場合（退会後のトークンなど）は未認証として扱う。
+     */
+    public UserResponse currentUser(String subject) {
+        return parseUserId(subject)
+                .flatMap(userRepository::findById)
+                .map(UserResponse::from)
+                .orElseThrow(UnknownTokenUserException::new);
+    }
+
+    private static Optional<Long> parseUserId(String subject) {
+        try {
+            return Optional.of(Long.valueOf(subject));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
     }
 
     private void throwIfDuplicated(RegisterRequest request) {

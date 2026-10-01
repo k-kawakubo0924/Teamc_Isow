@@ -2,9 +2,11 @@ package com.teamc.isow.backend.common;
 
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
+import com.teamc.isow.backend.auth.UnknownTokenUserException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -47,5 +49,11 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiErrorResponse handleInvalidCredentials(InvalidCredentialsException e) {
         return new ApiErrorResponse("メールアドレスまたはパスワードが正しくありません。入力内容をご確認ください。", Map.of());
+    }
+
+    /** トークンなし・不正なトークンと同じく、本文なしの 401 を返す */
+    @ExceptionHandler(UnknownTokenUserException.class)
+    public ResponseEntity<Void> handleUnknownTokenUser(UnknownTokenUserException e) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 }
