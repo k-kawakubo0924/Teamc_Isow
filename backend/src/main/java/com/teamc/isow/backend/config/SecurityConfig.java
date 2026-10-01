@@ -4,8 +4,10 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -26,8 +28,14 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/health", "/api/auth/register").permitAll()
+                // サーバー内部エラーの応答が認証エラー(401)に置き換わらないよう、エラー画面は許可する
+                .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()
+            )
+            // 未認証のリクエストは 403 ではなく 401 を返す（ログイン画面への誘導に使う）
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             );
         return http.build();
     }
