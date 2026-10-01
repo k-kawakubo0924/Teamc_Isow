@@ -271,3 +271,9 @@
   color: var(--color-accent);
   text-decoration: none;
 }
+
+/* ---- 仮のホーム画面（HomePage.tsx。ホーム機能の実装時に削除する） ---- */
+
+.auth-home-actions {
+  margin-top: 48px;
+}

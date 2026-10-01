@@ -20,3 +20,5 @@
 - 開発中は spring.jpa.hibernate.ddl-auto=update を使用する（本番では使用しない）
 - エンティティを変更してDBの状態がおかしくなった場合は、
   docker compose down -v でDBを作り直す（ローカルのデータは消える）
+- dangerouslySetInnerHTML は使用しない。
+  認証トークンを localStorage に保存しているため、XSS が致命的になる

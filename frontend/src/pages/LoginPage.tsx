@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { login } from '../api/auth'
 import { ApiError } from '../api/client'
-import { saveToken } from '../auth/tokenStorage'
+import { useAuth } from '../auth/authContext'
 import { INVALID_INPUT_MESSAGE, normalizeEmail, validateLogin, type LoginForm } from '../validation/authRules'
 import { ErrorBanner } from './ErrorBanner'
 import './auth.css'
@@ -15,6 +15,7 @@ type LoginField = keyof LoginForm
  */
 function LoginPage() {
   const navigate = useNavigate()
+  const { login: saveLogin } = useAuth()
   const location = useLocation()
   const registered = (location.state as { registered?: boolean } | null)?.registered === true
 
@@ -50,7 +51,7 @@ function LoginPage() {
     setBannerMessage(null)
     try {
       const { token, expiresAt } = await login({ email: normalizeEmail(form.email), password: form.password })
-      saveToken(token, expiresAt)
+      saveLogin(token, expiresAt)
       // 「戻る」でログイン画面に戻らないよう、履歴を置き換える
       navigate('/', { replace: true })
     } catch (err) {

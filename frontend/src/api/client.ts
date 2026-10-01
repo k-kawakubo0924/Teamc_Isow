@@ -39,6 +39,16 @@ export function getJson<T>(path: string, token?: string | null): Promise<T> {
   })
 }
 
+let unauthorizedHandler: (() => void) | null = null
+
+/**
+ * トークン付きのリクエストが 401 になったとき（期限切れ・退会など）に呼ぶ処理を登録する。
+ * AuthProvider がログアウト処理を登録するので、各画面で 401 を処理する必要はない。
+ */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler
+}
+
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   let res: Response
   try {
@@ -49,6 +59,12 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 
   if (res.ok) {
     return (await res.json()) as T
+  }
+
+  // ログインAPIの 401（認証失敗）は対象外にするため、トークンを付けたリクエストのみ扱う
+  const sentToken = new Headers(init.headers).has('Authorization')
+  if (res.status === 401 && sentToken) {
+    unauthorizedHandler?.()
   }
 
   const errorBody = await readErrorBody(res)
