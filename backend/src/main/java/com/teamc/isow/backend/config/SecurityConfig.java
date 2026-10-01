@@ -28,7 +28,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health", "/api/auth/register").permitAll()
+                .requestMatchers("/api/health", "/api/auth/register", "/api/auth/login").permitAll()
                 // サーバー内部エラーの応答が認証エラー(401)に置き換わらないよう、エラー画面は許可する
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()

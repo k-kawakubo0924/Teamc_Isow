@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.common;
 
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
+import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -40,5 +41,11 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiErrorResponse handleDuplicate(DuplicateRegistrationException e) {
         return new ApiErrorResponse("すでに使われている項目があります。赤い欄を修正してください。", e.getErrors());
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiErrorResponse handleInvalidCredentials(InvalidCredentialsException e) {
+        return new ApiErrorResponse("メールアドレスまたはパスワードが正しくありません。入力内容をご確認ください。", Map.of());
     }
 }

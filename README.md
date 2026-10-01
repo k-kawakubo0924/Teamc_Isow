@@ -26,7 +26,19 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env
 ```
 
-必要に応じて値を変更してください（ローカル開発ではデフォルト値のままで動作します）。
+必要に応じて値を変更してください（ローカル開発では、`JWT_SECRET` 以外はデフォルト値のままで動作します）。
+
+`JWT_SECRET` は空のままだとバックエンドが起動しません。以下のコマンドで生成した値を `.env` の `JWT_SECRET=` の後ろに設定してください（値は各自で生成し、共有・コミットしないでください）。
+
+```bash
+# Git Bash / macOS / Linux
+openssl rand -base64 48
+```
+
+```powershell
+# PowerShell
+$b = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
+```
 
 > **ポートが競合する場合**
 > `5432`（PostgreSQL）や `8080`（backend）を他のアプリ・コンテナが既に使用している場合、起動時にエラーになります。その場合は以下を変更してください（`.env.example` などコミット対象のファイルは変更不要です）。
@@ -50,6 +62,7 @@ cd backend
 ```
 
 - Windows (コマンドプロンプト/PowerShell) では `mvnw.cmd spring-boot:run` を使用してください。
+- ルートの `.env` は起動時に自動で読み込まれます（`backend/` から起動してください）。
 - 起動後、`http://localhost:8080/api/health` にアクセスすると `{"status":"ok"}` が返ります。
 
 ### 4. フロントエンドの起動
@@ -75,6 +88,7 @@ npm run dev
 | `DB_PASSWORD` | DBパスワード | `teamc_password` |
 | `SERVER_PORT` | backend の待受ポート | `8080` |
 | `FRONTEND_ORIGIN` | CORS許可オリジン（frontend の URL） | `http://localhost:5173` |
+| `JWT_SECRET` | JWT の署名用秘密鍵。32バイト以上のランダム値を Base64 で指定（生成方法は「1. 環境変数の設定」参照） | なし（必須） |
 
 ### `frontend/.env`
 

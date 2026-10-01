@@ -4,6 +4,7 @@ import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -13,10 +14,16 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenService jwtTokenService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    /** 存在しないメールアドレスでも照合処理を走らせるためのダミーのハッシュ（応答時間の差で登録有無を推測させない） */
+    private final String dummyPasswordHash;
+
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenService jwtTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtTokenService = jwtTokenService;
+        this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
     }
 
     /** request は正規化・入力チェック済みであること */
@@ -35,6 +42,20 @@ public class AuthService {
             throwIfDuplicated(request);
             throw e;
         }
+    }
+
+    /**
+     * request は正規化・入力チェック済みであること。
+     * メールアドレスが存在しない場合もパスワードが違う場合も、同じ例外を投げる。
+     */
+    public LoginResponse login(LoginRequest request) {
+        Optional<User> user = userRepository.findByEmail(request.email());
+        String passwordHash = user.map(User::getPasswordHash).orElse(dummyPasswordHash);
+        boolean matches = passwordEncoder.matches(request.password(), passwordHash);
+        if (user.isEmpty() || !matches) {
+            throw new InvalidCredentialsException();
+        }
+        return jwtTokenService.issue(user.get());
     }
 
     private void throwIfDuplicated(RegisterRequest request) {
