@@ -46,13 +46,21 @@ public record PostCreateRequest(
 
     public PostCreateRequest {
         title = strip(title);
-        wornItems = blankToNull(strip(wornItems));
-        description = strip(description);
+        wornItems = blankToNull(strip(normalizeLineBreaks(wornItems)));
+        description = strip(normalizeLineBreaks(description));
         referenceUrl = blankToNull(strip(referenceUrl));
     }
 
     private static String strip(String value) {
         return value == null ? null : value.strip();
+    }
+
+    /**
+     * 改行を \n にそろえる。ブラウザは multipart/form-data で送るときに改行を \r\n に変えるため、
+     * そのままだと改行が2文字と数えられ、画面側（改行は1文字）と文字数の判定がずれる
+     */
+    private static String normalizeLineBreaks(String value) {
+        return value == null ? null : value.replace("\r\n", "\n").replace('\r', '\n');
     }
 
     private static String blankToNull(String value) {

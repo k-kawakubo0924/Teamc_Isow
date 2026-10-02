@@ -1,0 +1,512 @@
+/* 投稿作成（design/Post Creation Screen.png） */
+
+.post-page {
+  width: 100%;
+  max-width: 390px;
+  min-height: 100svh;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ---- 見出し ---- */
+
+.post-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.post-title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.post-header-back {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-header-done {
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* 画面下に固定した「投稿」ボタンに隠れないよう、下に余白を取る */
+.post-body {
+  padding: 16px 16px 104px;
+}
+
+.post-panel-body {
+  margin: 0;
+  padding: 16px;
+}
+
+/* ---- 項目 ---- */
+
+.post-section {
+  margin-bottom: 20px;
+}
+
+.post-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.post-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+}
+
+.post-required,
+.post-optional {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.post-required {
+  color: var(--color-error);
+}
+
+.post-optional {
+  color: var(--color-text-muted);
+}
+
+.post-counter,
+.post-length {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.post-length {
+  margin: 4px 0 0;
+  text-align: right;
+}
+
+.post-length-over {
+  color: var(--color-error);
+}
+
+.post-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.post-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.post-textarea {
+  padding: 10px 12px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.post-input::placeholder {
+  color: #9a948c;
+}
+
+.post-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.post-input-error {
+  border-color: var(--color-error);
+}
+
+.post-field-error {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-line;
+  color: var(--color-error);
+}
+
+/* ---- 写真 ---- */
+
+.post-images {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  /* 写真の右上にはみ出す削除ボタンが、横スクロールの領域で切れないよう上と右に余白を取る */
+  padding: 8px 8px 4px 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.post-image-add,
+.post-image {
+  position: relative;
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  box-sizing: border-box;
+  border-radius: 3px;
+}
+
+.post-image-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed var(--color-border-strong);
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.post-image-add-error {
+  border-color: var(--color-error);
+}
+
+.post-image-add-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* キーボード操作でファイル選択を開けるよう、見えないだけで操作はできる状態にする */
+.post-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.post-image-add:has(+ .post-visually-hidden:focus-visible) {
+  outline: 2px solid var(--color-accent);
+}
+
+.post-image img {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  object-fit: cover;
+  background: #e6dfd5;
+}
+
+.post-image-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 2px 5px;
+  border-radius: 2px;
+  background: var(--color-accent);
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.post-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid var(--color-bg);
+  border-radius: 50%;
+  background: var(--color-text);
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  cursor: pointer;
+}
+
+.post-image-move {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.post-image-move button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(43, 39, 36, 0.7);
+  font-size: 16px;
+  line-height: 1;
+  color: #fff;
+  cursor: pointer;
+}
+
+.post-image-move button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ---- パネルを開く行 ---- */
+
+.post-rows {
+  margin-bottom: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.post-row-wrap + .post-row-wrap {
+  border-top: 1px solid #efebe5;
+}
+
+.post-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-row-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.post-row-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-row-value-empty {
+  color: var(--color-text-muted);
+}
+
+.post-row-error .post-row-label {
+  color: var(--color-error);
+}
+
+.post-row-arrow {
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+.post-row-message {
+  margin: 0;
+  padding: 0 14px 10px;
+}
+
+/* ---- 選択パネル ---- */
+
+.post-options {
+  list-style: none;
+}
+
+.post-option {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-option[aria-checked='true'] {
+  border-color: var(--color-accent);
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.post-panel-subheading {
+  margin-top: 24px;
+}
+
+.post-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.post-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-chip-selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.post-chip button {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+
+.post-tag-form {
+  margin-top: 24px;
+}
+
+.post-tag-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.post-candidates {
+  margin: 8px 0 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+  list-style: none;
+}
+
+.post-candidates li + li {
+  border-top: 1px solid #efebe5;
+}
+
+.post-candidates button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-official {
+  padding: 1px 5px;
+  border: 1px solid var(--color-accent);
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+/* ---- ボタン ---- */
+
+.post-button {
+  flex-shrink: 0;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.post-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.post-button-primary {
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.post-button-secondary {
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  color: var(--color-text);
+}
+
+/* 画面下に固定する「投稿」ボタン */
+.post-footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.post-footer .post-button {
+  display: block;
+  width: calc(100% - 32px);
+  max-width: 358px;
+  height: 48px;
+  margin: 12px auto;
+}

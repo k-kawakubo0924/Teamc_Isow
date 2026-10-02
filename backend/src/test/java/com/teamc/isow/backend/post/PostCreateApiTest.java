@@ -217,6 +217,19 @@ class PostCreateApiTest {
     }
 
     @Test
+    void ブラウザが送る改行の_CRLF_は_LF_にそろえ_1文字として数える() throws Exception {
+        // 改行を含めて 2000 文字ちょうど（\r\n を2文字と数えると上限を超える）
+        String description = ("あ".repeat(9) + "\r\n").repeat(200);
+
+        mockMvc.perform(validRequest(token, kireime.getId(),
+                        "description", description,
+                        "wornItems", "アウター：古着\r\nパンツ：スラックス"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.description").value(("あ".repeat(9) + "\n").repeat(200).strip()))
+                .andExpect(jsonPath("$.wornItems").value("アウター：古着\nパンツ：スラックス"));
+    }
+
+    @Test
     void 文字数の上限を超えるとエラー() throws Exception {
         perform(validRequest(token, kireime.getId(),
                         "title", "あ".repeat(101),

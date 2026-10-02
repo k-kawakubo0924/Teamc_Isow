@@ -31,11 +31,27 @@ export function postJson<T>(path: string, body: unknown): Promise<T> {
   })
 }
 
-/** token を渡すと Authorization: Bearer ヘッダーを付ける（認証が必要なAPI用） */
-export function getJson<T>(path: string, token?: string | null): Promise<T> {
+/**
+ * token を渡すと Authorization: Bearer ヘッダーを付ける（認証が必要なAPI用）。
+ * signal を渡すと、途中で中断できる（入力中の候補検索で、古いリクエストを取り消すため）
+ */
+export function getJson<T>(path: string, token?: string | null, signal?: AbortSignal): Promise<T> {
   return request<T>(path, {
     method: 'GET',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+    signal,
+  })
+}
+
+/**
+ * multipart/form-data で送る（画像ファイルを含む送信用）。
+ * Content-Type はブラウザが境界文字列（boundary）付きで設定するため、指定しない
+ */
+export function postForm<T>(path: string, form: FormData, token: string): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
   })
 }
 
@@ -53,7 +69,9 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   let res: Response
   try {
     res = await fetch(`${API_BASE_URL}${path}`, init)
-  } catch {
+  } catch (err) {
+    // 呼び出し側が中断した場合は、接続エラーではなく中断として扱えるよう、そのまま投げる
+    if (err instanceof DOMException && err.name === 'AbortError') throw err
     throw new ApiError(0, null, CONNECTION_ERROR_MESSAGE)
   }
 
