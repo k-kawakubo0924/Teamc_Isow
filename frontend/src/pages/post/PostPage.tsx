@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/client'
 import { fetchMasters, type MastersResponse } from '../../api/masters'
-import { createPost } from '../../api/posts'
+import { createPost, type PostResponse } from '../../api/posts'
 import { useAuth } from '../../auth/authContext'
 import {
   INVALID_INPUT_MESSAGE,
@@ -20,6 +20,8 @@ import {
 import { ErrorBanner } from '../ErrorBanner'
 import { ImagePicker, type SelectedImage } from './ImagePicker'
 import { PanelHeader } from './PanelHeader'
+import { PostComplete } from './PostComplete'
+import { PostConfirm } from './PostConfirm'
 import { TagPanel } from './TagPanel'
 import '../auth.css'
 import './post.css'
@@ -36,15 +38,18 @@ const EMPTY_FORM: PostForm = {
 /** 入力画面の上に重ねて表示する選択・入力のパネル（docs/post.md の「別のページに移動して選択する」部分） */
 type Panel = 'fashion' | 'tags' | 'wornItems' | 'referenceUrl'
 
+/** 入力 → 確認 → 完了（docs/post.md「投稿の流れ（暫定）」） */
+type Step = 'input' | 'confirm' | 'complete'
+
 type MastersState =
   | { phase: 'loading' }
   | { phase: 'ready'; masters: MastersResponse }
   | { phase: 'error'; message: string }
 
 /**
- * 投稿作成の入力画面（docs/post.md、design/Post Creation Screen.png）。
- * 選択・入力のパネルは URL を分けず同じページ内で切り替える（移動で入力途中の写真や文字が消えないようにするため）。
- * 確認画面・下書き保存はまだ作っていない。
+ * 投稿作成（docs/post.md、design/Post Creation Screen.png・Check post content.png）。
+ * 入力 → 確認 → 完了の各画面と、選択・入力のパネルは、URL を分けず同じページ内で切り替える
+ * （移動で入力途中の写真や文字が消えないようにするため）。下書き保存はまだ作っていない。
  */
 function PostPage() {
   const navigate = useNavigate()
@@ -59,8 +64,10 @@ function PostPage() {
   const [panel, setPanel] = useState<Panel | null>(null)
   const [fieldErrors, setFieldErrors] = useState<PostFieldErrors>({})
   const [bannerMessage, setBannerMessage] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [step, setStep] = useState<Step>('input')
   const [submitting, setSubmitting] = useState(false)
+  /** 投稿に成功したときのサーバーの応答（完了画面で使う） */
+  const [createdPost, setCreatedPost] = useState<PostResponse | null>(null)
   const nextImageId = useRef(1)
 
   // ---- 選択肢の読み込み ----
@@ -110,7 +117,6 @@ function PostPage() {
   const updateForm = <K extends keyof PostForm>(name: K, value: PostForm[K]) => {
     setForm((prev) => ({ ...prev, [name]: value }))
     clearFieldError(name)
-    setSuccessMessage(null)
   }
 
   /** 選んだ時点で形式・サイズ・枚数を確認し、条件を満たすものだけを追加する（満たさないものは送信しない） */
@@ -130,7 +136,6 @@ function PostPage() {
       accepted.push({ id: nextImageId.current++, file, previewUrl: URL.createObjectURL(file) })
     }
     setImages((prev) => [...prev, ...accepted])
-    setSuccessMessage(null)
     if (messages.length > 0) {
       setFieldErrors((prev) => ({ ...prev, images: messages.join('\n') }))
     } else {
@@ -156,21 +161,16 @@ function PostPage() {
     })
   }
 
-  // ---- 送信 ----
+  // ---- 画面の切り替え（入力 → 確認 → 完了） ----
 
-  const resetAll = () => {
-    // 送信中に写真を追加・削除した場合も含め、最新の一覧を解放する
-    imagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl))
-    setImages([])
-    setForm(EMPTY_FORM)
-    setFieldErrors({})
+  const goTo = (next: Step) => {
+    setStep(next)
+    window.scrollTo({ top: 0 })
   }
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  /** 入力画面の「確認」。入力チェックを通ったら確認画面へ進む */
+  const handleConfirm = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!token || submitting) return
-
-    setSuccessMessage(null)
     const errors = validatePost(form, images.length)
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
@@ -178,11 +178,28 @@ function PostPage() {
       window.scrollTo({ top: 0 })
       return
     }
+    setBannerMessage(null)
+    goTo('confirm')
+  }
 
+  /** 確認画面の「戻る」。入力内容は保ったまま入力画面に戻る */
+  const handleBackToInput = () => {
+    setBannerMessage(null)
+    goTo('input')
+  }
+
+  /**
+   * 確認画面の「投稿する」。
+   * 入力エラー（400）・ファイルが大きすぎる（413）は入力画面に戻して該当する欄に警告文を出す。
+   * 接続できない・サーバーエラーなど直す項目が無い場合は、もう一度送れるよう確認画面のまま警告文を出す
+   * （新規会員登録と同じ扱い）
+   */
+  const handlePost = async () => {
+    if (!token || submitting) return
     setSubmitting(true)
     setBannerMessage(null)
     try {
-      await createPost(
+      const post = await createPost(
         {
           images: images.map((image) => image.file),
           title: form.title.trim(),
@@ -195,21 +212,32 @@ function PostPage() {
         },
         token,
       )
-      // 投稿の詳細画面ができたら、そちらへ移動する
-      resetAll()
-      setSuccessMessage('投稿しました。')
+      // 投稿の詳細画面ができたら、完了画面ではなくそちらへ移動する（docs/post.md「投稿の流れ（暫定）」）
+      setCreatedPost(post)
+      goTo('complete')
     } catch (err) {
       if (err instanceof ApiError && (err.status === 400 || err.status === 413) && err.body) {
-        // 入力エラー・ファイルが大きすぎる場合は、該当する欄に警告文を出す
         setFieldErrors(err.body.errors as PostFieldErrors)
         setBannerMessage(err.body.message)
+        goTo('input')
       } else {
         setBannerMessage(err instanceof Error ? err.message : String(err))
+        window.scrollTo({ top: 0 })
       }
     } finally {
       setSubmitting(false)
-      window.scrollTo({ top: 0 })
     }
+  }
+
+  /** 完了画面の「続けて投稿する」。空の入力画面に戻す */
+  const handleContinue = () => {
+    imagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl))
+    setImages([])
+    setForm(EMPTY_FORM)
+    setFieldErrors({})
+    setBannerMessage(null)
+    setCreatedPost(null)
+    goTo('input')
   }
 
   // 直接 /post を開いた場合は戻る先が無いため、ホームへ移動する
@@ -239,6 +267,24 @@ function PostPage() {
 
   const { fashionCategories, tags: officialTags } = masters.masters
   const selectedFashion = fashionCategories.find((c) => c.id === form.fashionCategoryId)
+
+  if (step === 'complete' && createdPost) {
+    return <PostComplete post={createdPost} onContinue={handleContinue} onHome={() => navigate('/')} />
+  }
+
+  if (step === 'confirm') {
+    return (
+      <PostConfirm
+        images={images}
+        form={form}
+        fashionName={selectedFashion?.name ?? ''}
+        bannerMessage={bannerMessage}
+        submitting={submitting}
+        onBack={handleBackToInput}
+        onPost={handlePost}
+      />
+    )
+  }
 
   if (panel === 'fashion') {
     return (
@@ -322,13 +368,8 @@ function PostPage() {
     <main className="post-page">
       <PageHeader onBack={handleBack} />
 
-      <form className="post-body" noValidate onSubmit={handleSubmit}>
+      <form className="post-body" noValidate onSubmit={handleConfirm}>
         {bannerMessage && <ErrorBanner message={bannerMessage} />}
-        {successMessage && (
-          <div className="auth-banner auth-banner-success" role="status">
-            <p>{successMessage}</p>
-          </div>
-        )}
 
         <ImagePicker
           images={images}
@@ -406,8 +447,8 @@ function PostPage() {
         </div>
 
         <div className="post-footer">
-          <button type="submit" className="post-button post-button-primary" disabled={submitting}>
-            {submitting ? '投稿中...' : '投稿'}
+          <button type="submit" className="post-button post-button-primary">
+            確認
           </button>
         </div>
       </form>
