@@ -1,0 +1,279 @@
+/* ログイン・新規会員登録の共通スタイル（design/SignUp.png ほか） */
+
+.auth-page {
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 96px 24px 48px;
+  box-sizing: border-box;
+}
+
+.auth-logo {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: 0.45em;
+  /* letter-spacing は最後の文字の後ろにも付くため、その分だけ左に寄せて中央をそろえる */
+  text-indent: 0.45em;
+  text-align: center;
+  color: var(--color-text);
+}
+
+.auth-subtitle {
+  margin: 12px 0 28px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--color-text);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-field {
+  margin-bottom: 18px;
+}
+
+.auth-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--color-text);
+}
+
+.auth-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.auth-input::placeholder {
+  color: #9a948c;
+}
+
+.auth-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.auth-input-error {
+  border-color: var(--color-error);
+}
+
+.auth-field-error {
+  margin: 6px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-error);
+}
+
+.auth-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.auth-actions-split {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auth-actions-split .auth-button {
+  flex: 1;
+}
+
+.auth-button {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.auth-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-button-primary {
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.auth-button-secondary {
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  color: var(--color-text);
+}
+
+.auth-footer {
+  margin: 28px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.auth-link {
+  margin-left: 8px;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-banner {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid #ecc9c3;
+  border-radius: 3px;
+  background: #f7e7e4;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-error);
+}
+
+.auth-banner p {
+  margin: 0;
+}
+
+.auth-banner-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.auth-banner-success {
+  border-color: #c9d9c3;
+  background: #e8f0e4;
+  color: #3d6b2f;
+}
+
+.auth-confirm-list {
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.auth-confirm-row {
+  padding: 12px 14px;
+}
+
+.auth-confirm-row + .auth-confirm-row {
+  border-top: 1px solid #efebe5;
+}
+
+.auth-confirm-row dt {
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.auth-confirm-row dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.auth-note {
+  margin: 24px 0 16px;
+  font-size: 11px;
+  line-height: 1.8;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* ---- ログイン画面（design/Login.png） ---- */
+
+/* ログイン画面はサブタイトルが無いため、ロゴの下を広めに空ける */
+.auth-logo-spaced {
+  margin-bottom: 40px;
+}
+
+.auth-field-tight {
+  margin-bottom: 10px;
+}
+
+.auth-forgot {
+  margin-bottom: 20px;
+}
+
+/* リンクの見た目のボタン（遷移先が無い操作に使う） */
+.auth-text-button {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.auth-text-button:hover {
+  text-decoration: underline;
+}
+
+.auth-forgot-notice {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.auth-button-wide {
+  min-width: 112px;
+}
+
+.auth-footer-spaced {
+  margin: 48px 0 12px;
+}
+
+/* 枠線だけのボタン。Link（a 要素）にも使うため中央寄せを指定する */
+.auth-button-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--color-text);
+  background: #fff;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+/* ---- 仮のホーム画面（HomePage.tsx。ホーム機能の実装時に削除する） ---- */
+
+.auth-home-actions {
+  margin-top: 48px;
+}
