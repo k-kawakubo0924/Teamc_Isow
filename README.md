@@ -90,6 +90,9 @@ npm run dev
 | `SERVER_PORT` | backend の待受ポート | `8080` |
 | `FRONTEND_ORIGIN` | CORS許可オリジン（frontend の URL） | `http://localhost:5173` |
 | `JWT_SECRET` | JWT の署名用秘密鍵。32バイト以上のランダム値を Base64 で指定（生成方法は「1. 環境変数の設定」参照） | なし（必須） |
+| `IMAGE_STORAGE` | 画像の保存先。`local` はサーバーのローカルフォルダ（開発用）。公開時はクラウドストレージ（R2 など）の実装を追加して切り替える | `local` |
+| `IMAGE_LOCAL_DIR` | `local` の場合の保存先フォルダ（`backend/` からの相対パス。`backend/uploads/` は .gitignore 済み） | `./uploads` |
+| `IMAGE_PUBLIC_BASE_URL` | `local` の場合に、ブラウザから画像を表示する URL の先頭部分（`/uploads/**` で配信） | `http://localhost:<SERVER_PORT>/uploads` |
 
 ### `frontend/.env`
 

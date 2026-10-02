@@ -5,6 +5,8 @@
 
 ### Backend (Maven / Java) ###
 backend/target/
+# 開発中にアップロードされた画像（app.image.local.dir の既定の保存先）
+backend/uploads/
 *.class
 *.jar
 !.mvn/wrapper/maven-wrapper.jar

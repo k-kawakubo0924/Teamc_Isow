@@ -3,6 +3,7 @@ package com.teamc.isow.backend.common;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
+import com.teamc.isow.backend.image.InvalidImageException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -49,6 +50,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiErrorResponse handleInvalidCredentials(InvalidCredentialsException e) {
         return new ApiErrorResponse("メールアドレスまたはパスワードが正しくありません。入力内容をご確認ください。", Map.of());
+    }
+
+    /** 画像の形式・サイズなどが条件を満たさない。理由は例外の message（画面にそのまま表示できる文言） */
+    @ExceptionHandler(InvalidImageException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleInvalidImage(InvalidImageException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
     }
 
     /** トークンなし・不正なトークンと同じく、本文なしの 401 を返す */
