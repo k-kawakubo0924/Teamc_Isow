@@ -153,6 +153,26 @@ class PostCreateApiTest {
     }
 
     @Test
+    void 同じ名前の手入力タグは_別の投稿でも同じ投稿の中でも1つしか登録されない() throws Exception {
+        String first = mockMvc.perform(validRequest(token, kireime.getId()).param("tags", "ワイドパンツ", "ワイドパンツ"))
+                .andExpect(status().isCreated())
+                // 同じ投稿の中で2回指定しても、付くのは1つ
+                .andExpect(jsonPath("$.tags[*].name").value(contains("古着", "ワイドパンツ")))
+                .andReturn().getResponse().getContentAsString();
+        String second = mockMvc.perform(validRequest(token, kireime.getId()).param("tags", "ワイドパンツ"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Integer firstTagId = JsonPath.read(first, "$.tags[1].id");
+        Integer secondTagId = JsonPath.read(second, "$.tags[1].id");
+        assertThat(secondTagId).isEqualTo(firstTagId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM tags WHERE name = 'ワイドパンツ'", Integer.class)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT is_official FROM tags WHERE name = 'ワイドパンツ'", Boolean.class)).isFalse();
+    }
+
+    @Test
     void 公式タグを指定した場合は既存のタグが使われる() throws Exception {
         Long furugiId = jdbcTemplate.queryForObject("SELECT id FROM tags WHERE name = '古着'", Long.class);
         int tagCount = countTags();
@@ -200,6 +220,21 @@ class PostCreateApiTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.title").value("題名を入力してください"))
                 .andExpect(jsonPath("$.errors.description").value("投稿説明を入力してください"));
+    }
+
+    @Test
+    void 他の項目が正しくても写真が0枚ならエラー() throws Exception {
+        perform(multipart("/api/posts")
+                        .param("title", "秋の羽織りもの")
+                        .param("fashionCategoryId", String.valueOf(kireime.getId()))
+                        .param("tags", "古着")
+                        .param("description", "説明")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.images").value("写真を1枚以上選択してください"))
+                // 写真以外の項目にはエラーが出ない
+                .andExpect(jsonPath("$.errors.length()").value(1));
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM posts", Integer.class)).isZero();
     }
 
     @Test
