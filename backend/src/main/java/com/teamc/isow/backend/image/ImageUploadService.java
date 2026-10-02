@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -11,6 +12,8 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.MemoryCacheImageInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,6 +32,8 @@ public class ImageUploadService {
 
     private static final String INVALID_FORMAT_MESSAGE = "JPEG または PNG の画像を選択してください。";
 
+    private static final Logger log = LoggerFactory.getLogger(ImageUploadService.class);
+
     private final ImageStorage storage;
     private final long maxFileSizeBytes;
 
@@ -38,12 +43,21 @@ public class ImageUploadService {
     }
 
     /**
-     * 画像を検証して保存し、ブラウザから表示できる URL を返す。
-     * ファイル名は元の名前を使わず、推測できない名前（乱数）に実際の形式の拡張子を付けたものにする。
+     * 画像を検証して保存し、ブラウザから表示できる URL を返す（prepare() と store() をまとめて行う）。
      *
      * @throws InvalidImageException 画像の条件を満たさない場合（message は画面にそのまま表示できる）
      */
     public String upload(MultipartFile file) {
+        return store(prepare(file));
+    }
+
+    /**
+     * 画像を検証し、保存できる状態にする（まだ保存はしない）。
+     * 複数の画像をまとめて扱う場合に、すべての検証が通ってから保存するために使う。
+     *
+     * @throws InvalidImageException 画像の条件を満たさない場合（message は画面にそのまま表示できる）
+     */
+    public PreparedImage prepare(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new InvalidImageException("画像を選択してください。");
         }
@@ -68,9 +82,40 @@ public class ImageUploadService {
             throw new InvalidImageException(INVALID_FORMAT_MESSAGE);
         }
         verifyReadable(content, declared);
+        return new PreparedImage(content, declared.extension, declared.mimeType);
+    }
 
-        String fileName = UUID.randomUUID().toString().replace("-", "") + "." + declared.extension;
-        return storage.store(fileName, content, declared.mimeType);
+    /**
+     * prepare() で検証済みの画像を保存し、ブラウザから表示できる URL を返す。
+     * ファイル名は元の名前を使わず、推測できない名前（乱数）に実際の形式の拡張子を付けたものにする。
+     */
+    public String store(PreparedImage image) {
+        String fileName = UUID.randomUUID().toString().replace("-", "") + "." + image.extension();
+        return storage.store(fileName, image.content(), image.mimeType());
+    }
+
+    /**
+     * 保存済みの画像を削除する（登録が途中で失敗したときの後始末に使う）。
+     * 元のエラーを優先して返すため、削除に失敗しても例外は投げず、ログに残す
+     */
+    public void deleteQuietly(List<String> urls) {
+        for (String url : urls) {
+            try {
+                storage.delete(url);
+            } catch (RuntimeException e) {
+                log.warn("画像を削除できませんでした（手動で削除が必要）: {}", url, e);
+            }
+        }
+    }
+
+    /**
+     * 検証済みの画像（prepare() の戻り値）。
+     *
+     * @param content 画像の中身
+     * @param extension 保存するファイルに付ける拡張子（実際の中身から判定したもの）
+     * @param mimeType MIME タイプ（実際の中身から判定したもの）
+     */
+    public record PreparedImage(byte[] content, String extension, String mimeType) {
     }
 
     /** 拡張子と MIME タイプが、どちらも同じ対応形式を示していること */

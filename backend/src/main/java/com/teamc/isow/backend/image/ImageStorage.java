@@ -17,4 +17,10 @@ public interface ImageStorage {
      * @param contentType 画像の MIME タイプ（実際の中身から判定したもの）
      */
     String store(String fileName, byte[] content, String contentType);
+
+    /**
+     * store() が返した URL の画像を削除する。存在しない場合は何もしない。
+     * 投稿の登録が途中で失敗したときに、保存済みの画像を残さないために使う。
+     */
+    void delete(String url);
 }

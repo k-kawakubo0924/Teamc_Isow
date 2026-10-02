@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.tag;
 
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +11,9 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
 
     /** TagNameNormalizer.key() で正規化済みの値で渡すこと */
     boolean existsByNormalizedName(String normalizedName);
+
+    /** TagNameNormalizer.key() で正規化済みの値で渡すこと */
+    List<Tag> findByNormalizedNameIn(Collection<String> normalizedNames);
 
     /** 選択肢として出す公式タグ（有効なもの）を、並び順・ID順で返す */
     List<Tag> findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc();

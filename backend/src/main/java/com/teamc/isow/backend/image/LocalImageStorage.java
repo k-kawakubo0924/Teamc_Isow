@@ -32,11 +32,7 @@ public class LocalImageStorage implements ImageStorage {
 
     @Override
     public String store(String fileName, byte[] content, String contentType) {
-        Path target = baseDir.resolve(fileName).normalize();
-        // ファイル名はこちらで生成しているが、念のため保存先フォルダの外を指していないか確認する
-        if (!target.getParent().equals(baseDir)) {
-            throw new IllegalArgumentException("不正なファイル名です: " + fileName);
-        }
+        Path target = resolve(fileName);
         try {
             // 同じ名前のファイルがあっても上書きしない（名前は乱数なので通常は起こらない）
             Files.write(target, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
@@ -44,6 +40,28 @@ public class LocalImageStorage implements ImageStorage {
             throw new UncheckedIOException("画像を保存できませんでした", e);
         }
         return publicBaseUrl + "/" + fileName;
+    }
+
+    @Override
+    public void delete(String url) {
+        String prefix = publicBaseUrl + "/";
+        if (url == null || !url.startsWith(prefix)) {
+            throw new IllegalArgumentException("この保存先の URL ではありません: " + url);
+        }
+        try {
+            Files.deleteIfExists(resolve(url.substring(prefix.length())));
+        } catch (IOException e) {
+            throw new UncheckedIOException("画像を削除できませんでした: " + url, e);
+        }
+    }
+
+    /** 保存先フォルダ直下のファイルを指していることを確認する（../ などでフォルダの外を指させない） */
+    private Path resolve(String fileName) {
+        Path target = baseDir.resolve(fileName).normalize();
+        if (!baseDir.equals(target.getParent())) {
+            throw new IllegalArgumentException("不正なファイル名です: " + fileName);
+        }
+        return target;
     }
 
     /** 保存先フォルダ（配信の設定で使う） */
