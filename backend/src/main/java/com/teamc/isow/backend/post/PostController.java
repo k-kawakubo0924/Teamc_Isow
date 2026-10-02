@@ -5,9 +5,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,5 +30,20 @@ public class PostController {
     @ResponseStatus(HttpStatus.CREATED)
     public PostResponse create(@AuthenticationPrincipal Jwt jwt, @Valid @ModelAttribute PostCreateRequest request) {
         return postService.create(jwt.getSubject(), request);
+    }
+
+    /** 自分の投稿一覧（新しい順）。/{id} より優先される（文字どおり一致するパスが優先） */
+    @GetMapping("/me")
+    public PostListResponse myPosts(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return postService.listMine(jwt.getSubject(), page, size);
+    }
+
+    /** 投稿1件の詳細。id は数字のみ（それ以外は URL が一致せず 404） */
+    @GetMapping("/{id:\\d+}")
+    public PostResponse get(@PathVariable Long id) {
+        return postService.get(id);
     }
 }

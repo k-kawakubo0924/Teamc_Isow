@@ -20,15 +20,18 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 投稿の作成。
+ * 投稿の作成・取得。
  *
- * <p>画像の保存（ファイル）は DB のトランザクションに含められないため、次の順に進め、途中で失敗しても中途半端な状態を残さない。
+ * <p>作成時、画像の保存（ファイル）は DB のトランザクションに含められないため、次の順に進め、途中で失敗しても中途半端な状態を残さない。
  * <ol>
  *   <li>すべての入力を確認する（ここではまだ何も保存しない）</li>
  *   <li>画像を保存する。途中で失敗したら、保存済みの画像を削除する</li>
@@ -41,6 +44,9 @@ public class PostService {
     private static final Logger log = LoggerFactory.getLogger(PostService.class);
 
     private static final String FASHION_CATEGORY_MESSAGE = "ファッションの種類を選択してください";
+
+    /** 投稿一覧の1ページあたりの件数の上限 */
+    static final int MAX_PAGE_SIZE = 50;
 
     private final PostRepository postRepository;
     private final UserRepository userRepository;
@@ -157,6 +163,36 @@ public class PostService {
                 imageUrls,
                 tags));
         return PostResponse.from(post);
+    }
+
+    /**
+     * 投稿1件の詳細。ログインしていれば誰の投稿でも取得できる（公開範囲は docs/post.md で未確定のため全体公開として扱う）
+     *
+     * @throws PostNotFoundException 投稿が存在しない場合
+     */
+    @Transactional(readOnly = true)
+    public PostResponse get(Long id) {
+        return postRepository.findById(id)
+                .map(PostResponse::from)
+                .orElseThrow(() -> new PostNotFoundException(id));
+    }
+
+    /**
+     * ログイン中のユーザーの投稿一覧（新しい順）。
+     * page は 0 から。範囲外の page・size はエラーにせず、0 以上・1〜MAX_PAGE_SIZE に丸める
+     */
+    @Transactional(readOnly = true)
+    public PostListResponse listMine(String subject, int page, int size) {
+        Long authorId = authService.requireCurrentUser(subject).getId();
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        Slice<Post> posts = postRepository.findByAuthorIdOrderByCreatedAtDescIdDesc(
+                authorId, PageRequest.of(safePage, safeSize));
+        return new PostListResponse(
+                posts.getContent().stream().map(PostResponse::from).toList(),
+                safePage,
+                safeSize,
+                posts.hasNext());
     }
 
     /** 選択肢として出しているもの（有効なもの）だけを受け付ける */

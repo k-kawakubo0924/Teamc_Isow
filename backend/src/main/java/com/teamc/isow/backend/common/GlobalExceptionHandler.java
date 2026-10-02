@@ -4,6 +4,7 @@ import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
 import com.teamc.isow.backend.image.InvalidImageException;
+import com.teamc.isow.backend.post.PostNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +46,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleInputValidation(InputValidationException e) {
         return new ApiErrorResponse(INVALID_INPUT_MESSAGE, e.getErrors());
+    }
+
+    @ExceptionHandler(PostNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handlePostNotFound(PostNotFoundException e) {
+        return new ApiErrorResponse("投稿が見つかりません。", Map.of());
     }
 
     /** multipart の上限（spring.servlet.multipart.*）を超えた。画面側でも送信前にサイズを確認すること */
