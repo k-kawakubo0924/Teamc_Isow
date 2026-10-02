@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.config;
 
+import com.teamc.isow.backend.image.LocalImageWebConfig;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -17,7 +18,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * 認証・認可の設定。
- * 疎通確認・新規会員登録・ログインのみ認証なしで許可し、それ以外は JWT（Authorization: Bearer）による認証を必須とする。
+ * 疎通確認・新規会員登録・ログイン・保存した画像の表示のみ認証なしで許可し、それ以外は JWT（Authorization: Bearer）による認証を必須とする。
  */
 @Configuration
 public class SecurityConfig {
@@ -35,6 +36,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                // 保存した画像（ローカル保存時）。<img> タグからの読み込みには認証ヘッダーを付けられないため許可する
+                // （ファイル名は推測できない乱数。クラウドストレージの公開 URL と同じ扱い）
+                .requestMatchers(HttpMethod.GET, LocalImageWebConfig.URL_PATH + "**").permitAll()
                 // サーバー内部エラーの応答が認証エラー(401)に置き換わらないよう、エラー画面は許可する
                 .requestMatchers("/error").permitAll()
                 .anyRequest().authenticated()

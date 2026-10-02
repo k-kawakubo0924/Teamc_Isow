@@ -63,9 +63,16 @@ public class AuthService {
      * トークンは正しいがユーザーが存在しない場合（退会後のトークンなど）は未認証として扱う。
      */
     public UserResponse currentUser(String subject) {
+        return UserResponse.from(requireCurrentUser(subject));
+    }
+
+    /**
+     * トークンの sub（ユーザーID）からログイン中のユーザーを返す（他の機能からも使う）。
+     * ユーザーが存在しない場合は UnknownTokenUserException（未認証として 401 になる）。
+     */
+    public User requireCurrentUser(String subject) {
         return parseUserId(subject)
                 .flatMap(userRepository::findById)
-                .map(UserResponse::from)
                 .orElseThrow(UnknownTokenUserException::new);
     }
 
