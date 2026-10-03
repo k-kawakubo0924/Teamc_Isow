@@ -43,6 +43,14 @@ export function getJson<T>(path: string, token?: string | null, signal?: AbortSi
   })
 }
 
+/** 本文なしで POST / DELETE を送り、JSON の応答を受け取る（いいね・お気に入りのように、URL だけで操作が決まる API 用） */
+export function sendWithToken<T>(method: 'POST' | 'DELETE', path: string, token: string): Promise<T> {
+  return request<T>(path, {
+    method,
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
 /**
  * multipart/form-data で送る（画像ファイルを含む送信用）。
  * Content-Type はブラウザが境界文字列（boundary）付きで設定するため、指定しない

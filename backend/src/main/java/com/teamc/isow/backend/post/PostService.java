@@ -8,6 +8,8 @@ import com.teamc.isow.backend.image.ImageUploadService.PreparedImage;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
+import com.teamc.isow.backend.reaction.ReactionSummary;
+import com.teamc.isow.backend.reaction.ReactionSummaryService;
 import com.teamc.isow.backend.tag.Tag;
 import com.teamc.isow.backend.tag.TagService;
 import com.teamc.isow.backend.user.User;
@@ -54,6 +56,7 @@ public class PostService {
     private final TagService tagService;
     private final ImageUploadService imageUploadService;
     private final AuthService authService;
+    private final ReactionSummaryService reactionSummaryService;
     private final TransactionTemplate transactionTemplate;
 
     public PostService(
@@ -63,6 +66,7 @@ public class PostService {
             TagService tagService,
             ImageUploadService imageUploadService,
             AuthService authService,
+            ReactionSummaryService reactionSummaryService,
             PlatformTransactionManager transactionManager) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
@@ -70,6 +74,7 @@ public class PostService {
         this.tagService = tagService;
         this.imageUploadService = imageUploadService;
         this.authService = authService;
+        this.reactionSummaryService = reactionSummaryService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -162,7 +167,8 @@ public class PostService {
                 request.referenceUrl(),
                 imageUrls,
                 tags));
-        return PostResponse.from(post);
+        // 作成した直後のため、いいね・お気に入りはまだない
+        return PostResponse.from(post, ReactionSummary.NONE);
     }
 
     /**
@@ -171,10 +177,10 @@ public class PostService {
      * @throws PostNotFoundException 投稿が存在しない場合
      */
     @Transactional(readOnly = true)
-    public PostResponse get(Long id) {
-        return postRepository.findById(id)
-                .map(PostResponse::from)
-                .orElseThrow(() -> new PostNotFoundException(id));
+    public PostResponse get(String subject, Long id) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
+        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id));
     }
 
     /**
@@ -188,8 +194,11 @@ public class PostService {
         int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
         Slice<Post> posts = postRepository.findByAuthorIdOrderByCreatedAtDescIdDesc(
                 authorId, PageRequest.of(safePage, safeSize));
+        // いいね・お気に入りは投稿ごとではなく、ページ分をまとめて調べる（N+1 問題を防ぐ）
+        Map<Long, ReactionSummary> reactions = reactionSummaryService.summarize(
+                authorId, posts.getContent().stream().map(Post::getId).toList());
         return new PostListResponse(
-                posts.getContent().stream().map(PostResponse::from).toList(),
+                posts.getContent().stream().map(post -> PostResponse.from(post, reactions.get(post.getId()))).toList(),
                 safePage,
                 safeSize,
                 posts.hasNext());

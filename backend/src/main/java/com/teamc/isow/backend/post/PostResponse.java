@@ -1,15 +1,19 @@
 package com.teamc.isow.backend.post;
 
+import com.teamc.isow.backend.reaction.ReactionSummary;
 import com.teamc.isow.backend.tag.Tag;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
 /**
- * 投稿の内容（投稿の作成・詳細・一覧で共通）。
+ * 投稿の内容（投稿の作成・詳細・自分の投稿一覧で共通）。
  *
  * @param tags タグ（ID 順）
  * @param imageUrls 写真の URL（表示順。1枚目がサムネイル）
+ * @param likeCount いいね件数（公開情報）
+ * @param likedByMe ログイン中のユーザーがいいねしているか
+ * @param favoritedByMe ログイン中のユーザーがお気に入りにしているか（本人にだけ返す）
  */
 public record PostResponse(
         Long id,
@@ -21,10 +25,16 @@ public record PostResponse(
         String referenceUrl,
         List<String> imageUrls,
         AuthorResponse author,
+        long likeCount,
+        boolean likedByMe,
+        boolean favoritedByMe,
         LocalDateTime createdAt) {
 
-    /** 遅延読み込みの項目を使うため、トランザクションの中で呼ぶこと */
-    public static PostResponse from(Post post) {
+    /**
+     * 遅延読み込みの項目を使うため、トランザクションの中で呼ぶこと。
+     * reactions は ReactionSummaryService でまとめて調べたもの（一覧で投稿ごとに SQL を発行しないため）
+     */
+    public static PostResponse from(Post post, ReactionSummary reactions) {
         return new PostResponse(
                 post.getId(),
                 post.getTitle(),
@@ -39,6 +49,9 @@ public record PostResponse(
                 post.getReferenceUrl(),
                 post.getImages().stream().map(PostImage::getImageUrl).toList(),
                 new AuthorResponse(post.getAuthor().getId(), post.getAuthor().getUsername()),
+                reactions.likeCount(),
+                reactions.likedByMe(),
+                reactions.favoritedByMe(),
                 post.getCreatedAt());
     }
 
