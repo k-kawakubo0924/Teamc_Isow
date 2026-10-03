@@ -67,5 +67,13 @@ export function useTimeline(tab: TimelineTab, token: string | null) {
     setState((prev) => ({ ...prev, status: 'idle', errorMessage: null }))
   }, [])
 
-  return { state, loadMore, retry }
+  /** 表示中の1件の一部を書き換える（いいね・お気に入りを押したときの反映に使う） */
+  const updatePost = useCallback((postId: number, patch: Partial<TimelineItem>) => {
+    setState((prev) => ({
+      ...prev,
+      posts: prev.posts.map((post) => (post.id === postId ? { ...post, ...patch } : post)),
+    }))
+  }, [])
+
+  return { state, loadMore, retry, updatePost }
 }

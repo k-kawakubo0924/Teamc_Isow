@@ -59,15 +59,46 @@
 
 /* ---- タブ ---- */
 
-.home-tabs {
+/* タブと表示列の切り替えを並べた行。スクロールしても画面上部に残す */
+.home-toolbar {
   position: sticky;
   top: 0;
   z-index: 5;
   display: flex;
-  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
   padding: 0 16px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg);
+}
+
+.home-tabs {
+  display: flex;
+  gap: 20px;
+}
+
+.home-columns {
+  display: flex;
+  gap: 2px;
+}
+
+.home-columns-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.home-columns-active {
+  background: var(--color-border);
+  color: var(--color-text);
 }
 
 .home-tab {
@@ -96,11 +127,24 @@
 
 .home-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* 表示列（1列・3列は写真のみ） */
+.home-grid-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.home-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.home-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
 }
 
 .home-card {
@@ -162,7 +206,13 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  padding: 2px;
+  border: none;
+  background: none;
+  font-family: inherit;
   font-size: 11px;
+  color: inherit;
+  cursor: pointer;
 }
 
 /* いいね済み・お気に入り済みは塗りつぶしたアイコンにする */
@@ -195,6 +245,23 @@
   font-weight: 700;
   color: var(--color-text);
   cursor: pointer;
+}
+
+/* いいね・お気に入りに失敗したときの通知。下部ナビゲーションの上に数秒だけ出す */
+.home-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 84px;
+  left: 16px;
+  z-index: 20;
+  max-width: 358px;
+  margin: 0 auto;
+  padding: 10px 14px;
+  border-radius: 3px;
+  background: rgba(43, 39, 36, 0.92);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #fff;
 }
 
 /* 無限スクロールの目印。見えなくてよいが、画面内に入ったことを判定できるよう高さを持たせる */

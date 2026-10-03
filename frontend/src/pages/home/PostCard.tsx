@@ -1,38 +1,54 @@
 import type { TimelineItem } from '../../api/posts'
 
-/**
- * ホームの投稿一覧の1件（design/home.png のカード）。
- * いいね・お気に入りは、今は状態の表示だけ（押せるようにするのは次の段階）
- */
-export function PostCard({ post }: { post: TimelineItem }) {
+type Props = {
+  post: TimelineItem
+  /** false なら写真のみ（1列・3列のとき。docs/home.md） */
+  detailed: boolean
+  onToggleLike: () => void
+  onToggleFavorite: () => void
+}
+
+/** ホームの投稿一覧の1件（design/home.png のカード） */
+export function PostCard({ post, detailed, onToggleLike, onToggleFavorite }: Props) {
   const { author, fashionCategory } = post
+  const photo = (
+    <img className="home-card-photo" src={post.thumbnailUrl} alt={`@${author.username} の投稿`} loading="lazy" />
+  )
+  if (!detailed) {
+    return <article className="home-card">{photo}</article>
+  }
+
   // 身長が未設定なら表示を省く（docs/home.md）
   const meta = author.heightCm === null ? fashionCategory.name : `${author.heightCm}cm ・ ${fashionCategory.name}`
 
   return (
     <article className="home-card">
-      <img className="home-card-photo" src={post.thumbnailUrl} alt={`@${author.username} の投稿`} loading="lazy" />
+      {photo}
       <div className="home-card-body">
         <div className="home-card-text">
           <p className="home-card-username">@{author.username}</p>
           <p className="home-card-meta">{meta}</p>
         </div>
         <div className="home-card-actions">
-          <span
+          <button
+            type="button"
             className={`home-card-like${post.likedByMe ? ' home-card-active' : ''}`}
-            role="img"
-            aria-label={`いいね ${post.likeCount}件${post.likedByMe ? '（いいね済み）' : ''}`}
+            aria-pressed={post.likedByMe}
+            aria-label={`いいね（${post.likeCount}件）`}
+            onClick={onToggleLike}
           >
             <HeartIcon filled={post.likedByMe} />
             <span aria-hidden="true">{post.likeCount}</span>
-          </span>
-          <span
+          </button>
+          <button
+            type="button"
             className={`home-card-favorite${post.favoritedByMe ? ' home-card-active' : ''}`}
-            role="img"
-            aria-label={post.favoritedByMe ? 'お気に入り登録済み' : 'お気に入り未登録'}
+            aria-pressed={post.favoritedByMe}
+            aria-label="お気に入り"
+            onClick={onToggleFavorite}
           >
             <StarIcon filled={post.favoritedByMe} />
-          </span>
+          </button>
         </div>
       </div>
     </article>
