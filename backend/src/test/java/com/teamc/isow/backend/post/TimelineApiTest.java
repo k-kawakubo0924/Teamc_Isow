@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.post;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
@@ -226,6 +227,23 @@ class TimelineApiTest {
                 .andExpect(jsonPath("$.posts[0].likeCount").value(2))
                 .andExpect(jsonPath("$.posts[0].likedByMe").value(false))
                 .andExpect(jsonPath("$.posts[0].favoritedByMe").value(true));
+    }
+
+    @Test
+    void 他人のお気に入りは詳細と自分の投稿一覧でも漏れない() throws Exception {
+        // 自分の投稿を他人がお気に入りにしている（投稿者本人にも見せない）
+        Post mine = save(me, "http://localhost/uploads/mine.jpg");
+        favoriteRepository.save(new PostFavorite(other1, mine));
+        favoriteRepository.save(new PostFavorite(other2, mine));
+
+        for (String url : new String[] {"/api/posts/" + mine.getId(), "/api/posts/me", "/api/posts?tab=latest"}) {
+            String body = getWithToken(url).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            // 自分はお気に入りにしていないので false。誰がお気に入りにしたか・何件かも返さない
+            assertThat(body).contains("\"favoritedByMe\":false")
+                    .doesNotContain("\"favoritedByMe\":true")
+                    .doesNotContain("favoriteCount")
+                    .doesNotContain("timeline_other");
+        }
     }
 
     private Post save(User author, String... imageUrls) {
