@@ -39,6 +39,13 @@ public class User {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
+    /**
+     * 身長（cm）。任意で、未設定は null（docs/profile.md）。
+     * 入力と範囲のチェックはプロフィール編集で行う。ホームの投稿一覧などに表示する
+     */
+    @Column(name = "height_cm")
+    private Integer heightCm;
+
     /** 登録日時 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -88,6 +95,10 @@ public class User {
 
     public String getUsername() {
         return username;
+    }
+
+    public Integer getHeightCm() {
+        return heightCm;
     }
 
     public LocalDateTime getCreatedAt() {
