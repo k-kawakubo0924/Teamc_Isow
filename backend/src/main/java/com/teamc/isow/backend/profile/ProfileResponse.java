@@ -13,6 +13,7 @@ import com.teamc.isow.backend.user.User;
  * @param ageGroup 年代の code（GET /api/masters の ageGroups と同じ）
  * @param bodyType 骨格タイプ（GET /api/masters の bodyTypes と同じ形）
  * @param personalColor パーソナルカラー（GET /api/masters の personalColors と同じ形）
+ * @param postCount 投稿の件数（プロフィールの「投稿 〇件」）
  * @param followingCount フォロー中の件数（有効なフォローのみ）
  * @param followerCount フォロワーの件数（有効なフォローのみ）
  * @param me ログイン中のユーザー自身のプロフィールか（「編集」と「フォロー」のどちらのボタンを出すかに使う）
@@ -28,6 +29,7 @@ public record ProfileResponse(
         AgeGroup ageGroup,
         MasterOption bodyType,
         MasterOption personalColor,
+        long postCount,
         long followingCount,
         long followerCount,
         boolean me,
@@ -37,7 +39,8 @@ public record ProfileResponse(
      * bodyType・personalColor は読み込み済みであること（UserRepository.findWithProfileById）。
      * followingByMe は自分のプロフィールなら null を渡す
      */
-    static ProfileResponse of(User user, long followingCount, long followerCount, Boolean followingByMe) {
+    static ProfileResponse of(
+            User user, long postCount, long followingCount, long followerCount, Boolean followingByMe) {
         return new ProfileResponse(
                 user.getId(),
                 user.getUsername(),
@@ -48,6 +51,7 @@ public record ProfileResponse(
                 user.getAgeGroup(),
                 user.getBodyType() == null ? null : MasterOption.from(user.getBodyType()),
                 user.getPersonalColor() == null ? null : MasterOption.from(user.getPersonalColor()),
+                postCount,
                 followingCount,
                 followerCount,
                 followingByMe == null,

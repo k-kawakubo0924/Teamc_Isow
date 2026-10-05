@@ -106,19 +106,24 @@ class ProfileQueryCountTest {
         createPosts(5);
         long posts5 = countSql(() -> profileService.listPosts(subject, other.getId(), 0, 20), 5);
         long favorites5 = countSql(() -> profileService.listMyFavorites(subject, 0, 20), 5);
+        // 自分（me）は other をフォローしているため、other の投稿が出る
+        long following5 = countSql(() -> profileService.listFollowingPosts(subject, me.getId(), 12345, 0, 20), 5);
 
         createPosts(15);
         long posts20 = countSql(() -> profileService.listPosts(subject, other.getId(), 0, 20), 20);
         long favorites20 = countSql(() -> profileService.listMyFavorites(subject, 0, 20), 20);
+        long following20 = countSql(() -> profileService.listFollowingPosts(subject, me.getId(), 12345, 0, 20), 20);
 
         long mine = countSql(() -> profileService.getMine(subject), -1);
         long others = countSql(() -> profileService.get(subject, other.getId()), -1);
 
         System.out.printf(
-                "### SQL の本数: 投稿一覧 %d → %d、お気に入り一覧 %d → %d（5件 → 20件）、自分のプロフィール %d、相手のプロフィール %d%n",
-                posts5, posts20, favorites5, favorites20, mine, others);
+                "### SQL の本数: 投稿一覧 %d → %d、お気に入り一覧 %d → %d、フォロー中の投稿 %d → %d（5件 → 20件）、"
+                        + "自分のプロフィール %d、相手のプロフィール %d%n",
+                posts5, posts20, favorites5, favorites20, following5, following20, mine, others);
         assertThat(posts20).isEqualTo(posts5);
         assertThat(favorites20).isEqualTo(favorites5);
+        assertThat(following20).isEqualTo(following5);
     }
 
     /** 相手の投稿を作り、自分と相手がいいね、自分がお気に入りにする */

@@ -70,6 +70,20 @@ public class ProfileService {
         return toResponse(viewerId, postRepository.findIdsByAuthorId(userId, pageable), pageable);
     }
 
+    /**
+     * 指定したユーザーがフォローしている人の投稿を、ランダムな順で返す（相手のプロフィールの「フォロー中の投稿」）。
+     * seed は画面を開いたときに決めた値で、同じ seed なら何ページ目でも同じ並び順になる。存在しないユーザーは 404
+     */
+    @Transactional(readOnly = true)
+    public PostCardListResponse listFollowingPosts(String subject, Long userId, long seed, int page, int size) {
+        Long viewerId = authService.requireCurrentUser(subject).getId();
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException(userId);
+        }
+        Pageable pageable = PostCardService.pageRequest(page, size);
+        return toResponse(viewerId, postRepository.findIdsByFollowedAuthorsShuffled(userId, seed, pageable), pageable);
+    }
+
     /** ログイン中のユーザーのお気に入り一覧（お気に入りにした新しい順）。お気に入りは本人にだけ見せる */
     @Transactional(readOnly = true)
     public PostCardListResponse listMyFavorites(String subject, int page, int size) {
@@ -83,6 +97,7 @@ public class ProfileService {
         boolean me = viewerId.equals(userId);
         return ProfileResponse.of(
                 user,
+                postRepository.countByAuthorId(userId),
                 followRepository.countByFollowerIdAndActiveTrue(userId),
                 followRepository.countByFolloweeIdAndActiveTrue(userId),
                 me ? null : followRepository.existsActive(viewerId, userId));

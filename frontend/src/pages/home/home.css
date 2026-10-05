@@ -160,10 +160,17 @@
   white-space: nowrap;
 }
 
+/* 投稿者のプロフィールへのリンク */
 .home-card-username {
+  display: block;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text);
+  text-decoration: none;
+}
+
+.home-card-username:hover {
+  text-decoration: underline;
 }
 
 .home-card-meta {

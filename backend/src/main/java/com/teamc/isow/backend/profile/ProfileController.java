@@ -1,6 +1,8 @@
 package com.teamc.isow.backend.profile;
 
+import com.teamc.isow.backend.common.InputValidationException;
 import com.teamc.isow.backend.post.PostCardListResponse;
+import com.teamc.isow.backend.post.PostRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -74,5 +76,22 @@ public class ProfileController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return profileService.listPosts(jwt.getSubject(), userId, page, size);
+    }
+
+    /**
+     * そのユーザーがフォローしている人の投稿（ランダムな順）。
+     * seed は画面を開いたときに 1〜2147483646 の乱数で決め、同じ一覧の次のページでも同じ値を送る
+     */
+    @GetMapping("/{userId:\\d+}/following-posts")
+    public PostCardListResponse followingPosts(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long userId,
+            @RequestParam long seed,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        if (seed < 1 || seed >= PostRepository.SHUFFLE_MODULUS) {
+            throw InputValidationException.of("seed", "並び順の指定が正しくありません");
+        }
+        return profileService.listFollowingPosts(jwt.getSubject(), userId, seed, page, size);
     }
 }

@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import type { TimelineItem } from '../../api/posts'
 
 type Props = {
@@ -26,7 +27,10 @@ export function PostCard({ post, detailed, onToggleLike, onToggleFavorite }: Pro
       {photo}
       <div className="home-card-body">
         <div className="home-card-text">
-          <p className="home-card-username">@{author.username}</p>
+          {/* 押すと投稿者のプロフィールへ（自分の投稿なら /users/{id} から /profile に切り替わる） */}
+          <Link to={`/users/${author.id}`} className="home-card-username">
+            @{author.username}
+          </Link>
           <p className="home-card-meta">{meta}</p>
         </div>
         <div className="home-card-actions">

@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchTimeline, type TimelineItem, type TimelineTab } from '../../api/posts'
+import type { TimelineItem } from '../../api/posts'
 
-export type TimelineState = {
+/** 1ページ分の投稿（ホームの一覧・プロフィールの投稿一覧などで共通） */
+export type PostPage = {
+  posts: TimelineItem[]
+  hasNext: boolean
+}
+
+/** page（0 から）のページを読み込む関数 */
+export type FetchPostPage = (page: number, token: string, signal: AbortSignal) => Promise<PostPage>
+
+export type PostPagesState = {
   posts: TimelineItem[]
   /** 次に読み込むページ番号（0 から） */
   nextPage: number
@@ -10,19 +19,22 @@ export type TimelineState = {
   errorMessage: string | null
 }
 
-const INITIAL_STATE: TimelineState = { posts: [], nextPage: 0, hasNext: true, status: 'idle', errorMessage: null }
+const INITIAL_STATE: PostPagesState = { posts: [], nextPage: 0, hasNext: true, status: 'idle', errorMessage: null }
 
 /**
- * ホームの投稿一覧の読み込み（無限スクロール用）。loadMore を呼ぶたびに次の1ページを読み込み、末尾に足す。
+ * 投稿一覧の読み込み（無限スクロール用）。loadMore を呼ぶたびに次の1ページを読み込み、末尾に足す。
  * - すでに表示している id の投稿は足さない（ページ番号で区切るため、途中で投稿やいいねが増えると重複しうる）
  * - 読み込み中に loadMore が呼ばれても、二重には読み込まない
  * - 失敗したら自動ではやり直さない（retry で再開する）
- * - タブごとにこの hook を使う側の部品を作り直す（key を変える）想定。画面を離れたら読み込みを中断する
+ * - 読み込む一覧（タブ・ユーザー）ごとにこの hook を使う側の部品を作り直す（key を変える）想定。
+ *   fetchPage は最初に渡されたものを使い続ける。画面を離れたら読み込みを中断する
  */
-export function useTimeline(tab: TimelineTab, token: string | null) {
-  const [state, setState] = useState<TimelineState>(INITIAL_STATE)
+export function usePostPages(fetchPage: FetchPostPage, token: string | null) {
+  const [state, setState] = useState<PostPagesState>(INITIAL_STATE)
   const loadingRef = useRef(false)
   const controllerRef = useRef<AbortController | null>(null)
+  // 呼び出し側で毎回作り直される関数でも、読み込みをやり直さないよう最初のものを持っておく
+  const fetchPageRef = useRef(fetchPage)
 
   useEffect(() => () => controllerRef.current?.abort(), [])
 
@@ -33,7 +45,7 @@ export function useTimeline(tab: TimelineTab, token: string | null) {
     controllerRef.current = controller
     setState((prev) => ({ ...prev, status: 'loading', errorMessage: null }))
     try {
-      const page = await fetchTimeline(tab, state.nextPage, token, controller.signal)
+      const page = await fetchPageRef.current(state.nextPage, token, controller.signal)
       setState((prev) => {
         const seen = new Set(prev.posts.map((post) => post.id))
         const added = page.posts.filter((post) => {
@@ -60,7 +72,7 @@ export function useTimeline(tab: TimelineTab, token: string | null) {
     } finally {
       loadingRef.current = false
     }
-  }, [tab, token, state.hasNext, state.status, state.nextPage])
+  }, [token, state.hasNext, state.status, state.nextPage])
 
   /** 「もう一度読み込む」。エラーの状態を解除すると、一覧の末尾が見えていれば読み込みが再開する */
   const retry = useCallback(() => {

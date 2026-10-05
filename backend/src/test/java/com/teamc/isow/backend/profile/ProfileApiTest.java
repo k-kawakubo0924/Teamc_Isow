@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.profile;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -23,8 +24,13 @@ import com.teamc.isow.backend.reaction.PostLikeRepository;
 import com.teamc.isow.backend.tag.TagRepository;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
+import com.jayway.jsonpath.JsonPath;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -211,6 +217,66 @@ class ProfileApiTest {
                 .andExpect(jsonPath("$.posts[1].id").value(older.getId()))
                 .andExpect(jsonPath("$.posts[1].likedByMe").value(false))
                 .andExpect(jsonPath("$.posts[1].favoritedByMe").value(true));
+    }
+
+    @Test
+    void プロフィールは投稿の件数を返す() throws Exception {
+        ProfileTestSupport.savePost(postRepository, fashionCategoryRepository, tagRepository, other, "a");
+        ProfileTestSupport.savePost(postRepository, fashionCategoryRepository, tagRepository, other, "b");
+        ProfileTestSupport.savePost(postRepository, fashionCategoryRepository, tagRepository, third, "c");
+
+        perform("/api/users/" + other.getId()).andExpect(jsonPath("$.postCount").value(2));
+        perform("/api/users/me").andExpect(jsonPath("$.postCount").value(0));
+    }
+
+    @Test
+    void フォロー中の投稿は有効にフォローしている人の投稿だけを返し_同じseedならページをまたいでも重複しない() throws Exception {
+        // other は me と third をフォローしている。me へのフォローは解除済み
+        followRepository.save(new Follow(other, third));
+        Follow unfollowed = followRepository.save(new Follow(other, me));
+        jdbcTemplate.update("UPDATE follows SET active = NULL, unfollowed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                unfollowed.getId());
+        Set<Long> expected = new HashSet<>();
+        for (int i = 0; i < 7; i++) {
+            expected.add(ProfileTestSupport.savePost(
+                    postRepository, fashionCategoryRepository, tagRepository, third, "t" + i).getId());
+        }
+        ProfileTestSupport.savePost(postRepository, fashionCategoryRepository, tagRepository, me, "unfollowed");
+        ProfileTestSupport.savePost(postRepository, fashionCategoryRepository, tagRepository, other, "own");
+
+        List<Long> seed1 = followingPostIds(other, 12345, 3);
+        assertThat(seed1).hasSize(7).doesNotHaveDuplicates();
+        assertThat(new HashSet<>(seed1)).isEqualTo(expected);
+        // 同じ seed なら同じ並び順
+        assertThat(followingPostIds(other, 12345, 3)).isEqualTo(seed1);
+        // 別の seed では並び順が変わる（7件なので、偶然同じ順になることはまずない）
+        assertThat(followingPostIds(other, 987_654_321, 3)).isNotEqualTo(seed1);
+    }
+
+    @Test
+    void フォロー中の投稿のseedが範囲外なら400_存在しないユーザーは404() throws Exception {
+        for (String seed : new String[] {"0", "-1", "2147483647"}) {
+            perform("/api/users/" + other.getId() + "/following-posts?seed=" + seed)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errors.seed").exists());
+        }
+        perform("/api/users/" + (third.getId() + 1000) + "/following-posts?seed=1").andExpect(status().isNotFound());
+    }
+
+    /** フォロー中の投稿を、size 件ずつ最後のページまで読み、ID を順に並べる */
+    private List<Long> followingPostIds(User user, long seed, int size) throws Exception {
+        List<Long> ids = new ArrayList<>();
+        boolean hasNext = true;
+        for (int page = 0; hasNext; page++) {
+            String body = perform("/api/users/" + user.getId() + "/following-posts?seed=" + seed
+                    + "&size=" + size + "&page=" + page)
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            List<Number> pageIds = JsonPath.read(body, "$.posts[*].id");
+            pageIds.forEach(id -> ids.add(id.longValue()));
+            hasNext = JsonPath.read(body, "$.hasNext");
+        }
+        return ids;
     }
 
     @Test
