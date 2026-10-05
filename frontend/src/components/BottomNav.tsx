@@ -62,6 +62,9 @@ const ITEMS: NavItem[] = [
   },
   {
     label: 'プロフィール',
+    // 【仮置き】プロフィール画面（design/myprofile.png）ができるまでは、ログアウトできるよう詳細設定を開く。
+    // プロフィール画面ができたら、その画面の URL に変える（詳細設定はプロフィール右上の三点リーダーから開く）
+    to: '/settings',
     icon: (
       <svg {...ICON_PROPS}>
         <circle cx="12" cy="8.5" r="3.8" />

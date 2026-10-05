@@ -1,0 +1,286 @@
+/* 詳細設定（design/DetailedSettings.png）・プロフィール編集（design/EditProfile.png） */
+
+.settings-page {
+  width: 100%;
+  max-width: 390px;
+  min-height: 100svh;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ---- 見出し ---- */
+
+.settings-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.settings-back {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.settings-title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* プロフィール編集は、見出しを中央に置き、右に「保存」を置く */
+.settings-title-center {
+  text-align: center;
+}
+
+.settings-save {
+  width: 56px;
+  padding: 6px 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.settings-save:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.settings-body {
+  padding: 16px;
+}
+
+.settings-loading {
+  padding: 24px 16px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.settings-banner {
+  padding: 12px 16px 0;
+}
+
+/* ---- 詳細設定のメニュー ---- */
+
+.settings-menu {
+  margin: 16px 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-menu li + li {
+  margin-top: 8px;
+}
+
+/* ログアウトは他の項目と離して置く */
+.settings-menu + .settings-menu {
+  margin-top: 20px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.settings-item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ece6dc;
+  color: var(--color-text);
+}
+
+.settings-item-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-item-arrow {
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+.settings-item-danger {
+  color: var(--color-accent);
+}
+
+.settings-item-danger .settings-item-icon {
+  background: #f3e6e2;
+  color: var(--color-accent);
+}
+
+/* 「準備中です」。画面下に短い時間だけ出す */
+.settings-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--color-text);
+  font-size: 13px;
+  color: #fff;
+  transform: translateX(-50%);
+  transition: opacity 0.2s;
+}
+
+.settings-notice:empty,
+.settings-notice[data-visible='false'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- プロフィール編集 ---- */
+
+.profile-edit-image {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.profile-edit-avatar {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-edit-avatar-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ddd3c5;
+  color: #8a7f72;
+}
+
+.profile-edit-image-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-edit-image-change {
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.profile-edit-image-change[aria-disabled='true'] {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.profile-edit-image-error {
+  margin: 0;
+  padding: 8px 16px 0;
+}
+
+.profile-edit-rows {
+  margin-top: 14px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.profile-edit-row-wrap + .profile-edit-row-wrap {
+  border-top: 1px solid #efebe5;
+}
+
+.profile-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.profile-edit-row-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-edit-required {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-error);
+}
+
+.profile-edit-row-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-edit-row-value-empty {
+  color: var(--color-text-muted);
+}
+
+.profile-edit-row-error .profile-edit-row-label {
+  color: var(--color-error);
+}
+
+.profile-edit-row-arrow {
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+.profile-edit-row-message {
+  margin: 0;
+  padding: 0 16px 10px;
+}

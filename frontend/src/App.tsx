@@ -5,6 +5,8 @@ import HealthCheckPage from './pages/HealthCheckPage'
 import HomePage from './pages/home/HomePage'
 import LoginPage from './pages/LoginPage'
 import PostPage from './pages/post/PostPage'
+import ProfileEditPage from './pages/settings/ProfileEditPage'
+import SettingsPage from './pages/settings/SettingsPage'
 import SignUpPage from './pages/SignUpPage'
 
 // 画面とURLの対応。ログインが必要な画面は RequireAuth の中に追加する
@@ -18,6 +20,9 @@ function App() {
         </Route>
         {/* 投稿作成は画面下部に「投稿」ボタンを置くため、下部ナビゲーションを表示しない */}
         <Route path="/post" element={<PostPage />} />
+        {/* 詳細設定（docs/settings.md）。見出しに戻るボタンがあるため、下部ナビゲーションを表示しない */}
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/profile" element={<ProfileEditPage />} />
       </Route>
 
       <Route element={<GuestOnly />}>

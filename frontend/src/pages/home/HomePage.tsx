@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link } from 'react-router'
 import type { TimelineTab } from '../../api/posts'
 import { useAuth } from '../../auth/authContext'
 import { loadColumns, saveColumns, type Columns } from './columnSetting'
@@ -33,20 +33,12 @@ const TOAST_DURATION_MS = 4000
  * 新着メッセージの欄は DM 機能で追加する。
  */
 function HomePage() {
-  const navigate = useNavigate()
-  const { logout } = useAuth()
   const [tab, setTab] = useState<HomeTab>('recommended')
   const [columns, setColumns] = useState<Columns>(loadColumns)
 
   const handleChangeColumns = (next: Columns) => {
     setColumns(next)
     saveColumns(next)
-  }
-
-  // 【仮置き】詳細設定の画面ができたら、ログアウトボタンと一緒に削除する
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
   }
 
   return (
@@ -60,15 +52,6 @@ function HomePage() {
           </svg>
         </span>
         <h1 className="home-logo">ISHO</h1>
-        {/*
-          【仮置き】ログアウトボタン。デザイン画像には無い。
-          仕様上の置き場所は詳細設定のメニュー（docs/settings.md）で、その画面がまだ無いため、
-          画面からログアウトできるよう一時的にここに置いている。
-          プロフィール機能の担当者が詳細設定を作ったら、このボタンと handleLogout・.home-logout のスタイルを削除すること。
-        */}
-        <button type="button" className="home-logout" onClick={handleLogout}>
-          ログアウト
-        </button>
       </header>
 
       <div className="home-toolbar">

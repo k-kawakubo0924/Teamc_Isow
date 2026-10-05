@@ -36,27 +36,6 @@
   color: var(--color-text);
 }
 
-/*
- * 【仮置き】ログアウトボタン（HomePage.tsx）。デザイン画像には無いため、目立たない文字だけのボタンにしている。
- * 詳細設定の画面ができたら、ボタンと一緒に削除する
- */
-.home-logout {
-  position: absolute;
-  right: 12px;
-  padding: 4px;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-
-.home-logout:hover {
-  text-decoration: underline;
-}
-
 /* ---- タブ ---- */
 
 /* タブと表示列の切り替えを並べた行。スクロールしても画面上部に残す */

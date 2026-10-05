@@ -1,13 +1,19 @@
 package com.teamc.isow.backend.profile;
 
 import com.teamc.isow.backend.post.PostCardListResponse;
+import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * プロフィール（docs/profile.md）。認証が必要（SecurityConfig の anyRequest）。
@@ -18,14 +24,32 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final ProfileEditService profileEditService;
 
-    public ProfileController(ProfileService profileService) {
+    public ProfileController(ProfileService profileService, ProfileEditService profileEditService) {
         this.profileService = profileService;
+        this.profileEditService = profileEditService;
     }
 
     @GetMapping("/me")
     public ProfileResponse mine(@AuthenticationPrincipal Jwt jwt) {
         return profileService.getMine(jwt.getSubject());
+    }
+
+    /** プロフィール編集の「保存」。プロフィール画像以外の項目をまとめて置き換え、更新後のプロフィールを返す */
+    @PutMapping("/me")
+    public ProfileResponse update(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ProfileUpdateRequest request) {
+        return profileEditService.update(jwt.getSubject(), request);
+    }
+
+    /**
+     * プロフィール画像の変更（multipart/form-data の image）。更新後のプロフィールを返す。
+     * 未選択の場合も画像の検証と同じ 400 にするため、image は必須にしない
+     */
+    @PostMapping(path = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ProfileResponse changeImage(
+            @AuthenticationPrincipal Jwt jwt, @RequestParam(name = "image", required = false) MultipartFile image) {
+        return profileEditService.changeImage(jwt.getSubject(), image);
     }
 
     /** お気に入りは本人にだけ見せるため、他のユーザーのお気に入り一覧の API は用意しない */
