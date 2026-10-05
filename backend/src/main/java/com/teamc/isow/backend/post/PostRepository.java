@@ -22,6 +22,18 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p.id FROM Post p ORDER BY p.createdAt DESC, p.id DESC")
     Slice<Long> findLatestIds(Pageable pageable);
 
+    /**
+     * フォロー中：userId のユーザーが（有効に）フォローしている人の投稿を、新しい順（同じなら ID の大きい順）。
+     * 解除から5分以内のフォローは含めない（解除済みのため）
+     */
+    @Query("""
+            SELECT p.id FROM Post p
+            WHERE p.author.id IN (
+                SELECT f.followee.id FROM Follow f WHERE f.follower.id = :userId AND f.active = true)
+            ORDER BY p.createdAt DESC, p.id DESC
+            """)
+    Slice<Long> findFollowingIds(@Param("userId") Long userId, Pageable pageable);
+
     /** プロフィールの投稿一覧：指定したユーザーの投稿を新しい順（同じなら ID の大きい順） */
     @Query("SELECT p.id FROM Post p WHERE p.author.id = :authorId ORDER BY p.createdAt DESC, p.id DESC")
     Slice<Long> findIdsByAuthorId(@Param("authorId") Long authorId, Pageable pageable);

@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.teamc.isow.backend.follow.Follow;
+import com.teamc.isow.backend.follow.FollowRepository;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.reaction.PostFavorite;
@@ -67,6 +69,9 @@ class TimelineApiTest {
     private TagRepository tagRepository;
 
     @Autowired
+    private FollowRepository followRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private User me;
@@ -88,7 +93,8 @@ class TimelineApiTest {
 
     @AfterEach
     void tearDown() {
-        // 投稿を消すと likes・favorites は DB の連鎖削除で消える
+        // follows はユーザーを参照しているため先に消す。投稿を消すと likes・favorites は DB の連鎖削除で消える
+        jdbcTemplate.update("DELETE FROM follows");
         PostApiTestSupport.cleanUp(jdbcTemplate);
         jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?)", OTHER_EMAIL_1, OTHER_EMAIL_2);
     }
@@ -173,9 +179,37 @@ class TimelineApiTest {
     @Test
     void タブを省略するとおすすめ_正しくない値は400() throws Exception {
         getWithToken("/api/posts").andExpect(status().isOk()).andExpect(jsonPath("$.tab").value("recommended"));
-        getWithToken("/api/posts?tab=following")
+        getWithToken("/api/posts?tab=popular")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.tab").value("表示するタブの指定が正しくありません"));
+    }
+
+    @Test
+    void フォロー中は有効にフォローしている人の投稿だけを新しい順に返す() throws Exception {
+        followRepository.save(new Follow(me, other1));
+        Follow unfollowed = followRepository.save(new Follow(me, other2));
+        jdbcTemplate.update("UPDATE follows SET active = NULL, unfollowed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                unfollowed.getId());
+        Post older = save(other1, "http://localhost/uploads/older.jpg");
+        Post newer = save(other1, "http://localhost/uploads/newer.jpg");
+        setCreatedAt(older, LocalDateTime.of(2026, 1, 1, 0, 0));
+        setCreatedAt(newer, LocalDateTime.of(2026, 2, 1, 0, 0));
+        save(other2, "http://localhost/uploads/unfollowed.jpg");
+        save(me, "http://localhost/uploads/mine.jpg");
+
+        getWithToken("/api/posts?tab=following")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tab").value("following"))
+                .andExpect(jsonPath("$.posts[*].id").value(contains(id(newer), id(older))))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    void フォロー中のユーザーがいなければフォロー中は空() throws Exception {
+        save(other1, "http://localhost/uploads/1.jpg");
+        getWithToken("/api/posts?tab=following")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts", hasSize(0)));
     }
 
     // ---- ページ送り ----

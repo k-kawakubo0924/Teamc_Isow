@@ -14,8 +14,7 @@ import {
 } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
 import { PROFILE_COLUMNS, loadColumns, saveColumns, type Columns } from '../home/columnSetting'
-import { ColumnsSwitcher, EmptyMessage, PostGrid } from '../home/PostGrid'
-import type { FetchPostPage } from '../home/usePostPages'
+import { ColumnsSwitcher, EmptyMessage, PostGrid, type FetchPostPage } from '../home/PostGrid'
 import { goBack } from '../settings/goBack'
 import './profile.css'
 

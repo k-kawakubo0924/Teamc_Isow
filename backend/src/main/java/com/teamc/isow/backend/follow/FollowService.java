@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -88,29 +89,49 @@ public class FollowService {
 
     /**
      * userId のユーザーのフォロー中一覧。本人が自分の一覧を見る場合だけ、解除から UNDO_PERIOD 以内のものも含める
-     * （押し間違いを戻すための仕様のため、他の人には見せない）
+     * （押し間違いを戻すための仕様のため、他の人には見せない）。
+     *
+     * @param query 相手のユーザー名・表示名の一部（大文字小文字を区別しない）。null・空なら絞り込まない。
+     *     件数（totalCount）は絞り込む前の件数
      */
     @Transactional(readOnly = true)
-    public FollowListResponse listFollowings(String subject, Long userId, FollowSort sort, int page, int size) {
+    public FollowListResponse listFollowings(
+            String subject, Long userId, String query, FollowSort sort, int page, int size) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
         requireUserExists(userId);
         Pageable pageable = pageable(sort, page, size);
+        String pattern = searchPattern(query);
         Slice<Follow> follows = viewerId.equals(userId)
                 ? followRepository.findFollowingsIncludingUnfollowedSince(
-                        userId, LocalDateTime.now().minus(UNDO_PERIOD), pageable)
-                : followRepository.findActiveFollowings(userId, pageable);
+                        userId, LocalDateTime.now().minus(UNDO_PERIOD), pattern, pageable)
+                : followRepository.findActiveFollowings(userId, pattern, pageable);
         return toResponse(viewerId, follows, Follow::getFollowee,
                 followRepository.countByFollowerIdAndActiveTrue(userId), sort);
     }
 
-    /** userId のユーザーのフォロワー一覧（有効なフォローのみ） */
+    /** userId のユーザーのフォロワー一覧（有効なフォローのみ）。query は listFollowings と同じ */
     @Transactional(readOnly = true)
-    public FollowListResponse listFollowers(String subject, Long userId, FollowSort sort, int page, int size) {
+    public FollowListResponse listFollowers(
+            String subject, Long userId, String query, FollowSort sort, int page, int size) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
         requireUserExists(userId);
-        Slice<Follow> follows = followRepository.findActiveFollowers(userId, pageable(sort, page, size));
+        Slice<Follow> follows = followRepository.findActiveFollowers(
+                userId, searchPattern(query), pageable(sort, page, size));
         return toResponse(viewerId, follows, Follow::getFollower,
                 followRepository.countByFolloweeIdAndActiveTrue(userId), sort);
+    }
+
+    /**
+     * 検索欄の文字から、部分一致の LIKE のパターンを作る（小文字にし、% _ \ は文字として扱う）。
+     * 空なら "%"（すべてに一致する）
+     */
+    static String searchPattern(String query) {
+        String trimmed = query == null ? "" : query.strip().toLowerCase(Locale.ROOT);
+        if (trimmed.isEmpty()) {
+            return "%";
+        }
+        String escaped = trimmed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return "%" + escaped + "%";
     }
 
     /** トランザクションの中で呼ぶ */

@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import type { TimelineItem } from '../../api/posts'
 import { useAuth } from '../../auth/authContext'
+import { useLoadMoreOnScroll, usePagedList } from '../../hooks/usePagedList'
 import type { Columns } from './columnSetting'
 import { PostCard } from './PostCard'
-import { usePostPages, type FetchPostPage } from './usePostPages'
 import { useReactions } from './useReactions'
 import './home.css'
 
-/** 一覧の末尾がこの距離（px）まで近づいたら、次のページを読み込み始める */
-const PRELOAD_MARGIN_PX = 400
+/** 投稿の1ページを読み込む関数（ホームの一覧・プロフィールの投稿一覧の API の応答をそのまま返す） */
+export type FetchPostPage = (
+  page: number,
+  token: string,
+  signal: AbortSignal,
+) => Promise<{ posts: TimelineItem[]; hasNext: boolean }>
 
 /** いいね・お気に入りに失敗したときの通知を表示しておく時間 */
 const TOAST_DURATION_MS = 4000
@@ -27,10 +32,14 @@ const COLUMN_OPTIONS: { columns: Columns; label: string }[] = [
  */
 export function PostGrid({ fetchPage, columns, empty }: { fetchPage: FetchPostPage; columns: Columns; empty: ReactNode }) {
   const { token } = useAuth()
-  const { state, loadMore, retry, updatePost } = usePostPages(fetchPage, token)
+  const { state, loadMore, retry, updateItem } = usePagedList<TimelineItem>(
+    (page, authToken, signal) =>
+      fetchPage(page, authToken, signal).then((result) => ({ items: result.posts, hasNext: result.hasNext })),
+    token,
+  )
   const [toast, setToast] = useState<string | null>(null)
-  const { toggle } = useReactions(token, updatePost, setToast)
-  const sentinelRef = useRef<HTMLDivElement>(null)
+  const { toggle } = useReactions(token, updateItem, setToast)
+  const sentinelRef = useLoadMoreOnScroll(loadMore)
 
   // いいね・お気に入りに失敗したときの通知は、しばらくしたら消す
   useEffect(() => {
@@ -39,22 +48,8 @@ export function PostGrid({ fetchPage, columns, empty }: { fetchPage: FetchPostPa
     return () => clearTimeout(timer)
   }, [toast])
 
-  // 末尾の目印が画面に近づいたら読み込む。最初の1ページもこの仕組みで読み込む。
-  // 読み込みのたびに作り直し、まだ画面が埋まっていなければ続けて次のページを読み込む
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void loadMore()
-      },
-      { rootMargin: `0px 0px ${PRELOAD_MARGIN_PX}px 0px` },
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [loadMore])
-
-  const isEmpty = state.posts.length === 0 && !state.hasNext && state.status === 'idle'
+  const posts = state.items
+  const isEmpty = posts.length === 0 && !state.hasNext && state.status === 'idle'
 
   return (
     <>
@@ -62,7 +57,7 @@ export function PostGrid({ fetchPage, columns, empty }: { fetchPage: FetchPostPa
         empty
       ) : (
         <ul className={`home-grid home-grid-${columns}`}>
-          {state.posts.map((post) => (
+          {posts.map((post) => (
             <li key={post.id}>
               <PostCard
                 post={post}

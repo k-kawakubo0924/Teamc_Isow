@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RouteGuards'
 import { TabLayout } from './components/BottomNav'
+import { FollowListPage } from './pages/follow/FollowListPage'
 import HealthCheckPage from './pages/HealthCheckPage'
 import HomePage from './pages/home/HomePage'
 import LoginPage from './pages/LoginPage'
@@ -20,6 +21,8 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/profile" element={<MyProfilePage />} />
           <Route path="/users/:userId" element={<UserProfilePage />} />
+          <Route path="/users/:userId/followings" element={<FollowListPage kind="followings" />} />
+          <Route path="/users/:userId/followers" element={<FollowListPage kind="followers" />} />
         </Route>
         {/* 投稿作成は画面下部に「投稿」ボタンを置くため、下部ナビゲーションを表示しない */}
         <Route path="/post" element={<PostPage />} />

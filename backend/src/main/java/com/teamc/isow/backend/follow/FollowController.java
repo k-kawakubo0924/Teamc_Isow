@@ -35,27 +35,42 @@ public class FollowController {
         return followService.unfollow(jwt.getSubject(), userId);
     }
 
-    /** フォロー中一覧。sort は newest（フォローの新しい順・既定）か oldest（古い順） */
+    /**
+     * フォロー中一覧。sort は newest（フォローの新しい順・既定）か oldest（古い順）。
+     * q を指定すると、相手のユーザー名・表示名の一部で絞り込む（画面上部の検索欄）
+     */
     @GetMapping("/followings")
     public FollowListResponse followings(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long userId,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return followService.listFollowings(jwt.getSubject(), userId, parseSort(sort), page, size);
+        return followService.listFollowings(jwt.getSubject(), userId, checkQuery(q), parseSort(sort), page, size);
     }
 
-    /** フォロワー一覧。sort はフォロー中一覧と同じ */
+    /** フォロワー一覧。q・sort はフォロー中一覧と同じ */
     @GetMapping("/followers")
     public FollowListResponse followers(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long userId,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "newest") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return followService.listFollowers(jwt.getSubject(), userId, parseSort(sort), page, size);
+        return followService.listFollowers(jwt.getSubject(), userId, checkQuery(q), parseSort(sort), page, size);
     }
+
+    /** ユーザー名・表示名の長さ（50文字）を大きく超える検索語は、一致しないため受け付けない */
+    private static String checkQuery(String q) {
+        if (q != null && q.length() > MAX_QUERY_LENGTH) {
+            throw InputValidationException.of("q", "検索する文字は" + MAX_QUERY_LENGTH + "文字以内で入力してください");
+        }
+        return q;
+    }
+
+    private static final int MAX_QUERY_LENGTH = 50;
 
     private static FollowSort parseSort(String sort) {
         return FollowSort.fromParam(sort)

@@ -36,7 +36,7 @@ public class PostController {
     }
 
     /**
-     * ホームの投稿一覧（docs/home.md）。tab は recommended（おすすめ・既定）か latest（新着）。
+     * ホームの投稿一覧（docs/home.md）。tab は recommended（おすすめ・既定）・following（フォロー中）・latest（新着）。
      * ページ番号で区切るため、読み込みの途中で投稿やいいねが増えると、同じ投稿が次のページにも出ることがある。
      * 画面側で id が重複したものを省くこと
      */

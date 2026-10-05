@@ -47,27 +47,36 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     /** フォロワー数（有効なフォローのみ） */
     long countByFolloweeIdAndActiveTrue(Long followeeId);
 
-    /** フォロー中一覧（有効なフォローのみ）。並び順は pageable で指定する */
+    // ---- 一覧。並び順は pageable で指定する ----
+    // pattern は相手のユーザー名・表示名の絞り込み（小文字にした LIKE のパターン。FollowService.searchPattern で作る）。
+    // 絞り込まない場合は "%"（すべてに一致する）を渡す
+
+    /** フォロー中一覧（有効なフォローのみ） */
     @Query(value = """
-            SELECT f FROM Follow f JOIN FETCH f.followee
+            SELECT f FROM Follow f JOIN FETCH f.followee u
             WHERE f.follower.id = :followerId AND f.active = true
+              AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
             """)
-    Slice<Follow> findActiveFollowings(@Param("followerId") Long followerId, Pageable pageable);
+    Slice<Follow> findActiveFollowings(
+            @Param("followerId") Long followerId, @Param("pattern") String pattern, Pageable pageable);
 
     /** フォロー中一覧（有効なフォローと、since より後に解除したもの）。本人が自分の一覧を見る場合に使う */
     @Query(value = """
-            SELECT f FROM Follow f JOIN FETCH f.followee
+            SELECT f FROM Follow f JOIN FETCH f.followee u
             WHERE f.follower.id = :followerId AND (f.active = true OR f.unfollowedAt > :since)
+              AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
             """)
-    Slice<Follow> findFollowingsIncludingUnfollowedSince(
-            @Param("followerId") Long followerId, @Param("since") LocalDateTime since, Pageable pageable);
+    Slice<Follow> findFollowingsIncludingUnfollowedSince(@Param("followerId") Long followerId,
+            @Param("since") LocalDateTime since, @Param("pattern") String pattern, Pageable pageable);
 
-    /** フォロワー一覧（有効なフォローのみ）。並び順は pageable で指定する */
+    /** フォロワー一覧（有効なフォローのみ） */
     @Query(value = """
-            SELECT f FROM Follow f JOIN FETCH f.follower
+            SELECT f FROM Follow f JOIN FETCH f.follower u
             WHERE f.followee.id = :followeeId AND f.active = true
+              AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
             """)
-    Slice<Follow> findActiveFollowers(@Param("followeeId") Long followeeId, Pageable pageable);
+    Slice<Follow> findActiveFollowers(
+            @Param("followeeId") Long followeeId, @Param("pattern") String pattern, Pageable pageable);
 
     /** 指定したユーザーのうち、followerId のユーザーが有効にフォローしているユーザーの ID（1回の SQL で調べる） */
     @Query("""

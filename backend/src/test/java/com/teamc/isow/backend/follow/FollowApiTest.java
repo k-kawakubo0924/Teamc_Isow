@@ -278,6 +278,43 @@ class FollowApiTest {
     }
 
     @Test
+    void 検索欄の文字でユーザー名と表示名を絞り込み_件数は絞り込む前のまま() throws Exception {
+        perform(post(followUrl(userB)), tokenA).andExpect(status().isOk());
+        perform(post(followUrl(userC)), tokenA).andExpect(status().isOk());
+        String url = "/api/users/" + userA.getId() + "/followings";
+
+        // ユーザー名の一部（大文字小文字を区別しない）
+        perform(get(url).param("q", "LOW_C"), tokenA)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(2))
+                .andExpect(jsonPath("$.users", hasSize(1)))
+                .andExpect(jsonPath("$.users[0].id").value(userC.getId()));
+        // 表示名の一部（userB の表示名は「びー」）
+        perform(get(url).param("q", " び "), tokenA)
+                .andExpect(jsonPath("$.users", hasSize(1)))
+                .andExpect(jsonPath("$.users[0].id").value(userB.getId()));
+        // % や _ は文字として扱う（すべてに一致させない）
+        perform(get(url).param("q", "%"), tokenA).andExpect(jsonPath("$.users", hasSize(0)));
+        perform(get(url).param("q", "w_b"), tokenA).andExpect(jsonPath("$.users", hasSize(1)));
+        perform(get(url).param("q", "wxb"), tokenA).andExpect(jsonPath("$.users", hasSize(0)));
+        // 空なら絞り込まない
+        perform(get(url).param("q", ""), tokenA).andExpect(jsonPath("$.users", hasSize(2)));
+
+        perform(get("/api/users/" + userB.getId() + "/followers").param("q", "follow_a"), tokenA)
+                .andExpect(jsonPath("$.users", hasSize(1)));
+        perform(get("/api/users/" + userB.getId() + "/followers").param("q", "follow_c"), tokenA)
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.users", hasSize(0)));
+    }
+
+    @Test
+    void 検索する文字が長すぎる場合は400() throws Exception {
+        perform(get("/api/users/" + userA.getId() + "/followings").param("q", "a".repeat(51)), tokenA)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.q").exists());
+    }
+
+    @Test
     void 一覧はページに分けて返す() throws Exception {
         perform(post(followUrl(userB)), tokenA).andExpect(status().isOk());
         perform(post(followUrl(userC)), tokenA).andExpect(status().isOk());

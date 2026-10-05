@@ -1,0 +1,263 @@
+/* フォロー中一覧・フォロワー一覧（design/Following List.png） */
+
+.follow-page {
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ---- 見出し ---- */
+
+.follow-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.follow-back {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.follow-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.follow-count {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+/* ---- 検索欄・並び順 ---- */
+
+.follow-controls {
+  padding: 14px 16px 0;
+}
+
+.follow-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--color-text-muted);
+}
+
+.follow-search:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.follow-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+}
+
+.follow-sort {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.follow-sort select {
+  height: 34px;
+  padding: 0 32px 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%236f6962' stroke-width='1.4'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--color-text);
+  appearance: none;
+  cursor: pointer;
+}
+
+.follow-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---- 一覧 ---- */
+
+.follow-list {
+  margin: 0;
+  padding: 12px 16px 16px;
+  list-style: none;
+}
+
+.follow-list li + li {
+  margin-top: 10px;
+}
+
+.follow-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.follow-user {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.follow-avatar {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.follow-avatar-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ddd3c5;
+  color: #8a7f72;
+}
+
+.follow-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.follow-username {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-user:hover .follow-username {
+  text-decoration: underline;
+}
+
+.follow-details {
+  font-size: 11px;
+  color: var(--color-text);
+}
+
+.follow-since {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.follow-buttons {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+  width: 92px;
+}
+
+.follow-consult,
+.follow-toggle {
+  height: 30px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.follow-consult {
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* フォロー中：枠だけの「フォロー解除」。解除した後は目立つ「フォロー」にする */
+.follow-toggle {
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  color: var(--color-text);
+}
+
+.follow-toggle-off {
+  border-color: var(--color-text);
+  background: var(--color-text);
+  color: #fff;
+}
+
+.follow-toggle:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* ---- 状態の表示 ---- */
+
+.follow-message {
+  padding: 24px 16px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.follow-message p {
+  margin: 0 0 12px;
+}
+
+.follow-error {
+  margin: 12px 16px 0;
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+.follow-retry {
+  height: 36px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 3px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.follow-sentinel {
+  height: 1px;
+}

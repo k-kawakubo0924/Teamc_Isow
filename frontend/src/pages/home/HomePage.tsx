@@ -1,13 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { fetchTimeline } from '../../api/posts'
+import { fetchTimeline, type TimelineTab } from '../../api/posts'
+import { fetchMyProfile } from '../../api/profile'
+import { useAuth } from '../../auth/authContext'
 import { HOME_COLUMNS, loadColumns, saveColumns, type Columns } from './columnSetting'
 import { ColumnsSwitcher, EmptyMessage, PostGrid } from './PostGrid'
 import './home.css'
 
-type HomeTab = 'recommended' | 'following' | 'latest'
-
-const TABS: { key: HomeTab; label: string }[] = [
+const TABS: { key: TimelineTab; label: string }[] = [
   { key: 'recommended', label: 'おすすめ' },
   { key: 'following', label: 'フォロー中' },
   { key: 'latest', label: '新着' },
@@ -18,7 +18,7 @@ const TABS: { key: HomeTab; label: string }[] = [
  * 新着メッセージの欄は DM 機能で追加する。
  */
 function HomePage() {
-  const [tab, setTab] = useState<HomeTab>('recommended')
+  const [tab, setTab] = useState<TimelineTab>('recommended')
   const [columns, setColumns] = useState<Columns>(() => loadColumns(HOME_COLUMNS))
 
   const handleChangeColumns = (next: Columns) => {
@@ -61,26 +61,57 @@ function HomePage() {
       </div>
 
       <section id="home-tab-panel" role="tabpanel" aria-labelledby={`home-tab-${tab}`} className="home-panel">
-        {tab === 'following' ? (
-          // ホームのフォロー中タブは、並び順を決めてから作る（docs/home.md）。それまでは API を呼ばずにこの表示にする
-          <EmptyMessage title="フォロー中のユーザーがいません" />
-        ) : (
-          // タブを切り替えたら一覧を作り直す（読み込み中の通信は中断され、前のタブの結果は表示されない）
-          <PostGrid
-            key={tab}
-            fetchPage={(page, token, signal) => fetchTimeline(tab, page, token, signal)}
-            columns={columns}
-            empty={
+        {/* タブを切り替えたら一覧を作り直す（読み込み中の通信は中断され、前のタブの結果は表示されない） */}
+        <PostGrid
+          key={tab}
+          fetchPage={(page, token, signal) => fetchTimeline(tab, page, token, signal)}
+          columns={columns}
+          empty={
+            tab === 'following' ? (
+              <FollowingEmpty />
+            ) : (
               <EmptyMessage title="まだ投稿がありません">
                 <Link to="/post" className="home-empty-action">
                   投稿する
                 </Link>
               </EmptyMessage>
-            }
-          />
-        )}
+            )
+          }
+        />
       </section>
     </main>
+  )
+}
+
+/**
+ * フォロー中タブの投稿が無いときの表示。誰もフォローしていないのか、フォロー中の人の投稿が無いのかで文言を変える
+ * （一覧が空になったときだけ、フォロー数を調べる）
+ */
+function FollowingEmpty() {
+  const { token } = useAuth()
+  const [followingCount, setFollowingCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!token) return
+    let cancelled = false
+    fetchMyProfile(token)
+      .then((profile) => {
+        if (!cancelled) setFollowingCount(profile.followingCount)
+      })
+      // 調べられなかった場合は、誰もフォローしていないときの表示にする
+      .catch(() => {
+        if (!cancelled) setFollowingCount(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  if (followingCount === null) return null
+  return followingCount === 0 ? (
+    <EmptyMessage title="フォロー中のユーザーがいません" />
+  ) : (
+    <EmptyMessage title="フォロー中のユーザーの投稿はまだありません" />
   )
 }
 

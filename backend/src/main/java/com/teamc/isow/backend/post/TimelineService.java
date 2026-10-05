@@ -33,6 +33,7 @@ public class TimelineService {
 
         Slice<Long> ids = switch (tab) {
             case RECOMMENDED -> postRepository.findRecommendedIds(pageable);
+            case FOLLOWING -> postRepository.findFollowingIds(userId, pageable);
             case LATEST -> postRepository.findLatestIds(pageable);
         };
         return new TimelineResponse(postCardService.build(userId, ids.getContent()), tab.getParam(),
