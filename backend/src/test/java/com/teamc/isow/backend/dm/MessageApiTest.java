@@ -283,6 +283,28 @@ class MessageApiTest {
     }
 
     @Test
+    void 既読の日時は最初に読んだ日時のままで_その後に届いたメッセージは開くまで未読() throws Exception {
+        send(userB, conversationId, "1通目", null).andExpect(status().isCreated());
+        messages(userA, conversationId, "").andExpect(status().isOk());
+        Object firstReadAt = readAtOf("1通目");
+        assertThat(firstReadAt).isNotNull();
+
+        // 既読にした後で届いたメッセージは、まだ開いていないので未読
+        send(userB, conversationId, "2通目", null).andExpect(status().isCreated());
+        assertThat(readAtOf("2通目")).isNull();
+        // 相手（B）が開いても、B が送ったメッセージは既読にならない（既読にするのは読む側だけ）
+        messages(userB, conversationId, "").andExpect(status().isOk());
+        assertThat(readAtOf("2通目")).isNull();
+
+        // もう一度開くと2通目が既読になり、1通目の既読の日時は変わらない
+        jdbcTemplate.update("UPDATE messages SET read_at = read_at - INTERVAL '1' MINUTE WHERE body = '1通目'");
+        Object adjusted = readAtOf("1通目");
+        messages(userA, conversationId, "").andExpect(status().isOk());
+        assertThat(readAtOf("2通目")).isNotNull();
+        assertThat(readAtOf("1通目")).isEqualTo(adjusted).isNotEqualTo(firstReadAt);
+    }
+
+    @Test
     void 終了した会話も当事者なら読める() throws Exception {
         mockMvc.perform(post("/api/conversations/" + conversationId + "/end").header("Authorization", bearer(userB)))
                 .andExpect(status().isOk());
@@ -452,6 +474,10 @@ class MessageApiTest {
 
     private int messageCount() {
         return jdbcTemplate.queryForObject("SELECT count(*) FROM messages", Integer.class);
+    }
+
+    private Object readAtOf(String body) {
+        return jdbcTemplate.queryForObject("SELECT read_at FROM messages WHERE body = ?", Object.class, body);
     }
 
     private int unreadCount() {

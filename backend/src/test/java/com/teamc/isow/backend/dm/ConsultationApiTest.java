@@ -223,18 +223,25 @@ class ConsultationApiTest {
     @Test
     void 拒否から24時間を過ぎれば再申請でき_拒否された会話は履歴として残る() throws Exception {
         // 拒否された会話が2件ある状態で再申請する（ongoing が NULL の行がある組み合わせへの INSERT）
+        List<Long> rejectedIds = new java.util.ArrayList<>();
         for (int i = 0; i < 2; i++) {
             long rejected = applyAndGetId(userA, userB);
             change(rejected, Conversation::reject);
             setRespondedAt(rejected, LocalDateTime.now().minusHours(25));
+            rejectedIds.add(rejected);
         }
+        checkStatus(userA, userB).andExpect(jsonPath("$.available").value(true));
 
-        apply(userA, json(userB.getId(), "もう一度お願いします")).andExpect(status().isCreated());
+        long again = applyAndGetId(userA, userB);
 
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM conversations WHERE status = 'REJECTED'", Integer.class)).isEqualTo(2);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM conversations WHERE status = 'REQUESTED'", Integer.class)).isEqualTo(1);
+        // 拒否された会話を戻すのではなく、新しい会話が作られる
+        assertThat(rejectedIds).doesNotContain(again);
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM conversations WHERE id = ?", String.class, again))
+                .isEqualTo("REQUESTED");
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT status FROM conversations WHERE id IN (?, ?)", String.class, rejectedIds.get(0), rejectedIds.get(1)))
+                .containsOnly("REJECTED");
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM conversations", Integer.class)).isEqualTo(3);
     }
 
     @Test
