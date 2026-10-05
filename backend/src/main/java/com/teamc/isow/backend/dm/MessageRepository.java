@@ -50,6 +50,17 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             """)
     List<Message> findLatestByConversationIds(@Param("conversationIds") Collection<Long> conversationIds);
 
+    /** 各会話で、userId 以外（相手）から届いた未読メッセージのうち最新のもの（ホームの新着メッセージ）。未読がない会話は含まれない */
+    @Query("""
+            SELECT m FROM Message m
+            WHERE m.conversation.id IN :conversationIds
+              AND m.id = (SELECT MAX(m2.id) FROM Message m2
+                          WHERE m2.conversation.id = m.conversation.id
+                            AND m2.sender.id <> :userId AND m2.readAt IS NULL)
+            """)
+    List<Message> findLatestUnreadByConversationIds(
+            @Param("conversationIds") Collection<Long> conversationIds, @Param("userId") Long userId);
+
     /** 各会話で、userId 以外（相手）から届いた未読メッセージの件数。未読がない会話は含まれない */
     @Query("""
             SELECT m.conversation.id AS conversationId, COUNT(m) AS unreadCount FROM Message m

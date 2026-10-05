@@ -6,10 +6,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
@@ -257,6 +259,72 @@ class ConsultationApiTest {
 
         checkStatus(userA, userB).andExpect(jsonPath("$.available").value(true));
         apply(userA, json(userB.getId(), null)).andExpect(status().isCreated());
+    }
+
+    // ---- まとめての確認（GET /api/users/consultation-statuses） ----
+
+    @Test
+    void まとめての確認は相手ごとの理由を返し_1人ずつの確認と同じ結果になる() throws Exception {
+        User f = saveUser(5, "dm_f");
+        applyAndGetId(userA, userB);                                     // B: 申請済み
+        applyAndGetId(userC, userA);                                     // C: 相手から届いている
+        change(applyAndGetId(userA, userD), Conversation::approve);      // D: 相談中
+        long rejected = applyAndGetId(userA, userE);                     // E: 拒否されてから24時間以内
+        change(rejected, Conversation::reject);
+
+        String ids = userA.getId() + "," + userB.getId() + "," + userC.getId() + "," + userD.getId() + ","
+                + userE.getId() + "," + f.getId() + ",999999";
+        String body = mockMvc.perform(get("/api/users/consultation-statuses?ids=" + ids)
+                        .header("Authorization", bearer(userA)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // 存在しないユーザーは含めない。ID の小さい順
+        List<Number> userIds = JsonPath.read(body, "$.statuses[*].userId");
+        assertThat(userIds.stream().map(Number::longValue).toList()).containsExactly(
+                userA.getId(), userB.getId(), userC.getId(), userD.getId(), userE.getId(), f.getId());
+        List<String> reasons = JsonPath.read(body, "$.statuses[*].status.reason");
+        assertThat(reasons).containsExactly(
+                "SELF", "ALREADY_REQUESTED", "REQUEST_RECEIVED", "IN_PROGRESS", "REJECTED_RECENTLY", null);
+
+        // 1人ずつの確認と、項目まで同じ
+        List<User> targets = List.of(userA, userB, userC, userD, userE, f);
+        for (int i = 0; i < targets.size(); i++) {
+            String single = checkStatus(userA, targets.get(i)).andReturn().getResponse().getContentAsString();
+            Map<String, Object> fromBatch = JsonPath.read(body, "$.statuses[" + i + "].status");
+            Map<String, Object> fromSingle = JsonPath.read(single, "$");
+            assertThat(fromBatch).isEqualTo(fromSingle);
+        }
+    }
+
+    @Test
+    void まとめての確認でも_受けている進行中の会話が上限に達した相手は申し込めない() throws Exception {
+        User f = saveUser(5, "dm_f");
+        for (User requester : new User[] {userC, userD, userE}) {
+            change(applyAndGetId(requester, userB), Conversation::approve);
+        }
+        // F は自分から申し込んだ進行中の会話が3件（数えない）
+        for (User recipient : new User[] {userC, userD, userE}) {
+            change(applyAndGetId(f, recipient), Conversation::approve);
+        }
+
+        mockMvc.perform(get("/api/users/consultation-statuses?ids=" + userB.getId() + "," + f.getId())
+                        .header("Authorization", bearer(userA)))
+                .andExpect(jsonPath("$.statuses[0].status.reason").value("LIMIT_REACHED"))
+                .andExpect(jsonPath("$.statuses[0].status.message").value("現在、新しい相談を受け付けていません。"))
+                .andExpect(jsonPath("$.statuses[1].status.available").value(true));
+    }
+
+    @Test
+    void まとめての確認は1人から50人まで() throws Exception {
+        mockMvc.perform(get("/api/users/consultation-statuses").header("Authorization", bearer(userA)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.ids").value("ユーザーを1〜50人指定してください"));
+        String tooMany = java.util.stream.LongStream.rangeClosed(1, 51)
+                .mapToObj(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        mockMvc.perform(get("/api/users/consultation-statuses?ids=" + tooMany).header("Authorization", bearer(userA)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/users/consultation-statuses?ids=" + userB.getId())).andExpect(status().isUnauthorized());
     }
 
     // ---- 部品 ----

@@ -136,6 +136,44 @@ class ConversationViewApiTest {
                 .andExpect(jsonPath("$.conversations[0].lastMessageBody").value("相談させてください"));
     }
 
+    @Test
+    void unreadを指定すると相手から届いた未読がある会話だけを返す() throws Exception {
+        long unread = request(haru, me, null);
+        accept(me, unread);
+        send(haru, unread, "未読のメッセージ");
+        long read = request(ren, me, null);
+        accept(me, read);
+        send(ren, read, "読んだメッセージ");
+        get(me, "/api/conversations/" + read + "/messages").andExpect(status().isOk());
+        // 自分が送っただけの会話（相手からの未読はない）
+        long mineOnly = request(me, mio, null);
+        accept(mio, mineOnly);
+        send(me, mineOnly, "自分のメッセージ");
+
+        assertThat(listedIds(me, "?status=chats&unread=true")).containsExactly(unread);
+        assertThat(listedIds(me, "?status=chats")).containsExactlyInAnyOrder(unread, read, mineOnly);
+    }
+
+    @Test
+    void unreadでは相手から届いた最新の未読を返し_自分が後から送ったメッセージは出さない() throws Exception {
+        long id = request(haru, me, null);
+        accept(me, id);
+        send(haru, id, "1通目");
+        send(haru, id, "2通目");
+        // 自分が後から送っても、新着として出すのは相手の「2通目」
+        send(me, id, "自分の返信");
+
+        get(me, "/api/conversations?status=chats&unread=true")
+                .andExpect(jsonPath("$.conversations[0].lastMessageBody").value("自分の返信"))
+                .andExpect(jsonPath("$.conversations[0].latestUnread.body").value("2通目"))
+                .andExpect(jsonPath("$.conversations[0].latestUnread.hasImage").value(false))
+                .andExpect(jsonPath("$.conversations[0].latestUnread.sentAt").isNotEmpty())
+                .andExpect(jsonPath("$.conversations[0].unreadCount").value(2));
+        // unread を指定しない一覧では入れない
+        get(me, "/api/conversations?status=chats")
+                .andExpect(jsonPath("$.conversations[0].latestUnread").isEmpty());
+    }
+
     // ---- 検索 ----
 
     @Test

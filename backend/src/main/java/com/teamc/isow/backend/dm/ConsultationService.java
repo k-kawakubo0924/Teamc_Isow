@@ -6,6 +6,12 @@ import com.teamc.isow.backend.user.UserNotFoundException;
 import com.teamc.isow.backend.user.UserRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -25,6 +31,9 @@ public class ConsultationService {
 
     /** 申請を拒否されてから、同じ相手に再度申し込めるようになるまでの時間 */
     public static final Duration REAPPLY_INTERVAL = Duration.ofHours(24);
+
+    /** まとめて確認できる人数の上限（一覧の1ページの上限と同じ） */
+    public static final int MAX_STATUS_USERS = 50;
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
@@ -78,9 +87,7 @@ public class ConsultationService {
         if (!userRepository.existsById(userId)) {
             throw new UserNotFoundException(userId);
         }
-        return findUnavailability(viewerId, userId, LocalDateTime.now())
-                .map(u -> ConsultationStatusResponse.ofUnavailable(u.reason(), u.availableAt(), u.conversationId()))
-                .orElseGet(ConsultationStatusResponse::ofAvailable);
+        return toResponse(findUnavailability(viewerId, userId, LocalDateTime.now()).orElse(null));
     }
 
     /**
@@ -107,17 +114,52 @@ public class ConsultationService {
         return conversation;
     }
 
+    /**
+     * 複数の相手について、申し込めるかをまとめて返す（フォロー中一覧の「相談する」ボタン）。
+     * 存在しないユーザーの ID は結果に含めない。人数に関係なく SQL の本数は一定
+     *
+     * @param userIds 相手のユーザーID（1〜MAX_STATUS_USERS 人。範囲の確認は呼び出し側で行う）
+     */
+    @Transactional(readOnly = true)
+    public ConsultationStatusesResponse statuses(String subject, Collection<Long> userIds) {
+        Long viewerId = authService.requireCurrentUser(subject).getId();
+        List<Long> existing = userRepository.findAllById(new LinkedHashSet<>(userIds)).stream()
+                .map(User::getId)
+                .sorted()
+                .toList();
+        Map<Long, Unavailability> unavailable = findUnavailabilities(viewerId, existing, LocalDateTime.now());
+        List<ConsultationStatusesResponse.Item> items = existing.stream()
+                .map(id -> new ConsultationStatusesResponse.Item(id, toResponse(unavailable.get(id))))
+                .toList();
+        return new ConsultationStatusesResponse(items);
+    }
+
     /** 申し込めない理由。申し込める場合は空。複数に当てはまる場合は ConsultationUnavailableReason の宣言順で先のもの */
     private Optional<Unavailability> findUnavailability(Long requesterId, Long recipientId, LocalDateTime now) {
-        if (requesterId.equals(recipientId)) {
-            return Optional.of(new Unavailability(ConsultationUnavailableReason.SELF, null, null));
-        }
-        Long user1Id = Math.min(requesterId, recipientId);
-        Long user2Id = Math.max(requesterId, recipientId);
+        return Optional.ofNullable(findUnavailabilities(requesterId, List.of(recipientId), now).get(recipientId));
+    }
 
-        Optional<Conversation> ongoing = conversationRepository.findOngoing(user1Id, user2Id);
-        if (ongoing.isPresent()) {
-            Conversation conversation = ongoing.get();
+    /**
+     * 複数の相手について、申し込めない理由をまとめて求める（申し込める相手は結果に含めない）。
+     * 1人でも複数人でも同じ判定になるよう、申込・1人分の確認・まとめての確認のすべてでこれを使う。
+     * SQL は人数に関係なく4本（申請中・進行中の会話、24時間以内の拒否、受けている進行中の会話の件数 ×2）
+     */
+    private Map<Long, Unavailability> findUnavailabilities(
+            Long requesterId, Collection<Long> recipientIds, LocalDateTime now) {
+        Map<Long, Unavailability> result = new HashMap<>();
+        List<Long> others = new ArrayList<>();
+        for (Long recipientId : recipientIds) {
+            if (requesterId.equals(recipientId)) {
+                result.put(recipientId, new Unavailability(ConsultationUnavailableReason.SELF, null, null));
+            } else {
+                others.add(recipientId);
+            }
+        }
+        if (others.isEmpty()) {
+            return result;
+        }
+
+        for (Conversation conversation : conversationRepository.findOngoingWith(requesterId, others)) {
             ConsultationUnavailableReason reason;
             if (conversation.getStatus() == ConversationStatus.ACTIVE) {
                 reason = ConsultationUnavailableReason.IN_PROGRESS;
@@ -126,21 +168,49 @@ public class ConsultationService {
             } else {
                 reason = ConsultationUnavailableReason.REQUEST_RECEIVED;
             }
-            return Optional.of(new Unavailability(reason, null, conversation.getId()));
+            result.put(partnerOf(conversation, requesterId), new Unavailability(reason, null, conversation.getId()));
         }
 
-        // 拒否された本人だけを制限する（断った側から申し込むことは止めない）
-        LocalDateTime latestRejectedAt = conversationRepository.findLatestRespondedAt(
-                user1Id, user2Id, requesterId, ConversationStatus.REJECTED.name(), now.minus(REAPPLY_INTERVAL));
-        if (latestRejectedAt != null) {
-            return Optional.of(new Unavailability(
-                    ConsultationUnavailableReason.REJECTED_RECENTLY, latestRejectedAt.plus(REAPPLY_INTERVAL), null));
+        // 拒否された本人だけを制限する（断った側から申し込むことは止めない）。同じ相手に複数あれば最も新しい拒否で決める
+        for (Conversation rejected : conversationRepository.findRejectedSince(
+                requesterId, others, ConversationStatus.REJECTED.name(), now.minus(REAPPLY_INTERVAL))) {
+            Long partnerId = partnerOf(rejected, requesterId);
+            LocalDateTime availableAt = rejected.getRespondedAt().plus(REAPPLY_INTERVAL);
+            Unavailability current = result.get(partnerId);
+            if (current == null || (current.reason() == ConsultationUnavailableReason.REJECTED_RECENTLY
+                    && availableAt.isAfter(current.availableAt()))) {
+                result.put(partnerId, new Unavailability(
+                        ConsultationUnavailableReason.REJECTED_RECENTLY, availableAt, null));
+            }
         }
 
-        if (isReceivingLimitReached(recipientId)) {
-            return Optional.of(new Unavailability(ConsultationUnavailableReason.LIMIT_REACHED, null, null));
+        Map<Long, Long> receivedActive = new HashMap<>();
+        String active = ConversationStatus.ACTIVE.name();
+        for (ConversationRepository.UserCount count : conversationRepository.countReceivedAsUser1(others, active)) {
+            receivedActive.merge(count.getUserId(), count.getCount(), Long::sum);
         }
-        return Optional.empty();
+        for (ConversationRepository.UserCount count : conversationRepository.countReceivedAsUser2(others, active)) {
+            receivedActive.merge(count.getUserId(), count.getCount(), Long::sum);
+        }
+        for (Long recipientId : others) {
+            if (!result.containsKey(recipientId)
+                    && receivedActive.getOrDefault(recipientId, 0L) >= dmProperties.maxReceivedActiveConversations()) {
+                result.put(recipientId, new Unavailability(ConsultationUnavailableReason.LIMIT_REACHED, null, null));
+            }
+        }
+        return result;
+    }
+
+    private static Long partnerOf(Conversation conversation, Long userId) {
+        Long user1Id = conversation.getUser1().getId();
+        return user1Id.equals(userId) ? conversation.getUser2().getId() : user1Id;
+    }
+
+    private static ConsultationStatusResponse toResponse(Unavailability unavailability) {
+        return unavailability == null
+                ? ConsultationStatusResponse.ofAvailable()
+                : ConsultationStatusResponse.ofUnavailable(
+                        unavailability.reason(), unavailability.availableAt(), unavailability.conversationId());
     }
 
     /**

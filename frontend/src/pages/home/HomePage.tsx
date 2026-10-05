@@ -4,6 +4,7 @@ import { fetchTimeline, type TimelineTab } from '../../api/posts'
 import { fetchMyProfile } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
 import { HOME_COLUMNS, loadColumns, saveColumns, type Columns } from './columnSetting'
+import { NewMessages } from './NewMessages'
 import { ColumnsSwitcher, EmptyMessage, PostGrid } from './PostGrid'
 import './home.css'
 
@@ -38,6 +39,9 @@ function HomePage() {
         </span>
         <h1 className="home-logo">ISHO</h1>
       </header>
+
+      {/* 新着がなければ欄ごと出さない */}
+      <NewMessages />
 
       <div className="home-toolbar">
         <div className="home-tabs" role="tablist" aria-label="表示する投稿">

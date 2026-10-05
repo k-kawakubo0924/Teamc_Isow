@@ -34,6 +34,16 @@ export type ConversationListItem = {
   /** 相手から届いた未読メッセージの件数 */
   unreadCount: number
   requestedAt: string
+  /** 相手から届いた未読メッセージのうち最新のもの（自分が送ったものは含まない）。unreadOnly を指定したときだけ入る */
+  latestUnread: UnreadMessage | null
+}
+
+/** 相手から届いた未読メッセージ（バックエンドの ConversationListResponse.UnreadMessage） */
+export type UnreadMessage = {
+  /** 本文。画像だけのメッセージは null */
+  body: string | null
+  hasImage: boolean
+  sentAt: string
 }
 
 /** バックエンドの ConversationListResponse（1ページ分） */
@@ -44,16 +54,25 @@ export type ConversationListResponse = {
   hasNext: boolean
 }
 
-/** query は相手のユーザー名・表示名の一部で、空なら絞り込まない */
+/**
+ * query は相手のユーザー名・表示名の一部で、空なら絞り込まない。
+ * options.unreadOnly を true にすると、相手から届いた未読メッセージがある会話だけ（ホームの新着メッセージ）
+ */
 export function fetchConversations(
   filter: ConversationFilter,
   query: string,
   page: number,
   token: string,
   signal?: AbortSignal,
+  options: { unreadOnly?: boolean; size?: number } = {},
 ): Promise<ConversationListResponse> {
-  const params = new URLSearchParams({ status: filter, page: String(page), size: String(TIMELINE_PAGE_SIZE) })
+  const params = new URLSearchParams({
+    status: filter,
+    page: String(page),
+    size: String(options.size ?? TIMELINE_PAGE_SIZE),
+  })
   if (query.trim() !== '') params.set('q', query.trim())
+  if (options.unreadOnly) params.set('unread', 'true')
   return getJson<ConversationListResponse>(`/api/conversations?${params}`, token, signal)
 }
 

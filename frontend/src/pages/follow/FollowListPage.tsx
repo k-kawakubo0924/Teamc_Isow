@@ -1,10 +1,13 @@
 import { useEffect, useId, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
+import { fetchConsultationStatuses, type ConsultationStatus } from '../../api/consultations'
 import { fetchFollowList, setFollow, type FollowListItem, type FollowSort } from '../../api/follows'
 import { fetchMasters, type EnumOption } from '../../api/masters'
 import { fetchMyProfile } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
+import { ConsultButton } from '../../components/consult/ConsultButton'
+import { consultNote } from '../../components/consult/consultLabels'
 import { useLoadMoreOnScroll, usePagedList } from '../../hooks/usePagedList'
 import { timeAgo } from '../../utils/timeAgo'
 import { goBack } from '../settings/goBack'
@@ -159,10 +162,22 @@ function FollowList({
   onFollowChange: (following: boolean) => void
 }) {
   const { token } = useAuth()
+  // 「相談する」ボタンの状態（ユーザー ID → 状態）。1ページ読むごとに、そのページの人数分をまとめて読む
+  const [consultStatuses, setConsultStatuses] = useState<Map<number, ConsultationStatus>>(new Map())
+  const loadConsultStatuses = (userIds: number[], authToken: string, signal?: AbortSignal) => {
+    if (userIds.length === 0) return
+    fetchConsultationStatuses(userIds, authToken, signal)
+      .then((statuses) => setConsultStatuses((prev) => new Map([...prev, ...statuses])))
+      .catch(() => {
+        // 読めなかった人のボタンは押せないままにする（フォローなど他の操作は使える）
+      })
+  }
   const { state, loadMore, retry, updateItem } = usePagedList<FollowListItem>(
     (page, authToken, signal) =>
       fetchFollowList(kind, userId, query, sort, page, authToken, signal).then((result) => {
         onTotalCount(result.totalCount)
+        // 一覧は先に表示し、ボタンの状態は後から反映する
+        loadConsultStatuses(result.users.map((user) => user.id), authToken, signal)
         return { items: result.users, hasNext: result.hasNext }
       }),
     token,
@@ -218,7 +233,11 @@ function FollowList({
                 isMe={user.id === myId}
                 genders={genders}
                 pending={pending.has(user.id)}
+                consultStatus={consultStatuses.get(user.id) ?? null}
                 onFollow={() => handleFollow(user)}
+                onConsultStatusChanged={() => {
+                  if (token) loadConsultStatuses([user.id], token)
+                }}
               />
             </li>
           ))}
@@ -249,14 +268,19 @@ function UserRow({
   isMe,
   genders,
   pending,
+  consultStatus,
   onFollow,
+  onConsultStatusChanged,
 }: {
   user: FollowListItem
   isMe: boolean
   genders: EnumOption[]
   pending: boolean
+  consultStatus: ConsultationStatus | null
   onFollow: () => void
+  onConsultStatusChanged: () => void
 }) {
+  const note = isMe ? null : consultNote(consultStatus)
   // 設定されている項目だけを「・」でつなぐ（プロフィール画面と同じ）
   const details = [
     user.heightCm !== null ? `${user.heightCm}cm` : null,
@@ -280,15 +304,21 @@ function UserRow({
           <span className="follow-username">@{user.username}</span>
           {details.length > 0 && <span className="follow-details">{details.join(' ・ ')}</span>}
           <span className="follow-since">{timeAgo(user.followedAt)}からフォロー</span>
+          {/* 上限に達している相手には「現在、新しい相談を受け付けていません」と表示する（docs/dm.md） */}
+          {note && <span className="follow-consult-note">{note}</span>}
         </span>
       </Link>
 
       {!isMe && (
         <div className="follow-buttons">
-          {/* DM 機能で実装する。それまでは表示のみ */}
-          <button type="button" className="follow-consult">
-            相談する
-          </button>
+          <ConsultButton
+            userId={user.id}
+            username={user.username}
+            status={consultStatus}
+            label="相談する"
+            className="follow-consult"
+            onStatusChanged={onConsultStatusChanged}
+          />
           <button
             type="button"
             className={`follow-toggle${user.followingByMe ? '' : ' follow-toggle-off'}`}

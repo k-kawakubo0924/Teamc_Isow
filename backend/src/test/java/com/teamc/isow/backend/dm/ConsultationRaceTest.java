@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
-import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
@@ -59,7 +59,7 @@ class ConsultationRaceTest {
         conversationRepository.save(new Conversation(b, a));
         // このリクエストの確認では「会話なし」と判断させる（2回目以降の確認は本物の結果）
         Answer<?> callReal = mockingDetails(conversationRepository).getMockCreationSettings().getDefaultAnswer();
-        doReturn(Optional.empty()).doAnswer(callReal).when(conversationRepository).findOngoing(any(), any());
+        doReturn(List.of()).doAnswer(callReal).when(conversationRepository).findOngoingWith(any(), any());
 
         mockMvc.perform(post("/api/conversations")
                         .header("Authorization", "Bearer " + DmTestSupport.token(jwtEncoder, a.getId()))

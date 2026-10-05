@@ -1,0 +1,131 @@
+/* 「相談を申し込む」ボタンの状態と、一言メッセージの入力ダイアログ */
+
+/* 相談中・リクエストありはリンクだが、ボタンと同じ見た目にする（色・大きさは呼び出し側のクラスで決める） */
+.consult-link {
+  text-decoration: none;
+}
+
+/* 申請済みは押せないことが分かるよう、塗りを外す */
+.consult-requested:disabled {
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.consult-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.consult-dialog {
+  width: 100%;
+  max-width: 340px;
+  padding: 20px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.consult-title {
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.consult-hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.consult-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.consult-textarea {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-bg);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text);
+  resize: vertical;
+}
+
+.consult-textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.consult-counter {
+  margin: 4px 0 0;
+  font-size: 11px;
+  text-align: right;
+  color: var(--color-text-muted);
+}
+
+.consult-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+.consult-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.consult-cancel,
+.consult-submit {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.consult-cancel {
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  color: var(--color-text);
+}
+
+.consult-submit {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.consult-cancel:disabled,
+.consult-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 申し込めない理由（上限に達している・拒否から24時間以内） */
+.consult-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

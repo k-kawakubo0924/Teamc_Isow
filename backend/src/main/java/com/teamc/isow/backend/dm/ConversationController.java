@@ -40,13 +40,15 @@ public class ConversationController {
     /**
      * DM一覧。status は requested（申請中）・active（進行中）・ended（終了）・chats（進行中と終了）・
      * received（受け取った申請）・sent（送った申請）。指定しなければ申請中・進行中・終了のすべて（拒否は含めない）。
-     * q を指定すると、相手のユーザー名・表示名の一部で絞り込む（画面上部の検索欄）
+     * q を指定すると、相手のユーザー名・表示名の一部で絞り込む（画面上部の検索欄）。
+     * unread=true なら、相手から届いた未読メッセージがある会話だけ（ホームの新着メッセージ）
      */
     @GetMapping
     public ConversationListResponse list(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "false") boolean unread,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         ConversationFilter filter = ConversationFilter.fromParam(status)
@@ -55,7 +57,7 @@ public class ConversationController {
         if (q != null && q.length() > MAX_QUERY_LENGTH) {
             throw InputValidationException.of("q", "検索する文字は" + MAX_QUERY_LENGTH + "文字以内で入力してください");
         }
-        return conversationListService.list(jwt.getSubject(), filter, q, page, size);
+        return conversationListService.list(jwt.getSubject(), filter, q, unread, page, size);
     }
 
     /** DM の件数（下部ナビの DM のバッジと、DM一覧の「メッセージリクエスト」「送信したリクエスト」の件数） */

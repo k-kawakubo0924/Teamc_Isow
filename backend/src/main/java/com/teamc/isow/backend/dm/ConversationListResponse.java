@@ -25,6 +25,8 @@ public record ConversationListResponse(List<Item> conversations, int page, int s
      * @param lastMessageAt 最新メッセージの送信日時。メッセージがなければ null。「3分前」などの表示は画面側で作る
      * @param unreadCount 相手から届いた未読メッセージの件数
      * @param requestedAt 申し込んだ日時（メッセージのない申請に「3分前」などを表示するため）
+     * @param latestUnread 相手から届いた未読メッセージのうち最新のもの（ホームの新着メッセージ。自分が送ったものは含まない）。
+     *     unread=true を指定したときだけ入れ、それ以外は null
      */
     public record Item(
             Long conversationId,
@@ -35,7 +37,18 @@ public record ConversationListResponse(List<Item> conversations, int page, int s
             boolean lastMessageHasImage,
             LocalDateTime lastMessageAt,
             long unreadCount,
-            LocalDateTime requestedAt) {
+            LocalDateTime requestedAt,
+            UnreadMessage latestUnread) {
+    }
+
+    /**
+     * 相手から届いた未読メッセージ。
+     *
+     * @param body 本文。画像だけのメッセージは null
+     * @param hasImage 画像があるか（本文がない場合に「画像」などと表示するため）
+     * @param sentAt 送信日時
+     */
+    public record UnreadMessage(String body, boolean hasImage, LocalDateTime sentAt) {
     }
 
     /**

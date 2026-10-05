@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>各会話の最新メッセージ（IN でまとめて）</li>
  *   <li>各会話の未読件数（GROUP BY でまとめて）</li>
  * </ol>
+ * 未読がある会話だけを読む場合（ホームの新着メッセージ）は、相手から届いた最新の未読（IN でまとめて）を足した5本。
  */
 @Service
 public class ConversationListService {
@@ -47,13 +48,16 @@ public class ConversationListService {
      * page は 0 から。範囲外の page・size はエラーにせず、0 以上・1〜MAX_PAGE_SIZE に丸める（他の一覧と同じ）。
      *
      * @param query 相手のユーザー名・表示名の一部（大文字小文字を区別しない）。null・空なら絞り込まない
+     * @param unreadOnly true なら、相手から届いた未読メッセージがある会話だけ（ホームの新着メッセージ）
      */
     @Transactional(readOnly = true)
-    public ConversationListResponse list(String subject, ConversationFilter filter, String query, int page, int size) {
+    public ConversationListResponse list(
+            String subject, ConversationFilter filter, String query, boolean unreadOnly, int page, int size) {
         User me = authService.requireCurrentUser(subject);
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE));
         Slice<Conversation> conversations = conversationRepository.findForList(
-                me.getId(), filter.statusNames(), filter.direction().code, SearchPatterns.contains(query), pageable);
+                me.getId(), filter.statusNames(), filter.direction().code, SearchPatterns.contains(query), unreadOnly,
+                pageable);
 
         List<Long> ids = conversations.getContent().stream().map(Conversation::getId).toList();
         Map<Long, Message> latestMessages = ids.isEmpty()
@@ -67,8 +71,15 @@ public class ConversationListService {
                                 MessageRepository.UnreadCount::getConversationId,
                                 MessageRepository.UnreadCount::getUnreadCount));
 
+        // ホームの新着メッセージでは、自分が送ったものではなく、相手から届いた最新の未読を出す
+        Map<Long, Message> latestUnread = ids.isEmpty() || !unreadOnly
+                ? Map.of()
+                : messageRepository.findLatestUnreadByConversationIds(ids, me.getId()).stream()
+                        .collect(Collectors.toMap(m -> m.getConversation().getId(), Function.identity()));
+
         List<ConversationListResponse.Item> items = conversations.getContent().stream()
-                .map(c -> toItem(c, me, latestMessages.get(c.getId()), unreadCounts.getOrDefault(c.getId(), 0L)))
+                .map(c -> toItem(c, me, latestMessages.get(c.getId()), unreadCounts.getOrDefault(c.getId(), 0L),
+                        latestUnread.get(c.getId())))
                 .toList();
         return new ConversationListResponse(items, pageable.getPageNumber(), pageable.getPageSize(), conversations.hasNext());
     }
@@ -106,8 +117,9 @@ public class ConversationListService {
                 conversationRepository.countByDirection(userId, requested, true));
     }
 
-    /** latest はメッセージがなければ null */
-    private static ConversationListResponse.Item toItem(Conversation conversation, User me, Message latest, long unread) {
+    /** latest はメッセージがなければ null。latestUnread は相手から届いた最新の未読（unreadOnly のときだけ。なければ null） */
+    private static ConversationListResponse.Item toItem(
+            Conversation conversation, User me, Message latest, long unread, Message latestUnread) {
         return new ConversationListResponse.Item(
                 conversation.getId(),
                 conversation.getStatus(),
@@ -117,7 +129,11 @@ public class ConversationListService {
                 latest != null && latest.getImageUrl() != null,
                 latest == null ? null : latest.getSentAt(),
                 unread,
-                conversation.getRequestedAt());
+                conversation.getRequestedAt(),
+                latestUnread == null
+                        ? null
+                        : new ConversationListResponse.UnreadMessage(
+                                latestUnread.getBody(), latestUnread.getImageUrl() != null, latestUnread.getSentAt()));
     }
 
     private static ConversationListResponse.Partner partner(Conversation conversation, User me) {
