@@ -7,13 +7,15 @@ const DAY = 24 * HOUR
  * docs/profile.md「フォローしたタイミングが簡単に分かる」・docs/notification.md の表示に合わせる。
  *
  * @param dateTime バックエンドの日時（タイムゾーンなしの ISO 形式。サーバーと同じ日本時間として扱う）
+ * @param options.yesterday true なら、1日前を「昨日」と表示する（docs/dm.md の DM一覧の経過時間）
  */
-export function timeAgo(dateTime: string, now: Date = new Date()): string {
+export function timeAgo(dateTime: string, now: Date = new Date(), options: { yesterday?: boolean } = {}): string {
   const diff = Math.max(0, now.getTime() - new Date(dateTime).getTime())
   if (diff < MINUTE) return 'たった今'
   if (diff < HOUR) return `${Math.floor(diff / MINUTE)}分前`
   if (diff < DAY) return `${Math.floor(diff / HOUR)}時間前`
   const days = Math.floor(diff / DAY)
+  if (days === 1 && options.yesterday) return '昨日'
   if (days < 7) return `${days}日前`
   if (days < 30) return `${Math.floor(days / 7)}週間前`
   if (days < 365) return `${Math.floor(days / 30)}か月前`

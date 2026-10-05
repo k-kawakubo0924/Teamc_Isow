@@ -1,0 +1,407 @@
+/* DM一覧・メッセージリクエスト・送信したリクエスト（design/DMlist.png） */
+
+.dm-page {
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ---- DM一覧の見出し（ホームと同じ） ---- */
+
+.dm-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dm-bell {
+  position: absolute;
+  left: 16px;
+  display: inline-flex;
+  color: var(--color-text);
+}
+
+.dm-logo {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: 0.45em;
+  /* letter-spacing は最後の文字の後ろにも付くため、その分だけ左に寄せて中央をそろえる */
+  text-indent: 0.45em;
+  color: var(--color-text);
+}
+
+/* ---- メッセージリクエスト・送信したリクエストへの導線 ---- */
+
+.dm-request-link,
+.dm-sent-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.dm-request-link {
+  height: 44px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dm-request-label,
+.dm-sent-label {
+  flex: 1;
+}
+
+.dm-chevron {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+/* 一覧が長くても見えるよう、下部ナビゲーションのすぐ上に残す */
+.dm-sent-link {
+  position: sticky;
+  bottom: 72px;
+  margin: 8px 16px 0;
+  padding: 0 14px;
+  height: 46px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 3px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.dm-sent-count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* ---- 検索欄 ---- */
+
+.dm-search-wrap {
+  padding: 14px 16px 0;
+}
+
+.dm-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--color-text-muted);
+}
+
+.dm-search:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.dm-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+}
+
+/* ---- 一覧 ---- */
+
+.dm-list {
+  margin: 0;
+  padding: 12px 16px 8px;
+  list-style: none;
+}
+
+.dm-list li + li {
+  margin-top: 8px;
+}
+
+.dm-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+/* 未読あり */
+.dm-row-unread {
+  background: #fff;
+}
+
+/* 既読 */
+.dm-row-read {
+  background: #ebe5dc;
+}
+
+/* 終了 */
+.dm-row-ended {
+  background: #ddd5c9;
+  color: var(--color-text-muted);
+}
+
+.dm-avatar {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dm-avatar-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2d8cb;
+  color: var(--color-text-muted);
+}
+
+.dm-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dm-row-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dm-username {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-row-ended .dm-username {
+  font-weight: 400;
+}
+
+.dm-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.dm-status-label {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+}
+
+/* 最新メッセージは1行に収め、はみ出す分は「…」にする */
+.dm-preview {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-count-badge {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--color-accent);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  color: #fff;
+}
+
+/* ---- メッセージリクエスト ---- */
+
+.dm-request-card {
+  padding: 14px 12px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.dm-request-user {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+/* 申込時の一言は省略せずに全文を出す（承認・拒否の判断に使うため） */
+.dm-request-message {
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dm-request-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dm-accept,
+.dm-reject {
+  min-width: 84px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dm-accept {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.dm-reject {
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  color: var(--color-text);
+}
+
+.dm-accept:disabled,
+.dm-reject:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dm-request-result {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.dm-request-result-link {
+  font-weight: 700;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.dm-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-error);
+  text-align: right;
+}
+
+/* ---- 見出し（メッセージリクエスト・送信したリクエスト・チャット） ---- */
+
+.dm-sub-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dm-back {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.dm-sub-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.dm-sub-count {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+.dm-chat-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dm-chat-title .dm-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+/* ---- 読み込み中・空・エラー ---- */
+
+.dm-message {
+  margin: 0;
+  padding: 32px 16px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.dm-message p {
+  margin: 0 0 12px;
+}
+
+.dm-retry {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 3px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dm-sentinel {
+  height: 1px;
+}

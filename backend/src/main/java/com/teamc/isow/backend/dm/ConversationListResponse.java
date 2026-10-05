@@ -24,6 +24,7 @@ public record ConversationListResponse(List<Item> conversations, int page, int s
      * @param lastMessageHasImage 最新メッセージに画像があるか（本文がない場合に「画像」などと表示するため）
      * @param lastMessageAt 最新メッセージの送信日時。メッセージがなければ null。「3分前」などの表示は画面側で作る
      * @param unreadCount 相手から届いた未読メッセージの件数
+     * @param requestedAt 申し込んだ日時（メッセージのない申請に「3分前」などを表示するため）
      */
     public record Item(
             Long conversationId,
@@ -33,7 +34,8 @@ public record ConversationListResponse(List<Item> conversations, int page, int s
             String lastMessageBody,
             boolean lastMessageHasImage,
             LocalDateTime lastMessageAt,
-            long unreadCount) {
+            long unreadCount,
+            LocalDateTime requestedAt) {
     }
 
     /**

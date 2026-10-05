@@ -50,6 +50,14 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<UnreadCount> countUnread(
             @Param("conversationIds") Collection<Long> conversationIds, @Param("userId") Long userId);
 
+    /** userId が参加している、指定した状態の会話で、相手から届いた未読メッセージの合計（下部ナビの DM のバッジに使う） */
+    @Query("""
+            SELECT COUNT(m) FROM Message m JOIN m.conversation c
+            WHERE (c.user1.id = :userId OR c.user2.id = :userId) AND c.status IN :statuses
+              AND m.sender.id <> :userId AND m.readAt IS NULL
+            """)
+    long countUnreadTotal(@Param("userId") Long userId, @Param("statuses") Collection<String> statuses);
+
     /** countUnread の結果の1行 */
     interface UnreadCount {
 

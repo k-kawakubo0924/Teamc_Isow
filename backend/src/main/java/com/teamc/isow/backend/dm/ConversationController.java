@@ -37,17 +37,40 @@ public class ConversationController {
         this.messageService = messageService;
     }
 
-    /** DM一覧。status は requested（申請中）・active（進行中）・ended（終了）。指定しなければ3つすべて（拒否は含めない） */
+    /**
+     * DM一覧。status は requested（申請中）・active（進行中）・ended（終了）・chats（進行中と終了）・
+     * received（受け取った申請）・sent（送った申請）。指定しなければ申請中・進行中・終了のすべて（拒否は含めない）。
+     * q を指定すると、相手のユーザー名・表示名の一部で絞り込む（画面上部の検索欄）
+     */
     @GetMapping
     public ConversationListResponse list(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         ConversationFilter filter = ConversationFilter.fromParam(status)
                 .orElseThrow(() -> InputValidationException.of("status", "絞り込みの指定が正しくありません"));
-        return conversationListService.list(jwt.getSubject(), filter, page, size);
+        // ユーザー名・表示名の長さ（50文字）を超える検索語は、一致しないため受け付けない（フォロー一覧と同じ）
+        if (q != null && q.length() > MAX_QUERY_LENGTH) {
+            throw InputValidationException.of("q", "検索する文字は" + MAX_QUERY_LENGTH + "文字以内で入力してください");
+        }
+        return conversationListService.list(jwt.getSubject(), filter, q, page, size);
     }
+
+    /** DM の件数（下部ナビの DM のバッジと、DM一覧の「メッセージリクエスト」「送信したリクエスト」の件数） */
+    @GetMapping("/summary")
+    public ConversationSummaryResponse summary(@AuthenticationPrincipal Jwt jwt) {
+        return conversationListService.summary(jwt.getSubject());
+    }
+
+    /** 会話1件（チャット画面の上部に相手を表示するため） */
+    @GetMapping("/{conversationId:\\d+}")
+    public ConversationDetailResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable Long conversationId) {
+        return conversationListService.get(jwt.getSubject(), conversationId);
+    }
+
+    private static final int MAX_QUERY_LENGTH = 50;
 
     /** 申請を承認する（申請中 → 進行中） */
     @PostMapping("/{conversationId:\\d+}/accept")

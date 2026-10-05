@@ -75,7 +75,7 @@ class DmQueryCountTest {
         String subject = String.valueOf(me.getId());
 
         createConversations(5);
-        long list5 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, 0, 20),
+        long list5 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, null, 0, 20),
                 r -> r.conversations().size(), 5);
         Conversation first = conversationRepository.findAll().getFirst();
         addMessages(first, 4);
@@ -84,7 +84,7 @@ class DmQueryCountTest {
                 r -> r.messages().size(), 5);
 
         createConversations(15);
-        long list20 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, 0, 20),
+        long list20 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, null, 0, 20),
                 r -> r.conversations().size(), 20);
         addMessages(first, 15);
         long messages20 = countSql(() -> messageService.list(subject, first.getId(), null, 20),
@@ -92,9 +92,16 @@ class DmQueryCountTest {
 
         long sent = countSql(() -> messageService.send(subject, first.getId(), new MessageSendRequest("送信", null)),
                 r -> r.body().length(), 2);
+        // 相手のユーザー名（dm_p0〜dm_p19）で検索しても、本数は変わらない
+        long searched = countSql(() -> conversationListService.list(subject, ConversationFilter.CHATS, "DM_P", 0, 20),
+                r -> r.conversations().size(), 20);
+        long summary = countSql(() -> conversationListService.summary(subject), r -> 1, 1);
+        long detail = countSql(() -> conversationListService.get(subject, first.getId()), r -> 1, 1);
 
-        System.out.printf("### SQL の本数: DM一覧 %d → %d、メッセージの取得 %d → %d（5件 → 20件）、送信（テキスト） %d%n",
-                list5, list20, messages5, messages20, sent);
+        System.out.printf("### SQL の本数: DM一覧 %d → %d、メッセージの取得 %d → %d（5件 → 20件）、送信（テキスト） %d、"
+                        + "DM一覧の検索（20件） %d、件数 %d、会話1件 %d%n",
+                list5, list20, messages5, messages20, sent, searched, summary, detail);
+        assertThat(searched).isEqualTo(list20);
         assertThat(list20).isEqualTo(list5);
         assertThat(messages20).isEqualTo(messages5);
     }
