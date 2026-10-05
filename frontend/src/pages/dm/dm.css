@@ -326,7 +326,7 @@
   text-align: right;
 }
 
-/* ---- 見出し（メッセージリクエスト・送信したリクエスト・チャット） ---- */
+/* ---- 見出し（メッセージリクエスト・送信したリクエスト） ---- */
 
 .dm-sub-header {
   display: flex;
@@ -364,19 +364,7 @@
   color: var(--color-text-muted);
 }
 
-.dm-chat-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-}
 
-.dm-chat-title .dm-avatar {
-  width: 32px;
-  height: 32px;
-}
 
 /* ---- 読み込み中・空・エラー ---- */
 

@@ -1,0 +1,390 @@
+/* チャット画面（design/Chatscreen.png） */
+
+/* 画面の高さいっぱいに、見出し・メッセージ・入力欄を縦に並べ、メッセージの部分だけをスクロールする */
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 390px;
+  height: 100svh;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ---- 見出し ---- */
+
+.chat-header {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.chat-partner {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.chat-partner .dm-avatar {
+  width: 34px;
+  height: 34px;
+}
+
+.chat-partner-name {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-menu-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.chat-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #ebe5dc;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.chat-menu {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  margin: 0;
+  padding: 6px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.08);
+  list-style: none;
+}
+
+.chat-menu-item {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-menu-item:hover {
+  background: var(--color-bg);
+}
+
+.chat-menu-danger {
+  color: var(--color-error);
+}
+
+/* ---- メッセージ ---- */
+
+.chat-messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 12px;
+}
+
+/*
+ * メッセージが少ないときは上から順に詰めて表示する（LINE と同じ）。
+ * 画面に収まらないときに最新が見える位置にするのは、DmChatPage のスクロール位置の処理で行う
+ */
+.chat-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-list li + li {
+  margin-top: 12px;
+}
+
+.chat-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* 自分のメッセージは右寄せにし、時刻を吹き出しの左に出す */
+.chat-row-mine {
+  flex-direction: row-reverse;
+}
+
+.chat-row .dm-avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.chat-bubble-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 72%;
+}
+
+.chat-row-mine .chat-bubble-group {
+  align-items: flex-end;
+}
+
+.chat-bubble {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-row-theirs .chat-bubble {
+  border: 1px solid var(--color-border);
+  border-bottom-left-radius: 4px;
+  background: #fff;
+}
+
+.chat-row-mine .chat-bubble {
+  border-bottom-right-radius: 4px;
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.chat-image {
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.chat-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* ---- 入力欄 ---- */
+
+.chat-composer {
+  flex-shrink: 0;
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.chat-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-attach {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.chat-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.chat-send {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0 0 0 2px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.chat-send:disabled,
+.chat-attach:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chat-preview {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.chat-preview img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.chat-preview-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-text);
+  font-size: 13px;
+  line-height: 22px;
+  color: #fff;
+  cursor: pointer;
+}
+
+.chat-composer-error {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+/* 送れない状態（申請中・終了）では、入力欄の代わりに理由を出す */
+.chat-composer-disabled {
+  background: #ebe5dc;
+}
+
+.chat-disabled-reason {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  margin: 4px 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.chat-disabled-link {
+  font-weight: 700;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+/* ---- 確認ダイアログ ---- */
+
+.chat-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.chat-dialog {
+  width: 100%;
+  max-width: 320px;
+  padding: 20px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.chat-dialog-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.chat-dialog-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.chat-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.chat-dialog-cancel,
+.chat-dialog-confirm {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chat-dialog-cancel {
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  color: var(--color-text);
+}
+
+.chat-dialog-confirm {
+  border: 1px solid var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+.chat-dialog-cancel:disabled,
+.chat-dialog-confirm:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

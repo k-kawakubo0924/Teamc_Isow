@@ -24,6 +24,15 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findLatest(
             @Param("conversationId") Long conversationId, @Param("beforeId") Long beforeId, Pageable pageable);
 
+    /** 会話のメッセージのうち、afterId より新しいものを古い順に読む（チャット画面を開いている間の取り直し） */
+    @Query("""
+            SELECT m FROM Message m
+            WHERE m.conversation.id = :conversationId AND m.id > :afterId
+            ORDER BY m.id ASC
+            """)
+    List<Message> findAfter(
+            @Param("conversationId") Long conversationId, @Param("afterId") Long afterId, Pageable pageable);
+
     /** 会話で、userId 以外（相手）から届いた未読メッセージをすべて既読にする。更新した件数を返す */
     @Modifying
     @Query("""

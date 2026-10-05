@@ -1,4 +1,4 @@
-import { getJson, sendWithToken } from './client'
+import { getJson, postForm, sendWithToken } from './client'
 import { TIMELINE_PAGE_SIZE } from './posts'
 
 /** 会話の状態（バックエンドの ConversationStatus の定数名） */
@@ -106,4 +106,59 @@ export function respondToRequest(
   token: string,
 ): Promise<ConversationStateResponse> {
   return sendWithToken<ConversationStateResponse>('POST', `/api/conversations/${id}/${action}`, token)
+}
+
+/** メッセージ1件（バックエンドの MessageResponse） */
+export type Message = {
+  id: number
+  senderId: number
+  /** ログイン中のユーザーが送ったものか */
+  mine: boolean
+  /** 本文。画像だけのメッセージは null */
+  body: string | null
+  /** 画像の URL。画像がなければ null */
+  imageUrl: string | null
+  sentAt: string
+  /** 相手が読んだ日時。未読は null */
+  readAt: string | null
+}
+
+/** バックエンドの MessageListResponse。messages は古い順 */
+export type MessageListResponse = {
+  messages: Message[]
+  /** before（または指定なし）ではさらに古いものがあるか、after ではさらに新しいものがあるか */
+  hasMore: boolean
+}
+
+/** 1回に読むメッセージの件数 */
+export const MESSAGE_PAGE_SIZE = 30
+
+/**
+ * 会話のメッセージ（古い順）。何も指定しなければ最新の MESSAGE_PAGE_SIZE 件。
+ * before はそれより古いもの（上にスクロールしたとき）、after はそれより新しいもの（開いている間の取り直し）。
+ * 読むと、相手から届いた未読メッセージは既読になる
+ */
+export function fetchMessages(
+  id: number,
+  range: { before?: number; after?: number },
+  token: string,
+  signal?: AbortSignal,
+): Promise<MessageListResponse> {
+  const params = new URLSearchParams({ size: String(MESSAGE_PAGE_SIZE) })
+  if (range.before !== undefined) params.set('before', String(range.before))
+  if (range.after !== undefined) params.set('after', String(range.after))
+  return getJson<MessageListResponse>(`/api/conversations/${id}/messages?${params}`, token, signal)
+}
+
+/** メッセージを送る。本文（body）と画像（image）のどちらか一方は必須。進行中の会話だけ送れる */
+export function sendMessage(id: number, body: string, image: File | null, token: string): Promise<Message> {
+  const form = new FormData()
+  if (body.trim() !== '') form.set('body', body)
+  if (image) form.set('image', image)
+  return postForm<Message>(`/api/conversations/${id}/messages`, form, token)
+}
+
+/** 会話を終了する（進行中 → 終了）。取り消せない */
+export function endConversation(id: number, token: string): Promise<ConversationStateResponse> {
+  return sendWithToken<ConversationStateResponse>('POST', `/api/conversations/${id}/end`, token)
 }

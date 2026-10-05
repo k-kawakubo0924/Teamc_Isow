@@ -221,6 +221,48 @@ class MessageApiTest {
     }
 
     @Test
+    void afterでそれより新しいメッセージだけを古い順に読める() throws Exception {
+        String latest = messages(userA, conversationId, "").andReturn().getResponse().getContentAsString();
+        Integer lastId = JsonPath.read(latest, "$.messages[0].id");
+        // 新しいメッセージがなければ空
+        messages(userA, conversationId, "?after=" + lastId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.messages", hasSize(0)))
+                .andExpect(jsonPath("$.hasMore").value(false));
+
+        for (int i = 1; i <= 3; i++) {
+            send(userB, conversationId, "新着" + i, null).andExpect(status().isCreated());
+        }
+        String first = messages(userA, conversationId, "?size=2&after=" + lastId)
+                .andExpect(jsonPath("$.hasMore").value(true))
+                .andExpect(jsonPath("$.messages[0].readAt").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(bodies(first)).containsExactly("新着1", "新着2");
+
+        Integer secondLastId = JsonPath.read(first, "$.messages[1].id");
+        String rest = messages(userA, conversationId, "?size=2&after=" + secondLastId)
+                .andExpect(jsonPath("$.hasMore").value(false))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(bodies(rest)).containsExactly("新着3");
+        // 取り直しでも、相手（B）から届いた未読はすべて既読になる
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM messages WHERE sender_id = ? AND read_at IS NULL", Integer.class, userB.getId()))
+                .isZero();
+    }
+
+    @Test
+    void beforeとafterを同時に指定すると400() throws Exception {
+        messages(userA, conversationId, "?before=10&after=1")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.after").value("before と after は同時に指定できません"));
+    }
+
+    @Test
+    void afterでも当事者でなければ404() throws Exception {
+        messages(outsider, conversationId, "?after=0").andExpect(status().isNotFound());
+    }
+
+    @Test
     void 取得すると相手から届いた未読メッセージがすべて既読になり_自分のメッセージは変わらない() throws Exception {
         send(userB, conversationId, "Bから1", null).andExpect(status().isCreated());
         send(userB, conversationId, "Bから2", null).andExpect(status().isCreated());

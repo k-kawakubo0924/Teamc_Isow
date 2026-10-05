@@ -101,7 +101,9 @@ public class ConversationController {
     }
 
     /**
-     * 会話のメッセージ（古い順）。before を指定しなければ最新の size 件、指定すればそのメッセージより古い size 件。
+     * 会話のメッセージ（古い順）。どちらも指定しなければ最新の size 件。
+     * before を指定するとそのメッセージより古い size 件（上にスクロールしたとき）、
+     * after を指定するとそのメッセージより新しい size 件（画面を開いている間の取り直し）。before と after は同時に指定できない。
      * 相手から届いた未読メッセージは既読にする
      */
     @GetMapping("/{conversationId:\\d+}/messages")
@@ -109,7 +111,13 @@ public class ConversationController {
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long conversationId,
             @RequestParam(required = false) Long before,
+            @RequestParam(required = false) Long after,
             @RequestParam(defaultValue = "30") int size) {
-        return messageService.list(jwt.getSubject(), conversationId, before, size);
+        if (before != null && after != null) {
+            throw InputValidationException.of("after", "before と after は同時に指定できません");
+        }
+        return after != null
+                ? messageService.listAfter(jwt.getSubject(), conversationId, after, size)
+                : messageService.list(jwt.getSubject(), conversationId, before, size);
     }
 }

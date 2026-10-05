@@ -102,12 +102,7 @@ public class MessageService {
      */
     @Transactional
     public MessageListResponse list(String subject, Long conversationId, Long before, int size) {
-        Long userId = authService.requireCurrentUser(subject).getId();
-        requireParticipant(conversationRepository.findById(conversationId), conversationId, userId);
-
-        // 先に既読にしてから読むことで、返す readAt も既読にした後の値になる
-        messageRepository.markAsRead(conversationId, userId, LocalDateTime.now());
-
+        Long userId = openAsParticipant(subject, conversationId);
         int limit = Math.clamp(size, 1, MAX_PAGE_SIZE);
         // 1件多く読み、さらに古いメッセージがあるかを判定する
         List<Message> newestFirst = messageRepository.findLatest(conversationId, before, PageRequest.of(0, limit + 1));
@@ -115,6 +110,32 @@ public class MessageService {
         List<Message> page = new ArrayList<>(newestFirst.subList(0, Math.min(limit, newestFirst.size())));
         Collections.reverse(page);
         return new MessageListResponse(page.stream().map(m -> MessageResponse.of(m, userId)).toList(), hasMore);
+    }
+
+    /**
+     * after のメッセージより新しいものを、古い順に最大 size 件返す（チャット画面を開いている間に、新しいメッセージだけを取り直すため）。
+     * hasMore はさらに新しいメッセージがあるか（ある場合は、返した最後の ID を after にして続けて読む）。
+     * 既読にする範囲は list と同じ
+     */
+    @Transactional
+    public MessageListResponse listAfter(String subject, Long conversationId, Long after, int size) {
+        Long userId = openAsParticipant(subject, conversationId);
+        int limit = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        List<Message> oldestFirst = messageRepository.findAfter(conversationId, after, PageRequest.of(0, limit + 1));
+        boolean hasMore = oldestFirst.size() > limit;
+        List<Message> page = oldestFirst.subList(0, Math.min(limit, oldestFirst.size()));
+        return new MessageListResponse(page.stream().map(m -> MessageResponse.of(m, userId)).toList(), hasMore);
+    }
+
+    /**
+     * 当事者であることを確かめ、相手から届いた未読メッセージをすべて既読にする（チャット画面を開いたら読んだものとする）。
+     * 先に既読にしてから読むことで、返す readAt も既読にした後の値になる。ログイン中のユーザーの ID を返す
+     */
+    private Long openAsParticipant(String subject, Long conversationId) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        requireParticipant(conversationRepository.findById(conversationId), conversationId, userId);
+        messageRepository.markAsRead(conversationId, userId, LocalDateTime.now());
+        return userId;
     }
 
     /** トランザクションの中で呼ぶ。会話をロックし、終了と同時に届いても終了した会話には登録しない */
