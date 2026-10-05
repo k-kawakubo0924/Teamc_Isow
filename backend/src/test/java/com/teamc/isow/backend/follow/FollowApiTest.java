@@ -239,6 +239,11 @@ class FollowApiTest {
                 .andExpect(jsonPath("$.users[?(@.id == " + userB.getId() + ")].followingByMe").value(false))
                 .andExpect(jsonPath("$.users[?(@.id == " + userC.getId() + ")].followingByMe").value(true));
 
+        // 5分以内（4分前に解除）なら、まだ出る
+        setUnfollowedMinutesAgo(4);
+        perform(get("/api/users/" + userA.getId() + "/followings"), tokenA)
+                .andExpect(jsonPath("$.users", hasSize(2)));
+
         // 5分を過ぎると出なくなる
         setUnfollowedMinutesAgo(6);
         perform(get("/api/users/" + userA.getId() + "/followings"), tokenA)

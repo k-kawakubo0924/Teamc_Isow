@@ -324,6 +324,22 @@ class ProfileApiTest {
                 .andExpect(jsonPath("$.hasNext").value(false));
     }
 
+    @Test
+    void 他の人のお気に入り一覧は取得できない() throws Exception {
+        Post post = ProfileTestSupport.savePost(postRepository, fashionCategoryRepository, tagRepository, third, "fav");
+        favoriteRepository.save(new PostFavorite(other, post));
+
+        // お気に入りは本人にだけ見せるため、他の人のお気に入り一覧の API は無い
+        perform("/api/users/" + other.getId() + "/favorites").andExpect(status().isNotFound());
+        // 自分のお気に入り一覧には、他の人のお気に入りは含まれない
+        perform("/api/users/me/favorites").andExpect(jsonPath("$.posts", hasSize(0)));
+        // 他の人の投稿一覧・プロフィールにも、その人のお気に入りの状態は出ない（favoritedByMe は見ている自分の状態）
+        perform("/api/users/" + third.getId() + "/posts")
+                .andExpect(jsonPath("$.posts[0].id").value(post.getId()))
+                .andExpect(jsonPath("$.posts[0].favoritedByMe").value(false));
+        perform("/api/users/" + other.getId()).andExpect(jsonPath("$.favorites").doesNotExist());
+    }
+
     private ResultActions perform(String url) throws Exception {
         return mockMvc.perform(get(url).header("Authorization", "Bearer " + token));
     }
