@@ -38,7 +38,10 @@ import java.time.LocalDateTime;
                 // 組み合わせの向きを1通りにする。自分自身との会話もこれで防ぐ
                 @CheckConstraint(name = "ck_conversations_user_order", constraint = "user1_id < user2_id"),
                 @CheckConstraint(name = "ck_conversations_requested_by",
-                        constraint = "requested_by_id = user1_id OR requested_by_id = user2_id")
+                        constraint = "requested_by_id = user1_id OR requested_by_id = user2_id"),
+                // ddl-auto=update では既存の表に検査制約は追加されないため、この列より前に作った開発用 DB には付かない
+                @CheckConstraint(name = "ck_conversations_ended_by",
+                        constraint = "ended_by_id IS NULL OR ended_by_id = user1_id OR ended_by_id = user2_id")
         })
 public class Conversation {
 
@@ -89,6 +92,14 @@ public class Conversation {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
+    /**
+     * 会話を終了した人（user1 か user2 のどちらか）。終了日時と同時に記録する。終了していなければ null。
+     * 通知機能で「誰が終了したか」を使う想定。一か月連絡がない会話の自動終了（未実装）では、終了した人がいないため null のままにする
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ended_by_id")
+    private User endedBy;
+
     protected Conversation() {
         // JPA 用
     }
@@ -132,11 +143,19 @@ public class Conversation {
         this.respondedAt = LocalDateTime.now();
     }
 
-    /** 会話を終了する（進行中 → 終了） */
-    public void end() {
+    /**
+     * 会話を終了する（進行中 → 終了）。終了日時と終了した人を同時に記録する
+     *
+     * @param endedBy 終了した人（この会話の参加者）
+     */
+    public void end(User endedBy) {
         requireStatus(ConversationStatus.ACTIVE);
+        if (!isParticipant(endedBy)) {
+            throw new IllegalArgumentException("この会話の参加者ではありません");
+        }
         changeStatus(ConversationStatus.ENDED);
         this.endedAt = LocalDateTime.now();
+        this.endedBy = endedBy;
     }
 
     /** メッセージを保存したときに呼び、最終メッセージ日時を進める */
@@ -159,7 +178,12 @@ public class Conversation {
 
     /** 指定したユーザーがこの会話の参加者か */
     public boolean isParticipant(User user) {
-        return user1.getId().equals(user.getId()) || user2.getId().equals(user.getId());
+        return isParticipant(user.getId());
+    }
+
+    /** 指定した ID のユーザーがこの会話の参加者か */
+    public boolean isParticipant(Long userId) {
+        return user1.getId().equals(userId) || user2.getId().equals(userId);
     }
 
     /** status と ongoing を必ず一緒に変える */
@@ -208,5 +232,9 @@ public class Conversation {
 
     public LocalDateTime getEndedAt() {
         return endedAt;
+    }
+
+    public User getEndedBy() {
+        return endedBy;
     }
 }

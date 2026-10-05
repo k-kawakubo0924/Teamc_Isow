@@ -76,13 +76,14 @@ class ConversationEntityTest {
         rejected2.reject();
         Conversation ended = persist(new Conversation(b, a));
         ended.approve();
-        ended.end();
+        ended.end(b);
         entityManager.flush();
 
         Conversation again = persist(new Conversation(a, b));
 
         assertThat(again.getId()).isNotNull();
         assertThat(ended.getEndedAt()).isNotNull();
+        assertThat(ended.getEndedBy().getId()).isEqualTo(b.getId());
     }
 
     @Test
@@ -91,6 +92,31 @@ class ConversationEntityTest {
         conversation.reject();
 
         assertThatThrownBy(conversation::approve).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void 参加者でない人は終了した人として記録できない() {
+        User a = saveUser("a");
+        User b = saveUser("b");
+        User c = saveUser("c");
+        Conversation conversation = persist(new Conversation(a, b));
+        conversation.approve();
+
+        assertThatThrownBy(() -> conversation.end(c)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(conversation.getStatus()).isEqualTo(ConversationStatus.ACTIVE);
+        assertThat(conversation.getEndedBy()).isNull();
+    }
+
+    @Test
+    void 終了した人の列は_参加者以外の値をDBに保存できない() {
+        User a = saveUser("a");
+        User b = saveUser("b");
+        User c = saveUser("c");
+        Conversation conversation = persist(new Conversation(a, b));
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "UPDATE conversations SET ended_by_id = ? WHERE id = ?", c.getId(), conversation.getId()))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

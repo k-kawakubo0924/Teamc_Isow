@@ -1,8 +1,10 @@
 package com.teamc.isow.backend.dm;
 
+import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -11,6 +13,13 @@ import org.springframework.data.repository.query.Param;
  * 状態は定数名の文字列で持つため、引数には ConversationStatus.name() を渡す。
  */
 public interface ConversationRepository extends JpaRepository<Conversation, Long> {
+
+    /**
+     * 行をロックして読み込む（SELECT ... FOR UPDATE）。承認・拒否・終了が同時に届いても、1つずつ順に処理するために使う
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Conversation c WHERE c.id = :id")
+    Optional<Conversation> findByIdForUpdate(@Param("id") Long id);
 
     /** 2人の間の「申請中」または「進行中」の会話（一意制約により多くても1件） */
     @Query("""

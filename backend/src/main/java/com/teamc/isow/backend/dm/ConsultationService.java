@@ -18,7 +18,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p>申し込めない理由の判定は、申込（request）と確認（status）で同じものを使う（findUnavailability）。
  * 相手が受けている進行中の会話の上限は、申込の時点でも確認するが、申請中は数えない仕様のため、
- * 承認の時点でもう一度確認すること（承認の API を作るとき）。
+ * 承認の時点でもう一度確認する（ConversationService.accept が isReceivingLimitReached を使う）。
  */
 @Service
 public class ConsultationService {
@@ -137,11 +137,24 @@ public class ConsultationService {
                     ConsultationUnavailableReason.REJECTED_RECENTLY, latestRejectedAt.plus(REAPPLY_INTERVAL), null));
         }
 
-        long received = conversationRepository.countReceived(recipientId, ConversationStatus.ACTIVE.name());
-        if (received >= dmProperties.maxReceivedActiveConversations()) {
+        if (isReceivingLimitReached(recipientId)) {
             return Optional.of(new Unavailability(ConsultationUnavailableReason.LIMIT_REACHED, null, null));
         }
         return Optional.empty();
+    }
+
+    /**
+     * userId が受けている（相手から申し込まれた）「進行中」の会話が上限に達しているか。申込と承認の両方で使う。
+     * トランザクションの中で呼ぶこと。承認では、同時に承認して上限を超えないよう、先にユーザーの行をロックしておくこと
+     */
+    public boolean isReceivingLimitReached(Long userId) {
+        long received = conversationRepository.countReceived(userId, ConversationStatus.ACTIVE.name());
+        return received >= dmProperties.maxReceivedActiveConversations();
+    }
+
+    /** 1人が受けられる「進行中」の会話の上限 */
+    public int maxReceivedActiveConversations() {
+        return dmProperties.maxReceivedActiveConversations();
     }
 
     /**

@@ -3,9 +3,12 @@ package com.teamc.isow.backend.common;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
-import com.teamc.isow.backend.dm.ConsultationErrorResponse;
 import com.teamc.isow.backend.dm.ConsultationUnavailableException;
 import com.teamc.isow.backend.dm.ConsultationUnavailableReason;
+import com.teamc.isow.backend.dm.ConversationNotFoundException;
+import com.teamc.isow.backend.dm.ConversationOperationError;
+import com.teamc.isow.backend.dm.ConversationOperationException;
+import com.teamc.isow.backend.dm.DmErrorResponse;
 import com.teamc.isow.backend.follow.SelfFollowException;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.post.PostNotFoundException;
@@ -73,10 +76,25 @@ public class GlobalExceptionHandler {
 
     /** 相談を申し込めない。HTTP ステータスと文言は理由ごとに決まる。画面が出し分けられるよう reason も返す */
     @ExceptionHandler(ConsultationUnavailableException.class)
-    public ResponseEntity<ConsultationErrorResponse> handleConsultationUnavailable(ConsultationUnavailableException e) {
+    public ResponseEntity<DmErrorResponse> handleConsultationUnavailable(ConsultationUnavailableException e) {
         ConsultationUnavailableReason reason = e.getReason();
         return ResponseEntity.status(reason.getHttpStatus())
-                .body(new ConsultationErrorResponse(reason.getMessage(), Map.of(), reason));
+                .body(new DmErrorResponse(reason.getMessage(), Map.of(), reason.name()));
+    }
+
+    /** 会話が存在しない、または当事者でない（会話の有無が分からないよう、どちらも同じ応答にする） */
+    @ExceptionHandler(ConversationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleConversationNotFound(ConversationNotFoundException e) {
+        return new ApiErrorResponse("会話が見つかりません。", Map.of());
+    }
+
+    /** 会話の承認・拒否・終了ができない。HTTP ステータスは理由ごとに決まり、文言は例外の message */
+    @ExceptionHandler(ConversationOperationException.class)
+    public ResponseEntity<DmErrorResponse> handleConversationOperation(ConversationOperationException e) {
+        ConversationOperationError error = e.getError();
+        return ResponseEntity.status(error.getHttpStatus())
+                .body(new DmErrorResponse(e.getMessage(), Map.of(), error.name()));
     }
 
     /** multipart の上限（spring.servlet.multipart.*）を超えた。画面側でも送信前にサイズを確認すること */

@@ -188,7 +188,7 @@ class ConsultationApiTest {
         long id = applyAndGetId(userA, userB);
         change(id, c -> {
             c.approve();
-            c.end();
+            c.end(c.getUser1());
         });
 
         apply(userA, json(userB.getId(), null)).andExpect(status().isCreated());
