@@ -1,5 +1,8 @@
 package com.teamc.isow.backend.dm;
 
+import static com.teamc.isow.backend.dm.ConversationChecks.requireParticipant;
+import static com.teamc.isow.backend.dm.ConversationChecks.requireStatus;
+
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -75,26 +78,13 @@ public class ConversationService {
 
     /** 会話をロックして読み込む。存在しない場合も当事者でない場合も、同じ ConversationNotFoundException にする */
     private Conversation lockAsParticipant(Long conversationId, Long userId) {
-        Conversation conversation = conversationRepository.findByIdForUpdate(conversationId)
-                .orElseThrow(() -> new ConversationNotFoundException(conversationId));
-        if (!conversation.isParticipant(userId)) {
-            throw new ConversationNotFoundException(conversationId);
-        }
-        return conversation;
+        return requireParticipant(conversationRepository.findByIdForUpdate(conversationId), conversationId, userId);
     }
 
     private static void requireRecipient(Conversation conversation, Long userId, String operation) {
         if (conversation.getRequestedBy().getId().equals(userId)) {
             throw new ConversationOperationException(ConversationOperationError.NOT_RECIPIENT,
                     "申し込んだ本人は" + operation + "できません。");
-        }
-    }
-
-    private static void requireStatus(Conversation conversation, ConversationStatus expected, String operation) {
-        ConversationStatus status = conversation.getStatus();
-        if (status != expected) {
-            throw new ConversationOperationException(ConversationOperationError.INVALID_STATUS,
-                    "この会話は" + status.getLabel() + "のため、" + operation + "できません。");
         }
     }
 }

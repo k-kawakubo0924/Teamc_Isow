@@ -2,7 +2,10 @@ package com.teamc.isow.backend.dm;
 
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -40,6 +43,18 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
             @Param("requesterId") Long requesterId,
             @Param("status") String status,
             @Param("since") LocalDateTime since);
+
+    /**
+     * DM一覧。userId が参加している会話のうち、指定した状態のものを、最終メッセージの新しい順（メッセージがなければ申込日時）に読む。
+     * 相手を表示するため、2人のユーザーも一緒に読み込む（会話ごとに SQL を発行しないため）
+     */
+    @Query("""
+            SELECT c FROM Conversation c JOIN FETCH c.user1 JOIN FETCH c.user2
+            WHERE (c.user1.id = :userId OR c.user2.id = :userId) AND c.status IN :statuses
+            ORDER BY COALESCE(c.lastMessageAt, c.requestedAt) DESC, c.id DESC
+            """)
+    Slice<Conversation> findForList(
+            @Param("userId") Long userId, @Param("statuses") Collection<String> statuses, Pageable pageable);
 
     /** userId が受けている（相手から申し込まれた）会話のうち、指定した状態のものの件数 */
     @Query("""

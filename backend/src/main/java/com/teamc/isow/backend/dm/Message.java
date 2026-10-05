@@ -25,8 +25,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
         name = "messages",
-        // チャット画面の表示（会話ごとに送信日時順）と未読数の集計で使う
-        indexes = @Index(name = "idx_messages_conversation_id_sent_at", columnList = "conversation_id, sent_at"),
+        // チャット画面の表示（会話ごとに ID 順。ID は送信した順に増える）、最新メッセージの取得、未読数の集計で使う。
+        // 送信日時は同じ時刻が重なりうるため、並び順とページ送りの区切りには ID を使う
+        indexes = @Index(name = "idx_messages_conversation_id_id", columnList = "conversation_id, id"),
         // 本文だけ・画像だけのメッセージがあるため、どちらか一方は必須とする
         check = @CheckConstraint(name = "ck_messages_body_or_image",
                 constraint = "body IS NOT NULL OR image_url IS NOT NULL"))
