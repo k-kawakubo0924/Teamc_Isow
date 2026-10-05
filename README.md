@@ -93,6 +93,7 @@ npm run dev
 | `IMAGE_STORAGE` | 画像の保存先。`local` はサーバーのローカルフォルダ（開発用）。公開時はクラウドストレージ（R2 など）の実装を追加して切り替える | `local` |
 | `IMAGE_LOCAL_DIR` | `local` の場合の保存先フォルダ（`backend/` からの相対パス。`backend/uploads/` は .gitignore 済み） | `./uploads` |
 | `IMAGE_PUBLIC_BASE_URL` | `local` の場合に、ブラウザから画像を表示する URL の先頭部分（`/uploads/**` で配信） | `http://localhost:<SERVER_PORT>/uploads` |
+| `DM_MAX_RECEIVED_ACTIVE_CONVERSATIONS` | 1人が受けられる「進行中」の相談の上限（自分から申し込んだ会話と、申請中の会話は数えない） | `3` |
 
 ### `frontend/.env`
 

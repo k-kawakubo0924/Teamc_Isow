@@ -74,6 +74,25 @@
 - 上限の件数は設定ファイルで変更できるようにする
 - 上限に達している相手には「現在、新しい相談を受け付けていません」と表示する
 
+### 実装での扱い（`conversations` / `messages` テーブル）
+
+- 相談の申込は `POST /api/conversations`、申し込めるかの確認は `GET /api/users/{id}/consultation-status`
+- 申し込めない理由（`reason`）は次のとおり。複数に当てはまる場合は上のものを返す
+
+| reason | 条件 |
+| --- | --- |
+| `SELF` | 自分自身に申し込んだ（400） |
+| `ALREADY_REQUESTED` | 自分の申請が申請中（409） |
+| `REQUEST_RECEIVED` | 相手からの申請が申請中（409） |
+| `IN_PROGRESS` | 進行中の会話がある（409） |
+| `REJECTED_RECENTLY` | 自分の申請が拒否されてから24時間以内（409）。再度申し込める日時を `availableAt` で返す |
+| `LIMIT_REACHED` | 相手が受けている進行中の会話が上限に達している（409） |
+
+- 24時間の制限は、拒否された申請を出した本人だけにかける（断った側から申し込むことは止めない）
+- 一言メッセージは任意（1000文字まで）。空白だけの場合は保存しない
+- 上限の件数は `app.dm.max-received-active-conversations`（環境変数 `DM_MAX_RECEIVED_ACTIVE_CONVERSATIONS`、既定は3）
+- 申請中は上限に数えないため、承認の API を作るときに、承認の時点でもう一度上限を確認すること
+
 ---
 
 ## 未確定・要確認

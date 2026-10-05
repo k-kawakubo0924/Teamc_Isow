@@ -3,6 +3,9 @@ package com.teamc.isow.backend.common;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
+import com.teamc.isow.backend.dm.ConsultationErrorResponse;
+import com.teamc.isow.backend.dm.ConsultationUnavailableException;
+import com.teamc.isow.backend.dm.ConsultationUnavailableReason;
 import com.teamc.isow.backend.follow.SelfFollowException;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.post.PostNotFoundException;
@@ -66,6 +69,14 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleSelfFollow(SelfFollowException e) {
         return new ApiErrorResponse("自分自身はフォローできません。", Map.of());
+    }
+
+    /** 相談を申し込めない。HTTP ステータスと文言は理由ごとに決まる。画面が出し分けられるよう reason も返す */
+    @ExceptionHandler(ConsultationUnavailableException.class)
+    public ResponseEntity<ConsultationErrorResponse> handleConsultationUnavailable(ConsultationUnavailableException e) {
+        ConsultationUnavailableReason reason = e.getReason();
+        return ResponseEntity.status(reason.getHttpStatus())
+                .body(new ConsultationErrorResponse(reason.getMessage(), Map.of(), reason));
     }
 
     /** multipart の上限（spring.servlet.multipart.*）を超えた。画面側でも送信前にサイズを確認すること */
