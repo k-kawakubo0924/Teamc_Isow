@@ -1,52 +1,29 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router'
-import type { TimelineTab } from '../../api/posts'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
+import { fetchTimeline, type TimelineTab } from '../../api/posts'
+import { fetchMyProfile } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
-import { loadColumns, saveColumns, type Columns } from './columnSetting'
-import { PostCard } from './PostCard'
-import { useReactions } from './useReactions'
-import { useTimeline } from './useTimeline'
+import { HOME_COLUMNS, loadColumns, saveColumns, type Columns } from './columnSetting'
+import { ColumnsSwitcher, EmptyMessage, PostGrid } from './PostGrid'
 import './home.css'
 
-type HomeTab = 'recommended' | 'following' | 'latest'
-
-const TABS: { key: HomeTab; label: string }[] = [
+const TABS: { key: TimelineTab; label: string }[] = [
   { key: 'recommended', label: 'おすすめ' },
   { key: 'following', label: 'フォロー中' },
   { key: 'latest', label: '新着' },
 ]
-
-/** 一覧の末尾がこの距離（px）まで近づいたら、次のページを読み込み始める */
-const PRELOAD_MARGIN_PX = 400
-
-const COLUMN_OPTIONS: { columns: Columns; label: string }[] = [
-  { columns: 1, label: '1列で表示' },
-  { columns: 2, label: '2列で表示' },
-  { columns: 3, label: '3列で表示' },
-]
-
-/** いいね・お気に入りに失敗したときの通知を表示しておく時間 */
-const TOAST_DURATION_MS = 4000
 
 /**
  * ホーム画面（docs/home.md、design/home.png）。
  * 新着メッセージの欄は DM 機能で追加する。
  */
 function HomePage() {
-  const navigate = useNavigate()
-  const { logout } = useAuth()
-  const [tab, setTab] = useState<HomeTab>('recommended')
-  const [columns, setColumns] = useState<Columns>(loadColumns)
+  const [tab, setTab] = useState<TimelineTab>('recommended')
+  const [columns, setColumns] = useState<Columns>(() => loadColumns(HOME_COLUMNS))
 
   const handleChangeColumns = (next: Columns) => {
     setColumns(next)
-    saveColumns(next)
-  }
-
-  // 【仮置き】詳細設定の画面ができたら、ログアウトボタンと一緒に削除する
-  const handleLogout = () => {
-    logout()
-    navigate('/login', { replace: true })
+    saveColumns(HOME_COLUMNS, next)
   }
 
   return (
@@ -60,15 +37,6 @@ function HomePage() {
           </svg>
         </span>
         <h1 className="home-logo">ISHO</h1>
-        {/*
-          【仮置き】ログアウトボタン。デザイン画像には無い。
-          仕様上の置き場所は詳細設定のメニュー（docs/settings.md）で、その画面がまだ無いため、
-          画面からログアウトできるよう一時的にここに置いている。
-          プロフィール機能の担当者が詳細設定を作ったら、このボタンと handleLogout・.home-logout のスタイルを削除すること。
-        */}
-        <button type="button" className="home-logout" onClick={handleLogout}>
-          ログアウト
-        </button>
       </header>
 
       <div className="home-toolbar">
@@ -88,136 +56,62 @@ function HomePage() {
             </button>
           ))}
         </div>
-        {/* 表示列の切り替え（design/home.png 右上のアイコン）。選んだ列は端末ごとに記憶する */}
-        <div className="home-columns" role="group" aria-label="表示列">
-          {COLUMN_OPTIONS.map((option) => (
-            <button
-              key={option.columns}
-              type="button"
-              className={`home-columns-button${columns === option.columns ? ' home-columns-active' : ''}`}
-              aria-label={option.label}
-              aria-pressed={columns === option.columns}
-              onClick={() => handleChangeColumns(option.columns)}
-            >
-              <ColumnsIcon columns={option.columns} />
-            </button>
-          ))}
-        </div>
+        {/* 選んだ列は端末ごとに記憶する */}
+        <ColumnsSwitcher columns={columns} onChange={handleChangeColumns} />
       </div>
 
       <section id="home-tab-panel" role="tabpanel" aria-labelledby={`home-tab-${tab}`} className="home-panel">
-        {tab === 'following' ? (
-          // フォロー機能はプロフィール機能で作る。それまでは API を呼ばずにこの表示にする
-          <EmptyMessage title="フォロー中のユーザーがいません" />
-        ) : (
-          // タブを切り替えたら一覧を作り直す（読み込み中の通信は中断され、前のタブの結果は表示されない）
-          <Timeline key={tab} tab={tab} columns={columns} />
-        )}
+        {/* タブを切り替えたら一覧を作り直す（読み込み中の通信は中断され、前のタブの結果は表示されない） */}
+        <PostGrid
+          key={tab}
+          fetchPage={(page, token, signal) => fetchTimeline(tab, page, token, signal)}
+          columns={columns}
+          empty={
+            tab === 'following' ? (
+              <FollowingEmpty />
+            ) : (
+              <EmptyMessage title="まだ投稿がありません">
+                <Link to="/post" className="home-empty-action">
+                  投稿する
+                </Link>
+              </EmptyMessage>
+            )
+          }
+        />
       </section>
     </main>
   )
 }
 
-/** おすすめ・新着の一覧。末尾が見えてきたら次の20件を読み込む（無限スクロール） */
-function Timeline({ tab, columns }: { tab: TimelineTab; columns: Columns }) {
+/**
+ * フォロー中タブの投稿が無いときの表示。誰もフォローしていないのか、フォロー中の人の投稿が無いのかで文言を変える
+ * （一覧が空になったときだけ、フォロー数を調べる）
+ */
+function FollowingEmpty() {
   const { token } = useAuth()
-  const { state, loadMore, retry, updatePost } = useTimeline(tab, token)
-  const [toast, setToast] = useState<string | null>(null)
-  const { toggle } = useReactions(token, updatePost, setToast)
-  const sentinelRef = useRef<HTMLDivElement>(null)
+  const [followingCount, setFollowingCount] = useState<number | null>(null)
 
-  // いいね・お気に入りに失敗したときの通知は、しばらくしたら消す
   useEffect(() => {
-    if (toast === null) return
-    const timer = setTimeout(() => setToast(null), TOAST_DURATION_MS)
-    return () => clearTimeout(timer)
-  }, [toast])
+    if (!token) return
+    let cancelled = false
+    fetchMyProfile(token)
+      .then((profile) => {
+        if (!cancelled) setFollowingCount(profile.followingCount)
+      })
+      // 調べられなかった場合は、誰もフォローしていないときの表示にする
+      .catch(() => {
+        if (!cancelled) setFollowingCount(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
-  // 末尾の目印が画面に近づいたら読み込む。最初の1ページもこの仕組みで読み込む。
-  // 読み込みのたびに作り直し、まだ画面が埋まっていなければ続けて次のページを読み込む
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void loadMore()
-      },
-      { rootMargin: `0px 0px ${PRELOAD_MARGIN_PX}px 0px` },
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [loadMore])
-
-  const isEmpty = state.posts.length === 0 && !state.hasNext && state.status === 'idle'
-
-  return (
-    <>
-      {isEmpty ? (
-        <EmptyMessage title="まだ投稿がありません">
-          <Link to="/post" className="home-empty-action">
-            投稿する
-          </Link>
-        </EmptyMessage>
-      ) : (
-        <ul className={`home-grid home-grid-${columns}`}>
-          {state.posts.map((post) => (
-            <li key={post.id}>
-              <PostCard
-                post={post}
-                // 1列・3列のときは写真のみ（docs/home.md・docs/profile.md）
-                detailed={columns === 2}
-                onToggleLike={() => toggle(post, 'like')}
-                onToggleFavorite={() => toggle(post, 'favorite')}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {toast && (
-        <div className="home-toast" role="alert">
-          {toast}
-        </div>
-      )}
-
-      {state.status === 'loading' && (
-        <p className="home-status" role="status">
-          読み込み中...
-        </p>
-      )}
-      {state.status === 'error' && (
-        <div className="home-status" role="alert">
-          <p>{state.errorMessage}</p>
-          <button type="button" className="home-retry" onClick={retry}>
-            もう一度読み込む
-          </button>
-        </div>
-      )}
-      {/* 次のページがある間だけ置く、無限スクロールの目印 */}
-      {state.hasNext && <div ref={sentinelRef} className="home-sentinel" aria-hidden="true" />}
-    </>
-  )
-}
-
-/** 表示列のアイコン（列の数だけ縦長の四角を並べる） */
-function ColumnsIcon({ columns }: { columns: Columns }) {
-  const gap = 1.5
-  const width = (14 - gap * (columns - 1)) / columns
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      {Array.from({ length: columns }, (_, i) => (
-        <rect key={i} x={1 + i * (width + gap)} y="1.5" width={width} height="13" rx="0.8" />
-      ))}
-    </svg>
-  )
-}
-
-function EmptyMessage({ title, children }: { title: string; children?: ReactNode }) {
-  return (
-    <div className="home-empty">
-      <p className="home-empty-title">{title}</p>
-      {children}
-    </div>
+  if (followingCount === null) return null
+  return followingCount === 0 ? (
+    <EmptyMessage title="フォロー中のユーザーがいません" />
+  ) : (
+    <EmptyMessage title="フォロー中のユーザーの投稿はまだありません" />
   )
 }
 

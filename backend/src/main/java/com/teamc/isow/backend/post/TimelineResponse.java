@@ -7,7 +7,7 @@ import java.util.List;
  * ホームの投稿一覧（1ページ分。GET /api/posts）。
  *
  * @param posts タブの並び順どおりの投稿
- * @param tab 表示したタブ（recommended / latest）
+ * @param tab 表示したタブ（recommended / following / latest）
  * @param page ページ番号（0 から）
  * @param size 1ページあたりの件数（上限で丸めた後の値）
  * @param hasNext 次のページがあるか

@@ -2,6 +2,8 @@ package com.teamc.isow.backend.reaction;
 
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +18,10 @@ public interface PostFavoriteRepository extends JpaRepository<PostFavorite, Long
     @Modifying
     @Query("DELETE FROM PostFavorite f WHERE f.user.id = :userId AND f.post.id = :postId")
     int deleteByUserIdAndPostId(@Param("userId") Long userId, @Param("postId") Long postId);
+
+    /** 自分のお気に入り一覧：お気に入りにした投稿の ID を、お気に入りにした新しい順（同じなら ID の大きい順） */
+    @Query("SELECT f.post.id FROM PostFavorite f WHERE f.user.id = :userId ORDER BY f.createdAt DESC, f.id DESC")
+    Slice<Long> findPostIdsByUserId(@Param("userId") Long userId, Pageable pageable);
 
     /** 指定した投稿のうち、ユーザーがお気に入りにしている投稿の ID（1回の SQL で調べる） */
     @Query("SELECT f.post.id FROM PostFavorite f WHERE f.user.id = :userId AND f.post.id IN :postIds")

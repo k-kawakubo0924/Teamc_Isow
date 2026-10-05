@@ -31,6 +31,15 @@ export function postJson<T>(path: string, body: unknown): Promise<T> {
   })
 }
 
+/** JSON を PUT で送る（全項目を置き換える更新用。認証が必要） */
+export function putJson<T>(path: string, body: unknown, token: string): Promise<T> {
+  return request<T>(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+}
+
 /**
  * token を渡すと Authorization: Bearer ヘッダーを付ける（認証が必要なAPI用）。
  * signal を渡すと、途中で中断できる（入力中の候補検索で、古いリクエストを取り消すため）

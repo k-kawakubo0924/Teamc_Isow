@@ -139,3 +139,6 @@ npm run dev
 
 - 投稿・一覧・通知などの機能（認証は `feature/auth` で実装中）
 - マイグレーション（開発中は `spring.jpa.hibernate.ddl-auto=update` でテーブルを自動作成している）
+  - 導入時に行うこと：`users.display_name`（表示名）は、列を追加する前に登録したユーザーが NULL のため、
+    `UPDATE users SET display_name = username WHERE display_name IS NULL` で値を埋めてから NOT NULL にする
+    （それまでは `User.getDisplayName()` が NULL の場合にユーザ名を返す）

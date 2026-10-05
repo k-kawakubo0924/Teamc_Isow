@@ -3,8 +3,10 @@ package com.teamc.isow.backend.common;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
+import com.teamc.isow.backend.follow.SelfFollowException;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.post.PostNotFoundException;
+import com.teamc.isow.backend.user.UserNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +54,18 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiErrorResponse handlePostNotFound(PostNotFoundException e) {
         return new ApiErrorResponse("投稿が見つかりません。", Map.of());
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleUserNotFound(UserNotFoundException e) {
+        return new ApiErrorResponse("ユーザーが見つかりません。", Map.of());
+    }
+
+    @ExceptionHandler(SelfFollowException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleSelfFollow(SelfFollowException e) {
+        return new ApiErrorResponse("自分自身はフォローできません。", Map.of());
     }
 
     /** multipart の上限（spring.servlet.multipart.*）を超えた。画面側でも送信前にサイズを確認すること */

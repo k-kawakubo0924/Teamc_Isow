@@ -35,8 +35,8 @@ export type PostResponse = {
   createdAt: string
 }
 
-/** ホームの投稿一覧のタブ（フォロー中はフォロー機能の実装時に追加する） */
-export type TimelineTab = 'recommended' | 'latest'
+/** ホームの投稿一覧のタブ */
+export type TimelineTab = 'recommended' | 'following' | 'latest'
 
 /** ホームの投稿一覧の1件（バックエンドの TimelineResponse.Item） */
 export type TimelineItem = {

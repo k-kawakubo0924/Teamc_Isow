@@ -62,6 +62,8 @@ const ITEMS: NavItem[] = [
   },
   {
     label: 'プロフィール',
+    // 詳細設定（ログアウトなど）は、プロフィール右上の三点リーダーから開く
+    to: '/profile',
     icon: (
       <svg {...ICON_PROPS}>
         <circle cx="12" cy="8.5" r="3.8" />
