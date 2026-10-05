@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.follow;
 
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.common.SearchPatterns;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import com.teamc.isow.backend.user.UserRepository;
@@ -8,7 +9,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -121,17 +121,9 @@ public class FollowService {
                 followRepository.countByFolloweeIdAndActiveTrue(userId), sort);
     }
 
-    /**
-     * 検索欄の文字から、部分一致の LIKE のパターンを作る（小文字にし、% _ \ は文字として扱う）。
-     * 空なら "%"（すべてに一致する）
-     */
+    /** 検索欄の文字から、部分一致の LIKE のパターンを作る（SearchPatterns.contains と同じ） */
     static String searchPattern(String query) {
-        String trimmed = query == null ? "" : query.strip().toLowerCase(Locale.ROOT);
-        if (trimmed.isEmpty()) {
-            return "%";
-        }
-        String escaped = trimmed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-        return "%" + escaped + "%";
+        return SearchPatterns.contains(query);
     }
 
     /** トランザクションの中で呼ぶ */

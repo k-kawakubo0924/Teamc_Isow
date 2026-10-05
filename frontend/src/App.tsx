@@ -1,6 +1,10 @@
 import { Route, Routes } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RouteGuards'
 import { TabLayout } from './components/BottomNav'
+import DmChatPage from './pages/dm/DmChatPage'
+import DmListPage from './pages/dm/DmListPage'
+import DmRequestsPage from './pages/dm/DmRequestsPage'
+import DmSentPage from './pages/dm/DmSentPage'
 import { FollowListPage } from './pages/follow/FollowListPage'
 import HealthCheckPage from './pages/HealthCheckPage'
 import HomePage from './pages/home/HomePage'
@@ -23,7 +27,13 @@ function App() {
           <Route path="/users/:userId" element={<UserProfilePage />} />
           <Route path="/users/:userId/followings" element={<FollowListPage kind="followings" />} />
           <Route path="/users/:userId/followers" element={<FollowListPage kind="followers" />} />
+          {/* DM（docs/dm.md） */}
+          <Route path="/dm" element={<DmListPage />} />
+          <Route path="/dm/requests" element={<DmRequestsPage />} />
+          <Route path="/dm/sent" element={<DmSentPage />} />
         </Route>
+        {/* チャット画面は画面下部に入力欄を置くため、下部ナビゲーションを表示しない */}
+        <Route path="/dm/:conversationId" element={<DmChatPage />} />
         {/* 投稿作成は画面下部に「投稿」ボタンを置くため、下部ナビゲーションを表示しない */}
         <Route path="/post" element={<PostPage />} />
         {/* 詳細設定（docs/settings.md）。見出しに戻るボタンがあるため、下部ナビゲーションを表示しない */}

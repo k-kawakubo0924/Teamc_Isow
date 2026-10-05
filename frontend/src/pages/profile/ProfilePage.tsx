@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
+import { fetchConsultationStatus, type ConsultationStatus } from '../../api/consultations'
 import { setFollow } from '../../api/follows'
 import { fetchMasters, type MastersResponse } from '../../api/masters'
 import {
@@ -13,6 +14,8 @@ import {
   type ProfileResponse,
 } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
+import { ConsultButton } from '../../components/consult/ConsultButton'
+import { consultNote } from '../../components/consult/consultLabels'
 import { PROFILE_COLUMNS, loadColumns, saveColumns, type Columns } from '../home/columnSetting'
 import { ColumnsSwitcher, EmptyMessage, PostGrid, type FetchPostPage } from '../home/PostGrid'
 import { goBack } from '../settings/goBack'
@@ -214,6 +217,20 @@ function ProfileActions({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const following = profile.followingByMe === true
+  // 「相談を申し込む」ボタンの状態。読み込むまでは押せない状態で表示する。statusVersion を増やすと取り直す
+  const [consultation, setConsultation] = useState<ConsultationStatus | null>(null)
+  const [statusVersion, setStatusVersion] = useState(0)
+
+  useEffect(() => {
+    if (!token) return
+    const controller = new AbortController()
+    fetchConsultationStatus(profile.id, token, controller.signal)
+      .then(setConsultation)
+      .catch(() => {
+        // 読めなかった場合は押せないままにする（フォローなど他の操作は使える）
+      })
+    return () => controller.abort()
+  }, [profile.id, token, statusVersion])
 
   // 通信中は押せないようにし、結果はサーバーの応答で確定する（連打しても状態がずれない）
   const handleFollow = async () => {
@@ -233,13 +250,19 @@ function ProfileActions({
   return (
     <div className="profile-actions-wrap">
       <div className="profile-actions">
-        {/* DM 機能で実装する。それまでは表示のみ */}
-        <button type="button" className="profile-consult">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
-            <path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-3.9A8 8 0 1 1 20 12z" />
-          </svg>
-          相談を申し込む
-        </button>
+        <ConsultButton
+          userId={profile.id}
+          username={profile.username}
+          status={consultation}
+          label="相談を申し込む"
+          icon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-3.9A8 8 0 1 1 20 12z" />
+            </svg>
+          }
+          className="profile-consult"
+          onStatusChanged={() => setStatusVersion((version) => version + 1)}
+        />
         <button
           type="button"
           className={`profile-follow${following ? ' profile-follow-active' : ''}`}
@@ -250,6 +273,8 @@ function ProfileActions({
           {following ? 'フォロー中' : 'フォロー'}
         </button>
       </div>
+      {/* 上限に達している相手には「現在、新しい相談を受け付けていません」と表示する（docs/dm.md） */}
+      {consultNote(consultation) && <p className="consult-note">{consultNote(consultation)}</p>}
       {error && (
         <p className="profile-action-error" role="alert">
           {error}

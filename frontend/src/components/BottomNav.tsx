@@ -1,13 +1,20 @@
 import type { ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router'
+import { DmSummaryProvider } from './DmSummaryProvider'
+import { dmBadgeCount, useDmSummary } from './dmSummaryContext'
 import './BottomNav.css'
 
 type NavItem = {
   label: string
   /** 画面がまだない項目は undefined（押せない状態で表示する） */
   to?: string
+  /** true なら、to の下の画面（/dm/requests など）でもこの項目を選択中にする */
+  matchSubPaths?: boolean
   icon: ReactNode
 }
+
+/** バッジに出す件数の上限。超えたら「99+」と表示する */
+const MAX_BADGE_COUNT = 99
 
 // アイコンは線だけの簡単な SVG（design/Post screen.png の下部ナビゲーション）
 const ICON_PROPS = {
@@ -22,7 +29,7 @@ const ICON_PROPS = {
   'aria-hidden': true,
 } as const
 
-// 検索・DM・プロフィールは、各機能の担当者が画面を作ったら to を設定する
+// 検索は、担当者が画面を作ったら to を設定する
 const ITEMS: NavItem[] = [
   {
     label: 'ホーム',
@@ -54,6 +61,9 @@ const ITEMS: NavItem[] = [
   },
   {
     label: 'DM',
+    to: '/dm',
+    // メッセージリクエスト・送信したリクエストの画面でも DM を選択中にする
+    matchSubPaths: true,
     icon: (
       <svg {...ICON_PROPS}>
         <path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-3.9A8 8 0 1 1 20 12z" />
@@ -75,6 +85,9 @@ const ITEMS: NavItem[] = [
 
 /** 画面下部のナビゲーション（ホーム / 検索 / 投稿 / DM / プロフィール） */
 export function BottomNav() {
+  const { summary } = useDmSummary()
+  const dmCount = dmBadgeCount(summary)
+
   return (
     <nav className="bottom-nav" aria-label="メインメニュー">
       <ul className="bottom-nav-list">
@@ -83,10 +96,18 @@ export function BottomNav() {
             {item.to ? (
               <NavLink
                 to={item.to}
-                end
+                end={!item.matchSubPaths}
                 className={({ isActive }) => `bottom-nav-item${isActive ? ' bottom-nav-item-active' : ''}`}
+                aria-label={item.to === '/dm' && dmCount > 0 ? `${item.label}（未読 ${dmCount}件）` : undefined}
               >
-                {item.icon}
+                <span className="bottom-nav-icon">
+                  {item.icon}
+                  {item.to === '/dm' && dmCount > 0 && (
+                    <span className="bottom-nav-badge" aria-hidden="true">
+                      {dmCount > MAX_BADGE_COUNT ? `${MAX_BADGE_COUNT}+` : dmCount}
+                    </span>
+                  )}
+                </span>
                 <span>{item.label}</span>
               </NavLink>
             ) : (
@@ -104,13 +125,16 @@ export function BottomNav() {
 
 /**
  * 下部ナビゲーションを表示する画面の共通レイアウト（App.tsx のルートで使う）。
- * 投稿作成のように、画面下部に別のボタンを置く画面ではこのレイアウトを使わない
+ * 投稿作成のように、画面下部に別のボタンを置く画面ではこのレイアウトを使わない。
+ * DM の件数（下部ナビのバッジ）は、この中の画面からも useDmSummary で使える
  */
 export function TabLayout() {
   return (
-    <div className="tab-layout">
-      <Outlet />
-      <BottomNav />
-    </div>
+    <DmSummaryProvider>
+      <div className="tab-layout">
+        <Outlet />
+        <BottomNav />
+      </div>
+    </DmSummaryProvider>
   )
 }

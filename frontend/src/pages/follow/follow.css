@@ -205,9 +205,25 @@
 }
 
 .follow-consult {
+  /* 相談中・リクエストありはリンクで表示するため、ボタンと同じく中央にそろえる */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   border: none;
   background: var(--color-accent);
   color: #fff;
+}
+
+.follow-consult:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 申し込めない理由（上限に達している・拒否から24時間以内） */
+.follow-consult-note {
+  font-size: 10px;
+  color: var(--color-accent);
 }
 
 /* フォロー中：枠だけの「フォロー解除」。解除した後は目立つ「フォロー」にする */

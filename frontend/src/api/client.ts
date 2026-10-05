@@ -1,10 +1,14 @@
 // バックエンドのURLは環境変数で管理する（.env.example 参照）
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
-/** バックエンドのエラー応答（ApiErrorResponse）。errors は項目名 → その欄の下に出す警告文 */
+/**
+ * バックエンドのエラー応答（ApiErrorResponse）。errors は項目名 → その欄の下に出す警告文。
+ * reason は DM・相談のエラー（DmErrorResponse）だけにある、理由の定数名（LIMIT_REACHED など）
+ */
 export type ApiErrorBody = {
   message: string
   errors: Record<string, string>
+  reason?: string
 }
 
 /** API呼び出しの失敗。status が 0 の場合はサーバーに接続できなかったことを表す */
@@ -23,10 +27,13 @@ export class ApiError extends Error {
 const CONNECTION_ERROR_MESSAGE = 'サーバーに接続できませんでした。時間をおいて再度お試しください。'
 const UNEXPECTED_ERROR_MESSAGE = 'エラーが発生しました。時間をおいて再度お試しください。'
 
-export function postJson<T>(path: string, body: unknown): Promise<T> {
+/** JSON を POST で送る。token を渡すと Authorization: Bearer ヘッダーを付ける（認証が必要なAPI用） */
+export function postJson<T>(path: string, body: unknown, token?: string | null): Promise<T> {
   return request<T>(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: token
+      ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      : { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
 }
@@ -112,7 +119,8 @@ async function readErrorBody(res: Response): Promise<ApiErrorBody | null> {
     const json: unknown = await res.json()
     if (typeof json === 'object' && json !== null && 'message' in json && typeof json.message === 'string') {
       const errors = 'errors' in json && typeof json.errors === 'object' && json.errors !== null ? json.errors : {}
-      return { message: json.message, errors: errors as Record<string, string> }
+      const reason = 'reason' in json && typeof json.reason === 'string' ? json.reason : undefined
+      return { message: json.message, errors: errors as Record<string, string>, reason }
     }
   } catch {
     // 本文が空、または JSON でない
