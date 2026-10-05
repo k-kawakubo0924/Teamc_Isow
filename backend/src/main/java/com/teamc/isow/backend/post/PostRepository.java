@@ -22,6 +22,10 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p.id FROM Post p ORDER BY p.createdAt DESC, p.id DESC")
     Slice<Long> findLatestIds(Pageable pageable);
 
+    /** プロフィールの投稿一覧：指定したユーザーの投稿を新しい順（同じなら ID の大きい順） */
+    @Query("SELECT p.id FROM Post p WHERE p.author.id = :authorId ORDER BY p.createdAt DESC, p.id DESC")
+    Slice<Long> findIdsByAuthorId(@Param("authorId") Long authorId, Pageable pageable);
+
     /**
      * おすすめ（暫定。docs/home.md）：いいね数の多い順 → 新しい順 → ID の大きい順。
      * 表示のたびに全投稿のいいね数を集計するため、投稿数が増えたら posts にいいね数の列を持たせる方式に切り替える
