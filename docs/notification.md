@@ -68,6 +68,22 @@
   - 通知の作成に失敗しても、いいね・フォローなどは成功のままにする（失敗はログに出すだけ）
   - いいね・フォローなどが失敗した場合は、通知も作らない
 
+### API
+
+すべて認証が必要。自分の通知だけを扱い、他人の通知・存在しない通知はどちらも同じ 404（「通知が見つかりません。」）にする。
+
+| API | 内容 |
+| --- | --- |
+| `GET /api/notifications?page=&size=` | 自分の通知一覧。通知日時の新しい順（同じなら ID の大きい順）。ページで区切り、`hasNext` を返す。メッセージの通知も含む |
+| `GET /api/notifications/summary` | 未読件数（`unreadCount`。ベルのバッジ用）。メッセージの通知は含めない（DM のバッジで別に数えるため） |
+| `POST /api/notifications/{id}/read` | 既読にする（204）。すでに既読なら最初に既読にした日時のまま |
+| `POST /api/notifications/{id}/unread` | 未読に戻す（204） |
+| `DELETE /api/notifications/{id}` | 削除する（204） |
+| `POST /api/notifications/read-all` | 自分の未読の通知をすべて既読にする（204。メッセージの通知も含む） |
+
+- 一覧の1件：`id`・`type`（種類の定数名）・`actor`（`id`・`username`・`profileImageUrl`）・`post`（いいねのみ。`id`・`thumbnailUrl`）・`conversationId`（相談・メッセージのみ）・`notifiedAt`・`read`
+- 文面はサーバーで組み立てない。画面側で `type` と `actor.username` から組み立てる（後から文面を変えやすくするため）
+
 ### 通知がない場合
 
 - 「通知はありません」の表示をする
