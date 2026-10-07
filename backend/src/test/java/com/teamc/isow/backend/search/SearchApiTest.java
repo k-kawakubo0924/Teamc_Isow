@@ -183,6 +183,31 @@ class SearchApiTest {
                 .andExpect(jsonPath("$.totalCount").value(1));
     }
 
+    @Test
+    void キーワードなしでジャンルと年代を組み合わせると_両方に合う投稿だけを返す() throws Exception {
+        Post match = save(author20s, "投稿", categoryA, "説明");
+        // ジャンルだけ合う・年代だけ合う・年代が未設定の投稿者
+        save(author40s, "投稿", categoryA, "説明");
+        save(author20s, "投稿", categoryB, "説明");
+        save(authorNoAge, "投稿", categoryA, "説明");
+
+        search("categoryId", String.valueOf(categoryA.getId()), "ageGroup", "EARLY_20S")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts[*].id", contains(match.getId().intValue())))
+                .andExpect(jsonPath("$.totalCount").value(1));
+    }
+
+    @Test
+    void タグには半角カナ_全角英数字_大文字小文字の表記ゆれを吸収して一致する() throws Exception {
+        Post casual = save(author20s, "題名", categoryA, "説明", tagRepository.save(Tag.userInput("カジュアルY2K")));
+        save(author20s, "題名", categoryA, "説明");
+
+        // 題名・説明には含まれない語で、タグだけに一致させる
+        search("q", "ｶｼﾞｭｱﾙ").andExpect(jsonPath("$.posts[*].id", contains(casual.getId().intValue())));
+        search("q", "ｙ２ｋ").andExpect(jsonPath("$.posts[*].id", contains(casual.getId().intValue())));
+        search("q", "カジュアルy2k").andExpect(jsonPath("$.posts[*].id", contains(casual.getId().intValue())));
+    }
+
     // ---- 並び順・ページ ----
 
     @Test

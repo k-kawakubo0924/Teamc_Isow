@@ -231,6 +231,32 @@ class SearchUserHistorySuggestionApiTest {
         getWithToken("/api/search/history").andExpect(jsonPath("$.histories", empty()));
     }
 
+    @Test
+    void 投稿とユーザーの検索で同じキーワードを表記ゆれ込みで繰り返しても_履歴は1件で最後の入力の形になる() throws Exception {
+        mockMvc.perform(withToken(get("/api/search/posts")).param("q", "Y2K")).andExpect(status().isOk());
+        searchUsers("q", "ｙ２ｋ").andExpect(status().isOk());
+        mockMvc.perform(withToken(get("/api/search/posts")).param("q", " y2k ")).andExpect(status().isOk());
+
+        getWithToken("/api/search/history")
+                .andExpect(jsonPath("$.histories", hasSize(1)))
+                .andExpect(jsonPath("$.histories[0].keyword").value("y2k"));
+    }
+
+    @Test
+    void 検索APIで上限を超えて検索すると_古い履歴から消える() throws Exception {
+        for (int i = 1; i <= SearchHistoryService.MAX_PER_USER + 2; i++) {
+            mockMvc.perform(withToken(get("/api/search/posts")).param("q", "語" + i)).andExpect(status().isOk());
+        }
+
+        List<String> expected = new ArrayList<>();
+        for (int i = SearchHistoryService.MAX_PER_USER + 2; i >= 3; i--) {
+            expected.add("語" + i);
+        }
+        getWithToken("/api/search/history")
+                .andExpect(jsonPath("$.histories", hasSize(SearchHistoryService.MAX_PER_USER)))
+                .andExpect(jsonPath("$.histories[*].keyword", contains(expected.toArray())));
+    }
+
     // ---- 候補ワード ----
 
     @Test
