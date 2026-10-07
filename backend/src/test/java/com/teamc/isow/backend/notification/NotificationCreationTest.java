@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -128,6 +129,27 @@ class NotificationCreationTest {
         assertThat(notifications()).isEmpty();
     }
 
+    @Test
+    void 自分へのフォローと相談の申込はできず_通知も作られない() throws Exception {
+        follow(a, a).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/conversations").header("Authorization", bearer(a))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"recipientId\":" + a.getId() + "}"))
+                .andExpect(status().isBadRequest());
+
+        assertThat(notifications()).isEmpty();
+    }
+
+    @Test
+    void 自分が送ったメッセージは自分には通知されない() throws Exception {
+        long conversationId = startConversation(b, a);
+        jdbcTemplate.update("DELETE FROM notifications");
+
+        sendMessage(b, conversationId, "送信");
+
+        // 送った b には届かず、相手の a にだけ届く
+        assertThat(notifications()).containsExactly(row("MESSAGE_RECEIVED", a, b));
+    }
+
     // ---- フォロー ----
 
     @Test
@@ -199,16 +221,41 @@ class NotificationCreationTest {
     void 既読にした後で同じ会話にメッセージが届くと_日時を更新して未読に戻る() throws Exception {
         long conversationId = startConversation(b, a);
         sendMessage(b, conversationId, "1通目");
+        Long notificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE type = 'MESSAGE_RECEIVED'", Long.class);
+        // 通知一覧の API で既読にする（経過がわかるよう、通知日時は過去にしておく）
         LocalDateTime past = LocalDateTime.of(2020, 1, 1, 0, 0);
-        jdbcTemplate.update("UPDATE notifications SET read_at = ?, notified_at = ? WHERE type = 'MESSAGE_RECEIVED'",
-                Timestamp.valueOf(past), Timestamp.valueOf(past));
+        jdbcTemplate.update("UPDATE notifications SET notified_at = ? WHERE id = ?", Timestamp.valueOf(past),
+                notificationId);
+        mockMvc.perform(post("/api/notifications/" + notificationId + "/read").header("Authorization", bearer(a)))
+                .andExpect(status().isNoContent());
 
         sendMessage(b, conversationId, "2通目");
 
         Map<String, Object> notification = jdbcTemplate.queryForMap(
-                "SELECT read_at, notified_at FROM notifications WHERE type = 'MESSAGE_RECEIVED'");
+                "SELECT id, read_at, notified_at FROM notifications WHERE type = 'MESSAGE_RECEIVED'");
+        assertThat(notification.get("id")).isEqualTo(notificationId);
         assertThat(notification.get("read_at")).isNull();
         assertThat(((Timestamp) notification.get("notified_at")).toLocalDateTime()).isAfter(past);
+        mockMvc.perform(get("/api/notifications").header("Authorization", bearer(a)))
+                .andExpect(jsonPath("$.notifications[0].id").value(notificationId))
+                .andExpect(jsonPath("$.notifications[0].read").value(false));
+    }
+
+    @Test
+    void 実際にメッセージが届いても_ベルの未読件数には数えない() throws Exception {
+        long conversationId = startConversation(b, a);
+        follow(b, a);
+
+        sendMessage(b, conversationId, "1通目");
+        sendMessage(b, conversationId, "2通目");
+
+        // a に届いた未読：相談の届いた通知（承認済みでも通知は未読）・フォロー・メッセージ。メッセージだけを除いて数える
+        mockMvc.perform(get("/api/notifications/summary").header("Authorization", bearer(a)))
+                .andExpect(jsonPath("$.unreadCount").value(2));
+        mockMvc.perform(get("/api/notifications").header("Authorization", bearer(a)))
+                .andExpect(jsonPath("$.notifications[0].type").value("MESSAGE_RECEIVED"))
+                .andExpect(jsonPath("$.notifications[0].read").value(false));
     }
 
     // ---- 通知の作成に失敗した場合 ----
