@@ -1,14 +1,16 @@
 package com.teamc.isow.backend.search;
 
+import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.user.UserRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** 検索履歴の保存（docs/search.md）。検索 API から呼ぶ */
+/** 検索履歴（docs/search.md）。記録は検索 API から呼び、取得・削除は本人の履歴だけを扱う */
 @Service
 public class SearchHistoryService {
 
@@ -17,14 +19,17 @@ public class SearchHistoryService {
 
     private final SearchHistoryRepository searchHistoryRepository;
     private final UserRepository userRepository;
+    private final AuthService authService;
     private final TransactionTemplate transactionTemplate;
 
     public SearchHistoryService(
             SearchHistoryRepository searchHistoryRepository,
             UserRepository userRepository,
+            AuthService authService,
             PlatformTransactionManager transactionManager) {
         this.searchHistoryRepository = searchHistoryRepository;
         this.userRepository = userRepository;
+        this.authService = authService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -47,6 +52,33 @@ public class SearchHistoryService {
             // それでも失敗する場合（ユーザーが存在しないなど）は、本当の失敗なのでそのまま投げる
             transactionTemplate.executeWithoutResult(status -> recordInTransaction(userId, keyword, key));
         }
+    }
+
+    /** 自分の検索履歴を新しい順に返す */
+    @Transactional(readOnly = true)
+    public SearchHistoryListResponse list(String subject) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        return new SearchHistoryListResponse(searchHistoryRepository.findByUserIdOrderBySearchedAtDescIdDesc(userId)
+                .stream()
+                .map(SearchHistoryListResponse.Item::from)
+                .toList());
+    }
+
+    /**
+     * 自分の検索履歴を1件削除する。他人の履歴・存在しない ID は何もしない
+     * （エラーにすると他人の履歴の有無が分かるため。連打で2回届いても成功にするため）
+     */
+    @Transactional
+    public void delete(String subject, Long historyId) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        searchHistoryRepository.deleteByIdAndUserId(historyId, userId);
+    }
+
+    /** 自分の検索履歴をすべて削除する */
+    @Transactional
+    public void deleteAll(String subject) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        searchHistoryRepository.deleteAllByUserId(userId);
     }
 
     private void recordInTransaction(Long userId, String keyword, String key) {

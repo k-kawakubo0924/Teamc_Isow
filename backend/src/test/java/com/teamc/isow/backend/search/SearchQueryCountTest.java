@@ -3,6 +3,8 @@ package com.teamc.isow.backend.search;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teamc.isow.backend.common.AgeGroup;
+import com.teamc.isow.backend.follow.Follow;
+import com.teamc.isow.backend.follow.FollowRepository;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
@@ -28,7 +30,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 投稿の検索で、投稿ごとに SQL が発行されていないこと（N+1 問題）の確認。
+ * 検索で、1件ごとに SQL が発行されていないこと（N+1 問題）の確認。
  * 5件と20件で SQL の本数が同じであることを確かめる（件数に比例して増えるなら N+1 が入り込んでいる）。
  * 各投稿には写真3枚・タグ2つ・いいね2件・お気に入り1件を付け、関連の読み込みも発生させる。
  */
@@ -40,6 +42,12 @@ class SearchQueryCountTest {
 
     @Autowired
     private SearchService searchService;
+
+    @Autowired
+    private SearchHistoryService searchHistoryService;
+
+    @Autowired
+    private FollowRepository followRepository;
 
     @Autowired
     private PostRepository postRepository;
@@ -80,10 +88,12 @@ class SearchQueryCountTest {
     @AfterEach
     void tearDown() {
         jdbcTemplate.update("DELETE FROM search_histories");
+        jdbcTemplate.update("DELETE FROM follows");
         jdbcTemplate.update("DELETE FROM post_tags");
         jdbcTemplate.update("DELETE FROM post_images");
         jdbcTemplate.update("DELETE FROM posts");
-        jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?)", ME_EMAIL, OTHER_EMAIL);
+        jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?) OR email LIKE 'search-count-u%@example.com'",
+                ME_EMAIL, OTHER_EMAIL);
     }
 
     @Test
@@ -112,6 +122,69 @@ class SearchQueryCountTest {
                 noCondition5, noCondition20, allConditions5, allConditions20);
         assertThat(noCondition20).isEqualTo(noCondition5);
         assertThat(allConditions20).isEqualTo(allConditions5);
+    }
+
+    @Test
+    void ユーザーの検索_履歴_候補ワードは件数に関係なくSQLの本数が一定() {
+        String subject = String.valueOf(me.getId());
+        String categoryId = String.valueOf(category.getId());
+
+        createUsers(0, 5);
+        createPosts(5);
+        recordHistories(0, 5);
+        long users5 = countSql(() -> searchService.searchUsers(subject, "count_u", 0, 4));
+        long usersNoKeyword5 = countSql(() -> searchService.searchUsers(subject, null, 0, 4));
+        long history5 = countSql(() -> searchHistoryService.list(subject));
+        long suggestions5 = countSql(() -> searchService.suggestions(subject, categoryId));
+
+        createUsers(5, 20);
+        createPosts(15);
+        recordHistories(5, 20);
+        // 2回目の同じキーワードは履歴の日時の更新になり SQL が変わるため、1回目と同じく新しく記録する状態にそろえる
+        jdbcTemplate.update("DELETE FROM search_histories WHERE keyword = 'count_u'");
+        long users20 = countSql(() -> searchService.searchUsers(subject, "count_u", 0, 19));
+        long usersNoKeyword20 = countSql(() -> searchService.searchUsers(subject, null, 0, 19));
+        long history20 = countSql(() -> searchHistoryService.list(subject));
+        long suggestions20 = countSql(() -> searchService.suggestions(subject, categoryId));
+
+        long deleteOne = countSql(() -> {
+            searchHistoryService.delete(subject, jdbcTemplate.queryForObject(
+                    "SELECT MIN(id) FROM search_histories WHERE user_id = ?", Long.class, me.getId()));
+            return true;
+        });
+        long deleteAll = countSql(() -> {
+            searchHistoryService.deleteAll(subject);
+            return true;
+        });
+
+        System.out.printf("### SQL の本数（少ない → 多い）: ユーザー検索 %d → %d、キーワードなし %d → %d、"
+                        + "履歴の取得 %d → %d、候補ワード %d → %d、履歴の1件削除 %d、すべて削除 %d%n",
+                users5, users20, usersNoKeyword5, usersNoKeyword20, history5, history20,
+                suggestions5, suggestions20, deleteOne, deleteAll);
+        assertThat(users20).isEqualTo(users5);
+        assertThat(usersNoKeyword20).isEqualTo(usersNoKeyword5);
+        assertThat(history20).isEqualTo(history5);
+        // 候補ワードは件数ではなく、公式タグで補うかどうかで1本変わる。
+        // 5件の投稿ではよく使われているタグが10件に満たず公式タグを読むが、20件では10件そろうため読まない
+        assertThat(suggestions5).isEqualTo(suggestions20 + 1);
+    }
+
+    /** from 番目から to 番目の手前までのユーザーを作り、半分を me がフォローする */
+    private void createUsers(int from, int to) {
+        for (int i = from; i < to; i++) {
+            User user = userRepository.save(new User("search-count-u" + i + "@example.com",
+                    String.format("0907000%04d", i), "hash", "count_u" + i));
+            jdbcTemplate.update("UPDATE users SET height_cm = 160, gender = 'FEMALE' WHERE id = ?", user.getId());
+            if (i % 2 == 0) {
+                followRepository.save(new Follow(me, user));
+            }
+        }
+    }
+
+    private void recordHistories(int from, int to) {
+        for (int i = from; i < to; i++) {
+            searchHistoryService.record(me.getId(), "語" + i);
+        }
     }
 
     /** 条件に一致する投稿を作る（投稿者は年代を設定した other） */
