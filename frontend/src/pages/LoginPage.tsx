@@ -5,6 +5,7 @@ import { ApiError } from '../api/client'
 import { useAuth } from '../auth/authContext'
 import { INVALID_INPUT_MESSAGE, normalizeEmail, validateLogin, type LoginForm } from '../validation/authRules'
 import { ErrorBanner } from './ErrorBanner'
+import { PasswordInput } from './PasswordInput'
 import './auth.css'
 
 type LoginField = keyof LoginForm
@@ -110,10 +111,9 @@ function LoginPage() {
           <label className="auth-label" htmlFor="login-password">
             パスワード
           </label>
-          <input
+          <PasswordInput
             id="login-password"
             className={inputClassName('password')}
-            type="password"
             placeholder="パスワードを入力"
             autoComplete="current-password"
             value={form.password}
