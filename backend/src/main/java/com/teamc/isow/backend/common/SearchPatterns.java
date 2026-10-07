@@ -13,11 +13,24 @@ public final class SearchPatterns {
      * SQL 側では LOWER(列) LIKE :pattern ESCAPE '\' と書くこと
      */
     public static String contains(String query) {
-        String trimmed = query == null ? "" : query.strip().toLowerCase(Locale.ROOT);
+        String trimmed = exact(query);
         if (trimmed.isEmpty()) {
             return "%";
         }
-        String escaped = trimmed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-        return "%" + escaped + "%";
+        return "%" + escape(trimmed) + "%";
+    }
+
+    /** 前方一致の LIKE のパターンを作る（contains と同じく小文字にし、% _ \ は文字として扱う）。空なら "%" */
+    public static String startsWith(String query) {
+        return escape(exact(query)) + "%";
+    }
+
+    /** 完全一致の比較に使う値（contains と同じく前後の空白を除いて小文字にする。LIKE ではないためエスケープしない）。null は "" */
+    public static String exact(String query) {
+        return query == null ? "" : query.strip().toLowerCase(Locale.ROOT);
+    }
+
+    private static String escape(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 }

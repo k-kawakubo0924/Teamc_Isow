@@ -59,7 +59,10 @@ export function getJson<T>(path: string, token?: string | null, signal?: AbortSi
   })
 }
 
-/** 本文なしで POST / DELETE を送り、JSON の応答を受け取る（いいね・お気に入りのように、URL だけで操作が決まる API 用） */
+/**
+ * 本文なしで POST / DELETE を送り、JSON の応答を受け取る（いいね・お気に入りのように、URL だけで操作が決まる API 用）。
+ * 応答が 204（本文なし）の API では T に void を指定する
+ */
 export function sendWithToken<T>(method: 'POST' | 'DELETE', path: string, token: string): Promise<T> {
   return request<T>(path, {
     method,
@@ -100,6 +103,8 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   }
 
   if (res.ok) {
+    // 本文のない成功（204。検索履歴の削除など）は undefined を返す。呼び出し側は T に void を指定すること
+    if (res.status === 204) return undefined as T
     return (await res.json()) as T
   }
 

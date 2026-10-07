@@ -29,7 +29,6 @@ const ICON_PROPS = {
   'aria-hidden': true,
 } as const
 
-// 検索は、担当者が画面を作ったら to を設定する
 const ITEMS: NavItem[] = [
   {
     label: 'ホーム',
@@ -42,6 +41,9 @@ const ITEMS: NavItem[] = [
   },
   {
     label: '検索',
+    to: '/search',
+    // 検索結果の画面でも検索を選択中にする
+    matchSubPaths: true,
     icon: (
       <svg {...ICON_PROPS}>
         <circle cx="11" cy="11" r="6.5" />

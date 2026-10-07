@@ -11,6 +11,8 @@ import HomePage from './pages/home/HomePage'
 import LoginPage from './pages/LoginPage'
 import PostPage from './pages/post/PostPage'
 import { MyProfilePage, UserProfilePage } from './pages/profile/ProfilePage'
+import SearchPage from './pages/search/SearchPage'
+import SearchResultsPage from './pages/search/SearchResultsPage'
 import ProfileEditPage from './pages/settings/ProfileEditPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import SignUpPage from './pages/SignUpPage'
@@ -23,6 +25,9 @@ function App() {
         {/* 下部ナビゲーションを表示する画面（ホーム・検索・DM・プロフィールなど） */}
         <Route element={<TabLayout />}>
           <Route path="/" element={<HomePage />} />
+          {/* 検索（docs/search.md） */}
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/search/results" element={<SearchResultsPage />} />
           <Route path="/profile" element={<MyProfilePage />} />
           <Route path="/users/:userId" element={<UserProfilePage />} />
           <Route path="/users/:userId/followings" element={<FollowListPage kind="followings" />} />
