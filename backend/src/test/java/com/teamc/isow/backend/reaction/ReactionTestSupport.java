@@ -44,6 +44,8 @@ final class ReactionTestSupport {
 
     /** テストで作ったデータを消す（投稿を消すと likes・favorites は DB の連鎖削除で消える） */
     static void cleanUp(JdbcTemplate jdbcTemplate) {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM post_tags");
         jdbcTemplate.update("DELETE FROM post_images");
         jdbcTemplate.update("DELETE FROM posts");

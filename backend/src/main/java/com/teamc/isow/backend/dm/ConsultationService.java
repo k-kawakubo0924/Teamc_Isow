@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.dm;
 
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import com.teamc.isow.backend.user.UserRepository;
@@ -13,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -40,6 +42,7 @@ public class ConsultationService {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final DmProperties dmProperties;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
 
     public ConsultationService(
@@ -48,12 +51,14 @@ public class ConsultationService {
             UserRepository userRepository,
             AuthService authService,
             DmProperties dmProperties,
+            ApplicationEventPublisher events,
             PlatformTransactionManager transactionManager) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.authService = authService;
         this.dmProperties = dmProperties;
+        this.events = events;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -111,6 +116,9 @@ public class ConsultationService {
                     new Message(conversation, conversation.getRequestedBy(), message, null));
             conversation.recordMessage(first.getSentAt());
         }
+        // 申し込まれた人への通知は、コミット後に NotificationService が作る。
+        // 一言メッセージは申込の通知に含めるものとし、メッセージの通知は作らない
+        events.publishEvent(new NotificationEvents.ConsultationRequested(conversation.getId()));
         return conversation;
     }
 

@@ -1,12 +1,14 @@
 package com.teamc.isow.backend.reaction;
 
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostNotFoundException;
 import com.teamc.isow.backend.post.PostRepository;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
 import java.util.function.BooleanSupplier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -26,6 +28,7 @@ public class ReactionService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
 
     public ReactionService(
@@ -34,21 +37,29 @@ public class ReactionService {
             PostRepository postRepository,
             UserRepository userRepository,
             AuthService authService,
+            ApplicationEventPublisher events,
             PlatformTransactionManager transactionManager) {
         this.likeRepository = likeRepository;
         this.favoriteRepository = favoriteRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.authService = authService;
+        this.events = events;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
-    /** いいねする。すでにいいね済みでも成功として扱う */
+    /**
+     * いいねする。すでにいいね済みでも成功として扱う。
+     * 新しく登録したときだけ、投稿者への通知のきっかけを出す（通知はコミット後に NotificationService が作る）
+     */
     public LikeResponse like(String subject, Long postId) {
         Long userId = authService.requireCurrentUser(subject).getId();
         addIfAbsent(
                 () -> likeRepository.existsByUserIdAndPostId(userId, postId),
-                () -> likeRepository.save(new PostLike(userReference(userId), findPost(postId))));
+                () -> {
+                    likeRepository.save(new PostLike(userReference(userId), findPost(postId)));
+                    events.publishEvent(new NotificationEvents.Liked(postId, userId));
+                });
         return new LikeResponse(true, likeRepository.countByPostId(postId));
     }
 

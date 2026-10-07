@@ -94,6 +94,8 @@ final class PostApiTestSupport {
 
     /** テストで作った投稿・手入力のタグ・ユーザーを消し、無効にした公式タグを戻す（他のテストに影響させない） */
     static void cleanUp(JdbcTemplate jdbcTemplate) {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM post_tags");
         jdbcTemplate.update("DELETE FROM post_images");
         jdbcTemplate.update("DELETE FROM posts");

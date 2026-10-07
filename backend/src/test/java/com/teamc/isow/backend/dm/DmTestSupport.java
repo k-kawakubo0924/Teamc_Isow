@@ -33,6 +33,8 @@ final class DmTestSupport {
 
     /** テストで作ったデータを消す（messages → conversations → users の順に、参照している側から消す） */
     static void cleanUp(JdbcTemplate jdbcTemplate) {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM messages");
         jdbcTemplate.update("DELETE FROM conversations");
         jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?, ?, ?, ?, ?)", (Object[]) EMAILS);

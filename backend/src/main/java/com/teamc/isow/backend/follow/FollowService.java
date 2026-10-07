@@ -2,6 +2,7 @@ package com.teamc.isow.backend.follow;
 
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.common.SearchPatterns;
+import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import com.teamc.isow.backend.user.UserRepository;
@@ -11,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +32,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <ul>
  *   <li>本人のフォロー中一覧に残す（ボタンは「フォロー」になる）</li>
  *   <li>再フォローした場合は、新しい行を作らず解除した行を有効に戻す。フォローした日時は元のまま</li>
- *   <li>通知は送らない（通知機能を作るときは、新しい行を作ったときだけ通知を作ること）</li>
+ *   <li>通知は送らない（新しい行を作ったときだけ、通知のきっかけ NotificationEvents.Followed を出す）</li>
  * </ul>
  */
 @Service
@@ -45,16 +47,19 @@ public class FollowService {
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
 
     public FollowService(
             FollowRepository followRepository,
             UserRepository userRepository,
             AuthService authService,
+            ApplicationEventPublisher events,
             PlatformTransactionManager transactionManager) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.authService = authService;
+        this.events = events;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -137,10 +142,15 @@ public class FollowService {
                 .findFirstByFollowerIdAndFolloweeIdAndUnfollowedAtAfterOrderByUnfollowedAtDesc(
                         followerId, followeeId, now.minus(UNDO_PERIOD))
                 .ifPresentOrElse(
+                        // 解除から5分以内の再フォローは元の行に戻すだけで、通知しない
                         recent -> followRepository.restore(recent.getId(), now),
-                        () -> followRepository.save(new Follow(
-                                userRepository.getReferenceById(followerId),
-                                userRepository.getReferenceById(followeeId))));
+                        () -> {
+                            followRepository.save(new Follow(
+                                    userRepository.getReferenceById(followerId),
+                                    userRepository.getReferenceById(followeeId)));
+                            // 通知はコミット後に NotificationService が作る
+                            events.publishEvent(new NotificationEvents.Followed(followeeId, followerId));
+                        });
     }
 
     /** page は 0 から。範囲外の page・size はエラーにせず、0 以上・1〜MAX_PAGE_SIZE に丸める（ホームの一覧と同じ） */

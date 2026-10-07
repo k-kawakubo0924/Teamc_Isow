@@ -4,7 +4,9 @@ import static com.teamc.isow.backend.dm.ConversationChecks.requireParticipant;
 import static com.teamc.isow.backend.dm.ConversationChecks.requireStatus;
 
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,16 +28,19 @@ public class ConversationService {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final ConsultationService consultationService;
+    private final ApplicationEventPublisher events;
 
     public ConversationService(
             ConversationRepository conversationRepository,
             UserRepository userRepository,
             AuthService authService,
-            ConsultationService consultationService) {
+            ConsultationService consultationService,
+            ApplicationEventPublisher events) {
         this.conversationRepository = conversationRepository;
         this.userRepository = userRepository;
         this.authService = authService;
         this.consultationService = consultationService;
+        this.events = events;
     }
 
     /** 申請を承認する（申請中 → 進行中）。申し込まれた側だけができ、自分が受けている進行中の会話が上限に達していればできない */
@@ -52,6 +57,8 @@ public class ConversationService {
                             + "件）に達しているため、承認できません。進行中の相談を終了してから承認してください。");
         }
         conversation.approve();
+        // 申し込んだ人への通知は、コミット後に NotificationService が作る
+        events.publishEvent(new NotificationEvents.ConsultationApproved(conversation.getId()));
         return ConversationResponse.from(conversation);
     }
 
@@ -63,6 +70,8 @@ public class ConversationService {
         requireRecipient(conversation, userId, "拒否");
         requireStatus(conversation, ConversationStatus.REQUESTED, "拒否");
         conversation.reject();
+        // 申し込んだ人への通知は、コミット後に NotificationService が作る
+        events.publishEvent(new NotificationEvents.ConsultationRejected(conversation.getId()));
         return ConversationResponse.from(conversation);
     }
 

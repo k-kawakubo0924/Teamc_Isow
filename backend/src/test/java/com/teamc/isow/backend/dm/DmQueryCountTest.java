@@ -67,6 +67,8 @@ class DmQueryCountTest {
 
     @AfterEach
     void tearDown() {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         DmTestSupport.cleanUp(jdbcTemplate);
         for (int i = 0; i < MAX_PARTNERS; i++) {
             jdbcTemplate.update("DELETE FROM users WHERE email = ?", partnerEmail(i));

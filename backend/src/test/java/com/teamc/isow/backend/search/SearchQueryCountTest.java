@@ -87,6 +87,8 @@ class SearchQueryCountTest {
 
     @AfterEach
     void tearDown() {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM search_histories");
         jdbcTemplate.update("DELETE FROM follows");
         jdbcTemplate.update("DELETE FROM post_tags");
