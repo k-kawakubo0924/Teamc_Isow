@@ -31,6 +31,8 @@ final class FollowTestSupport {
 
     /** テストで作ったデータを消す（follows がユーザーを参照しているため先に消す） */
     static void cleanUp(JdbcTemplate jdbcTemplate) {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM follows");
         jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?, ?)", EMAIL_A, EMAIL_B, EMAIL_C);
     }

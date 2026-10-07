@@ -90,7 +90,12 @@ export function usePagedList<T extends { id: number }>(fetchPage: FetchPage<T>, 
     }))
   }, [])
 
-  return { state, loadMore, retry, updateItem }
+  /** 表示中の1件を一覧から外す（通知の削除など） */
+  const removeItem = useCallback((id: number) => {
+    setState((prev) => ({ ...prev, items: prev.items.filter((item) => item.id !== id) }))
+  }, [])
+
+  return { state, loadMore, retry, updateItem, removeItem }
 }
 
 /** 一覧の末尾がこの距離（px）まで近づいたら、次のページを読み込み始める */

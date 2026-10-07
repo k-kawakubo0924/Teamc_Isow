@@ -42,6 +42,8 @@ class SearchHistoryServiceTest {
 
     @AfterEach
     void tearDown() {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         // search_histories がユーザーを参照しているため先に消す
         jdbcTemplate.update("DELETE FROM search_histories");
         jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?)", EMAIL_A, EMAIL_B);

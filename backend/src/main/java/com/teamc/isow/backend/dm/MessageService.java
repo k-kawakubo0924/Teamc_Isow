@@ -8,11 +8,13 @@ import com.teamc.isow.backend.common.InputValidationException;
 import com.teamc.isow.backend.image.ImageUploadService;
 import com.teamc.isow.backend.image.ImageUploadService.PreparedImage;
 import com.teamc.isow.backend.image.InvalidImageException;
+import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.UserRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -35,6 +37,7 @@ public class MessageService {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final ImageUploadService imageUploadService;
+    private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
     private final TransactionTemplate readOnlyTransactionTemplate;
 
@@ -44,12 +47,14 @@ public class MessageService {
             UserRepository userRepository,
             AuthService authService,
             ImageUploadService imageUploadService,
+            ApplicationEventPublisher events,
             PlatformTransactionManager transactionManager) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.authService = authService;
         this.imageUploadService = imageUploadService;
+        this.events = events;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.readOnlyTransactionTemplate = new TransactionTemplate(transactionManager);
         this.readOnlyTransactionTemplate.setReadOnly(true);
@@ -146,6 +151,8 @@ public class MessageService {
         Message message = messageRepository.save(
                 new Message(conversation, userRepository.getReferenceById(userId), body, imageUrl));
         conversation.recordMessage(message.getSentAt());
+        // 相手への通知（会話ごとに1件にまとめる）は、コミット後に NotificationService が作る
+        events.publishEvent(new NotificationEvents.MessageSent(conversationId, userId, message.getSentAt()));
         return MessageResponse.of(message, userId);
     }
 

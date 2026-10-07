@@ -73,6 +73,8 @@ class PostQueryApiTest {
 
     @AfterEach
     void tearDown() {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         PostApiTestSupport.cleanUp(jdbcTemplate);
         jdbcTemplate.update("DELETE FROM users WHERE email = ?", OTHER_EMAIL);
     }

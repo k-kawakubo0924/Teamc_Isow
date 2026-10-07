@@ -93,6 +93,8 @@ class TimelineApiTest {
 
     @AfterEach
     void tearDown() {
+        // 通知はユーザー・会話・投稿を参照しているため先に消す
+        jdbcTemplate.update("DELETE FROM notifications");
         // follows はユーザーを参照しているため先に消す。投稿を消すと likes・favorites は DB の連鎖削除で消える
         jdbcTemplate.update("DELETE FROM follows");
         PostApiTestSupport.cleanUp(jdbcTemplate);

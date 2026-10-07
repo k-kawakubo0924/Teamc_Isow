@@ -9,6 +9,7 @@ import { FollowListPage } from './pages/follow/FollowListPage'
 import HealthCheckPage from './pages/HealthCheckPage'
 import HomePage from './pages/home/HomePage'
 import LoginPage from './pages/LoginPage'
+import NotificationPage from './pages/notification/NotificationPage'
 import PostPage from './pages/post/PostPage'
 import { MyProfilePage, UserProfilePage } from './pages/profile/ProfilePage'
 import SearchPage from './pages/search/SearchPage'
@@ -25,6 +26,8 @@ function App() {
         {/* 下部ナビゲーションを表示する画面（ホーム・検索・DM・プロフィールなど） */}
         <Route element={<TabLayout />}>
           <Route path="/" element={<HomePage />} />
+          {/* 通知一覧（docs/notification.md）。ホームのベルから開く */}
+          <Route path="/notifications" element={<NotificationPage />} />
           {/* 検索（docs/search.md） */}
           <Route path="/search" element={<SearchPage />} />
           <Route path="/search/results" element={<SearchResultsPage />} />

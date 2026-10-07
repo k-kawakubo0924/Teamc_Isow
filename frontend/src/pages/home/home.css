@@ -22,7 +22,26 @@
   position: absolute;
   left: 16px;
   display: inline-flex;
+  padding: 4px;
   color: var(--color-text);
+}
+
+/* 通知の未読件数（下部ナビの DM のバッジと同じ見た目） */
+.home-bell-badge {
+  position: absolute;
+  top: -2px;
+  left: 16px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--color-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  color: #fff;
 }
 
 .home-logo {

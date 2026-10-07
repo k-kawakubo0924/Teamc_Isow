@@ -11,6 +11,7 @@ import com.teamc.isow.backend.dm.ConversationOperationException;
 import com.teamc.isow.backend.dm.DmErrorResponse;
 import com.teamc.isow.backend.follow.SelfFollowException;
 import com.teamc.isow.backend.image.InvalidImageException;
+import com.teamc.isow.backend.notification.NotificationNotFoundException;
 import com.teamc.isow.backend.post.PostNotFoundException;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import java.util.LinkedHashMap;
@@ -66,6 +67,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiErrorResponse handleUserNotFound(UserNotFoundException e) {
         return new ApiErrorResponse("ユーザーが見つかりません。", Map.of());
+    }
+
+    /** 通知が存在しない、または自分の通知でない（他人の通知の有無が分からないよう、どちらも同じ応答にする） */
+    @ExceptionHandler(NotificationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleNotificationNotFound(NotificationNotFoundException e) {
+        return new ApiErrorResponse("通知が見つかりません。", Map.of());
     }
 
     @ExceptionHandler(SelfFollowException.class)
