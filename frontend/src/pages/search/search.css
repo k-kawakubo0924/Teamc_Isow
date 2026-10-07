@@ -275,19 +275,75 @@
   color: var(--color-text-muted);
 }
 
-.search-message-spaced {
-  margin-top: 48px;
-  text-align: center;
-}
-
-.search-back-link {
-  align-self: center;
-}
-
 .search-error {
   margin: 0;
   font-size: 12px;
   color: var(--color-error);
+}
+
+/* ---- 検索結果（design/Searchresults.png） ---- */
+
+.search-result-conditions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 条件の札は横に並べ、入りきらなければ横にスクロールする */
+.search-result-labels {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.search-result-label {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.search-change {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0 12px;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.search-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-result-count {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.search-empty-hint {
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* ---- 選択画面（画面の下から出す） ---- */

@@ -2,7 +2,7 @@
 //
 // 端末ごとに localStorage に保存する。見やすい列数はスマホと PC など画面の大きさで変わるため、
 // サーバーには保存しない（全端末で同じになるうえ、API とテーブルも必要になるため）。
-// 画面ごと（ホーム・プロフィール）に別々に覚える。画面画像の既定の列数が違うため。
+// 画面ごと（ホーム・プロフィール・検索結果）に別々に覚える。画面画像の既定の列数が違うため。
 // プライベートブラウズなどで保存・読み込みができない場合はエラーにせず、既定の列で表示する。
 
 export type Columns = 1 | 2 | 3
@@ -17,6 +17,9 @@ export const HOME_COLUMNS: ColumnSetting = { storageKey: 'isho.home.columns', de
 
 /** プロフィール（design/myprofile.png・otherprofile.png は3列） */
 export const PROFILE_COLUMNS: ColumnSetting = { storageKey: 'isho.profile.columns', defaultColumns: 3 }
+
+/** 検索結果（design/Searchresults.png は2列） */
+export const SEARCH_COLUMNS: ColumnSetting = { storageKey: 'isho.search.columns', defaultColumns: 2 }
 
 export function loadColumns(setting: ColumnSetting): Columns {
   try {
