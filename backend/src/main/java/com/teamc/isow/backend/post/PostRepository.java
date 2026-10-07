@@ -2,6 +2,7 @@ package com.teamc.isow.backend.post;
 
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -72,6 +73,37 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             ORDER BY COUNT(l) DESC, p.createdAt DESC, p.id DESC
             """)
     Slice<Long> findRecommendedIds(Pageable pageable);
+
+    /**
+     * 投稿の検索（docs/search.md。SearchService）：条件をすべて満たす投稿を、いいね数の多い順 → 新しい順 → ID の大きい順。
+     * null の条件は絞り込みに使わない。
+     *
+     * @param pattern 題名・投稿説明・タグ名の部分一致（小文字にした LIKE のパターン。SearchPatterns.contains で作る）
+     * @param ageGroup 投稿者の年代（AgeGroup の定数名）
+     */
+    @Query(value = """
+            SELECT p.id FROM Post p
+            LEFT JOIN PostLike l ON l.post = p
+            WHERE (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
+              AND (:ageGroup IS NULL OR p.author.ageGroup = :ageGroup)
+              AND (:pattern IS NULL
+                   OR LOWER(p.title) LIKE :pattern ESCAPE '\\'
+                   OR LOWER(p.description) LIKE :pattern ESCAPE '\\'
+                   OR EXISTS (SELECT t.id FROM p.tags t WHERE t.normalizedName LIKE :pattern ESCAPE '\\'))
+            GROUP BY p.id, p.createdAt
+            ORDER BY COUNT(l) DESC, p.createdAt DESC, p.id DESC
+            """,
+            countQuery = """
+            SELECT COUNT(p) FROM Post p
+            WHERE (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
+              AND (:ageGroup IS NULL OR p.author.ageGroup = :ageGroup)
+              AND (:pattern IS NULL
+                   OR LOWER(p.title) LIKE :pattern ESCAPE '\\'
+                   OR LOWER(p.description) LIKE :pattern ESCAPE '\\'
+                   OR EXISTS (SELECT t.id FROM p.tags t WHERE t.normalizedName LIKE :pattern ESCAPE '\\'))
+            """)
+    Page<Long> searchIds(@Param("pattern") String pattern, @Param("categoryId") Long categoryId,
+            @Param("ageGroup") String ageGroup, Pageable pageable);
 
     /** 投稿者とファッションの種類を一緒に読み込む（投稿ごとに SQL を発行しないため）。並び順は保証しない */
     @Query("SELECT p FROM Post p JOIN FETCH p.author JOIN FETCH p.fashionCategory WHERE p.id IN :ids")
