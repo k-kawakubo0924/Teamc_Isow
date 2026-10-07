@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import { DmSummaryProvider } from './DmSummaryProvider'
+import { NotificationSummaryProvider } from './NotificationSummaryProvider'
 import { dmBadgeCount, useDmSummary } from './dmSummaryContext'
 import './BottomNav.css'
 
@@ -128,15 +129,18 @@ export function BottomNav() {
 /**
  * 下部ナビゲーションを表示する画面の共通レイアウト（App.tsx のルートで使う）。
  * 投稿作成のように、画面下部に別のボタンを置く画面ではこのレイアウトを使わない。
- * DM の件数（下部ナビのバッジ）は、この中の画面からも useDmSummary で使える
+ * DM の件数（下部ナビのバッジ）は、この中の画面からも useDmSummary で使える。
+ * 通知の未読件数（ホームのベルのバッジ）は useNotificationSummary で使える
  */
 export function TabLayout() {
   return (
     <DmSummaryProvider>
-      <div className="tab-layout">
-        <Outlet />
-        <BottomNav />
-      </div>
+      <NotificationSummaryProvider>
+        <div className="tab-layout">
+          <Outlet />
+          <BottomNav />
+        </div>
+      </NotificationSummaryProvider>
     </DmSummaryProvider>
   )
 }

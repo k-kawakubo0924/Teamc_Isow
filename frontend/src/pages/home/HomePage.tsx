@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { fetchTimeline, type TimelineTab } from '../../api/posts'
 import { fetchMyProfile } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
+import { useNotificationSummary } from '../../components/notificationSummaryContext'
 import { HOME_COLUMNS, loadColumns, saveColumns, type Columns } from './columnSetting'
 import { NewMessages } from './NewMessages'
 import { ColumnsSwitcher, EmptyMessage, PostGrid } from './PostGrid'
@@ -30,13 +31,7 @@ function HomePage() {
   return (
     <main className="home-page">
       <header className="home-header">
-        {/* 通知一覧（docs/notification.md）ができるまでは表示のみ */}
-        <span className="home-bell" role="img" aria-label="通知">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
-            <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2H4.5z" />
-            <path d="M10 20.5a2 2 0 0 0 4 0" strokeLinecap="round" />
-          </svg>
-        </span>
+        <NotificationBell />
         <h1 className="home-logo">ISHO</h1>
       </header>
 
@@ -84,6 +79,28 @@ function HomePage() {
         />
       </section>
     </main>
+  )
+}
+
+/**
+ * 左上のベル。押すと通知一覧（docs/notification.md）を開く。
+ * 未読件数（メッセージの通知は含めない）をバッジで出す。取り直すタイミングは DM のバッジと同じ（NotificationSummaryProvider）
+ */
+function NotificationBell() {
+  const { summary } = useNotificationSummary()
+  const count = summary?.unreadCount ?? 0
+  return (
+    <Link to="/notifications" className="home-bell" aria-label={count > 0 ? `通知（未読 ${count}件）` : '通知'}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2H4.5z" />
+        <path d="M10 20.5a2 2 0 0 0 4 0" strokeLinecap="round" />
+      </svg>
+      {count > 0 && (
+        <span className="home-bell-badge" aria-hidden="true">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
   )
 }
 
