@@ -117,6 +117,9 @@ class PostCreateApiTest {
                 .andExpect(jsonPath("$.imageUrls[0]", startsWith("http://localhost/uploads/")))
                 .andExpect(jsonPath("$.author.id").value(user.getId()))
                 .andExpect(jsonPath("$.author.username").value("post_api_test"))
+                // 詳細画面のために足した項目も、投稿作成の応答に同じ形で入る（未設定は null）
+                .andExpect(jsonPath("$.author.profileImageUrl").value(nullValue()))
+                .andExpect(jsonPath("$.author.heightCm").value(nullValue()))
                 .andExpect(jsonPath("$.createdAt").isNotEmpty())
                 // メールアドレスなどの個人情報は返さない
                 .andExpect(content().string(not(containsString(PostApiTestSupport.EMAIL))))

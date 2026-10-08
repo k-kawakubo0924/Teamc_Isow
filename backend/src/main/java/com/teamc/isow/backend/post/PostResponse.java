@@ -48,7 +48,8 @@ public record PostResponse(
                 post.getDescription(),
                 post.getReferenceUrl(),
                 post.getImages().stream().map(PostImage::getImageUrl).toList(),
-                new AuthorResponse(post.getAuthor().getId(), post.getAuthor().getUsername()),
+                new AuthorResponse(post.getAuthor().getId(), post.getAuthor().getUsername(),
+                        post.getAuthor().getProfileImageUrl(), post.getAuthor().getHeightCm()),
                 reactions.likeCount(),
                 reactions.likedByMe(),
                 reactions.favoritedByMe(),
@@ -62,7 +63,12 @@ public record PostResponse(
     public record TagResponse(Long id, String name, boolean official) {
     }
 
-    /** 投稿者。メールアドレスなどの個人情報は返さない */
-    public record AuthorResponse(Long id, String username) {
+    /**
+     * 投稿者。メールアドレスなどの個人情報は返さない。
+     *
+     * @param profileImageUrl プロフィール画像。未設定は null
+     * @param heightCm 身長（cm）。未設定は null で、画面では表示を省く（ホームの一覧のカードと同じ）
+     */
+    public record AuthorResponse(Long id, String username, String profileImageUrl, Integer heightCm) {
     }
 }

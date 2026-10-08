@@ -1,6 +1,13 @@
 import { useCallback, useRef } from 'react'
-import type { TimelineItem } from '../../api/posts'
 import { setFavorite, setLike } from '../../api/reactions'
+
+/** いいね・お気に入りを押せる投稿（ホームの一覧の TimelineItem・投稿の詳細の PostResponse の両方が当てはまる） */
+export type ReactionTarget = {
+  id: number
+  likeCount: number
+  likedByMe: boolean
+  favoritedByMe: boolean
+}
 
 type Kind = 'like' | 'favorite'
 
@@ -28,7 +35,7 @@ const FAILURE_MESSAGES: Record<Kind, { on: string; off: string }> = {
  */
 export function useReactions(
   token: string | null,
-  updatePost: (postId: number, patch: Partial<TimelineItem>) => void,
+  updatePost: (postId: number, patch: Partial<ReactionTarget>) => void,
   onError: (message: string) => void,
 ) {
   const entries = useRef(new Map<string, Entry>())
@@ -78,7 +85,7 @@ export function useReactions(
 
   /** いいね・お気に入りのボタンを押した。post は押した時点の表示内容 */
   const toggle = useCallback(
-    (post: TimelineItem, kind: Kind) => {
+    (post: ReactionTarget, kind: Kind) => {
       if (!token) return
       const key = `${post.id}:${kind}`
       const shown = kind === 'like' ? post.likedByMe : post.favoritedByMe

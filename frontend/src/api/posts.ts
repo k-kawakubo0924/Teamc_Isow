@@ -25,7 +25,8 @@ export type PostResponse = {
   referenceUrl: string | null
   /** 表示順。1枚目がサムネイル */
   imageUrls: string[]
-  author: { id: number; username: string }
+  /** profileImageUrl・heightCm は未設定なら null（画面では表示を省く） */
+  author: { id: number; username: string; profileImageUrl: string | null; heightCm: number | null }
   /** いいね件数（公開情報） */
   likeCount: number
   /** ログイン中のユーザーがいいねしているか */
@@ -77,6 +78,13 @@ export function fetchTimeline(
 
 /** ホームの一覧で1回に読み込む件数（docs/home.md） */
 export const TIMELINE_PAGE_SIZE = 20
+
+/**
+ * 投稿1件の詳細（GET /api/posts/{id}）。存在しない投稿は ApiError（404）を投げる
+ */
+export function fetchPost(id: number, token: string, signal?: AbortSignal): Promise<PostResponse> {
+  return getJson<PostResponse>(`/api/posts/${id}`, token, signal)
+}
 
 /**
  * 投稿を作成する（POST /api/posts、multipart/form-data）。

@@ -257,6 +257,11 @@
   background: #fff;
 }
 
+/* 写真を押すと投稿の詳細画面へ */
+.home-card-photo-link {
+  display: block;
+}
+
 .home-card-photo {
   display: block;
   width: 100%;

@@ -172,14 +172,18 @@ public class PostService {
     }
 
     /**
-     * 投稿1件の詳細。ログインしていれば誰の投稿でも取得できる（公開範囲は docs/post.md で未確定のため全体公開として扱う）
+     * 投稿1件の詳細（docs/post.md「投稿の詳細画面」）。ログインしていれば誰の投稿でも取得できる
+     * （公開範囲は docs/post.md で未確定のため全体公開として扱う）。
+     *
+     * <p>写真の枚数・タグの数に関係なく、決まった本数（7本）の SQL で取得する：ログイン確認1、
+     * 投稿・投稿者・ファッションの種類1、写真1、タグ1、いいね・お気に入り3
      *
      * @throws PostNotFoundException 投稿が存在しない場合
      */
     @Transactional(readOnly = true)
     public PostResponse get(String subject, Long id) {
         Long userId = authService.requireCurrentUser(subject).getId();
-        Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
+        Post post = postRepository.findDetailById(id).orElseThrow(() -> new PostNotFoundException(id));
         return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id));
     }
 

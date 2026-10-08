@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import type { PostForm } from '../../validation/postRules'
 import { ErrorBanner } from '../ErrorBanner'
 import type { SelectedImage } from './ImagePicker'
+import { PostPhotoViewer } from './PostPhotoViewer'
 
 type Props = {
   images: SelectedImage[]
@@ -19,11 +19,6 @@ type Props = {
  * 画面画像の「下書き保存」は未対応のため、代わりに入力画面へ戻るボタンを置く
  */
 export function PostConfirm({ images, form, fashionName, bannerMessage, submitting, onBack, onPost }: Props) {
-  const [index, setIndex] = useState(0)
-  // 写真の枚数は確認画面では変わらないが、念のため範囲内に収める
-  const current = Math.min(index, images.length - 1)
-  const image = images[current]
-
   return (
     <main className="post-page">
       <header className="post-header">
@@ -36,34 +31,8 @@ export function PostConfirm({ images, form, fashionName, bannerMessage, submitti
       <div className="post-body">
         {bannerMessage && <ErrorBanner message={bannerMessage} />}
 
-        <section className="post-confirm-photo" aria-label="写真">
-          {image && <img src={image.previewUrl} alt={`${current + 1}枚目の写真`} />}
-          <span className="post-confirm-photo-count">
-            {current + 1} / {images.length}
-          </span>
-          {images.length > 1 && (
-            <>
-              <button
-                type="button"
-                className="post-confirm-photo-nav post-confirm-photo-prev"
-                aria-label="前の写真"
-                disabled={current === 0}
-                onClick={() => setIndex(current - 1)}
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                className="post-confirm-photo-nav post-confirm-photo-next"
-                aria-label="次の写真"
-                disabled={current === images.length - 1}
-                onClick={() => setIndex(current + 1)}
-              >
-                ›
-              </button>
-            </>
-          )}
-        </section>
+        {/* 写真の切り替えは詳細画面と共通 */}
+        <PostPhotoViewer urls={images.map((image) => image.previewUrl)} />
 
         <dl className="auth-confirm-list post-confirm-list">
           <ConfirmRow label="題名" value={form.title.trim()} />

@@ -3,6 +3,7 @@ import type { ConsultationStatus } from '../../api/consultations'
 import type { EnumOption } from '../../api/masters'
 import { ConsultButton } from '../../components/consult/ConsultButton'
 import { consultNote } from '../../components/consult/consultLabels'
+import { formatHeight } from '../../utils/height'
 import { timeAgo } from '../../utils/timeAgo'
 import './follow.css'
 
@@ -41,7 +42,7 @@ export function UserRow({
   const note = isMe ? null : consultNote(consultStatus)
   // 設定されている項目だけを「・」でつなぐ（プロフィール画面と同じ）
   const details = [
-    user.heightCm !== null ? `${user.heightCm}cm` : null,
+    formatHeight(user.heightCm),
     genders.find((option) => option.code === user.gender)?.label,
   ].filter((value): value is string => !!value)
 
