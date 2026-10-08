@@ -2,6 +2,8 @@ package com.teamc.isow.backend.image;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -16,6 +18,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -54,7 +57,9 @@ class ImageUploadServiceTest {
         String fileName = url.substring(BASE_URL.length());
         // 元のファイル名ではなく、乱数（16進数32桁）＋実際の形式の拡張子
         assertThat(fileName).matches("[0-9a-f]{32}\\.png");
-        assertThat(Files.readAllBytes(uploadDir.resolve(fileName))).isEqualTo(png);
+        // メタデータを取り除くために保存し直すため、バイト列は変わるが、PNG は画素が1つも変わらない
+        assertThat(ImageTestSupport.pixels(Files.readAllBytes(uploadDir.resolve(fileName))))
+                .isEqualTo(ImageTestSupport.pixels(png));
     }
 
     @Test
@@ -156,6 +161,36 @@ class ImageUploadServiceTest {
     void 存在しない画像は404_GET以外は認証が必要() throws Exception {
         mockMvc.perform(get("/uploads/0123456789abcdef0123456789abcdef.png")).andExpect(status().isNotFound());
         mockMvc.perform(post("/uploads/0123456789abcdef0123456789abcdef.png")).andExpect(status().isUnauthorized());
+    }
+
+    // ---- メタデータの削除に失敗した場合 ----
+
+    @Test
+    void メタデータを取り除けなかった画像は_元の画像を保存せずに断る() throws Exception {
+        byte[] photo = ImageTestSupport.jpegWithExif(ImageTestSupport.quadrantImage(40, 20), null);
+        long filesBefore = countStoredFiles();
+
+        try (MockedStatic<ImageMetadataStripper> stripper = mockStatic(ImageMetadataStripper.class)) {
+            stripper.when(() -> ImageMetadataStripper.strip(any(), any(), any()))
+                    .thenThrow(new IOException("書き出しに失敗（テスト）"));
+
+            assertThatThrownBy(() -> imageUploadService.upload(
+                    new MockMultipartFile("file", "photo.jpg", "image/jpeg", photo)))
+                    .isInstanceOf(InvalidImageException.class)
+                    .hasMessage("画像を処理できませんでした。別の画像を選択してください。");
+        }
+
+        // 位置情報が付いたままの元の画像は、保存されていない
+        assertThat(countStoredFiles()).isEqualTo(filesBefore);
+    }
+
+    private long countStoredFiles() throws IOException {
+        if (!Files.exists(uploadDir)) {
+            return 0;
+        }
+        try (var files = Files.list(uploadDir)) {
+            return files.count();
+        }
     }
 
     private void assertRejected(MockMultipartFile file) {

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.teamc.isow.backend.user.User;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.user.UserRepository;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -122,7 +123,9 @@ class MessageApiTest {
                 .andExpect(jsonPath("$.imageUrl", startsWith("http://localhost/uploads/")));
 
         String url = JsonPath.read(imageOnly, "$.imageUrl");
-        assertThat(Files.readAllBytes(uploadDir.resolve(url.substring(url.lastIndexOf('/') + 1)))).isEqualTo(png);
+        // メタデータを取り除くために保存し直すため、バイト列は変わるが、PNG は画素が1つも変わらない
+        assertThat(ImageTestSupport.pixels(Files.readAllBytes(uploadDir.resolve(url.substring(url.lastIndexOf('/') + 1)))))
+                .isEqualTo(ImageTestSupport.pixels(png));
     }
 
     @Test

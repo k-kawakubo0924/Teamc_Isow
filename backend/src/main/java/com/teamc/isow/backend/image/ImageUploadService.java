@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.image;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -18,8 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * アップロードされた画像を検証し、ImageStorage に保存する。
+ * アップロードされた画像を検証し、ImageStorage に保存する（投稿の写真・プロフィール画像・DM の画像で共通）。
  * 拡張子・MIME タイプは利用者側で自由に偽装できるため、ファイルの中身が実際に画像であることまで確認する。
+ * 保存する前に、位置情報などのメタデータを取り除く（ImageMetadataStripper）。
  */
 @Service
 public class ImageUploadService {
@@ -81,8 +83,18 @@ public class ImageUploadService {
         if (ImageFormat.detect(content) != declared) {
             throw new InvalidImageException(INVALID_FORMAT_MESSAGE);
         }
-        verifyReadable(content, declared);
-        return new PreparedImage(content, declared.extension, declared.mimeType);
+        BufferedImage decoded = decode(content, declared);
+
+        // 位置情報・撮影日時・端末情報などのメタデータを取り除く（写真の向きはピクセルを回転して保つ）。
+        // 取り除けなかった場合は、メタデータが付いたまま公開されないよう、元の画像を保存せずに断る
+        byte[] stripped;
+        try {
+            stripped = ImageMetadataStripper.strip(content, decoded, declared.imageIoName);
+        } catch (IOException | RuntimeException e) {
+            log.warn("画像のメタデータを取り除けませんでした", e);
+            throw new InvalidImageException("画像を処理できませんでした。別の画像を選択してください。");
+        }
+        return new PreparedImage(stripped, declared.extension, declared.mimeType);
     }
 
     /**
@@ -134,10 +146,10 @@ public class ImageUploadService {
     }
 
     /**
-     * 画像として最後まで読み込めること。
+     * 画像として最後まで読み込めることを確かめ、展開したピクセルを返す（メタデータを取り除くのにそのまま使う）。
      * 先にヘッダーから縦横のサイズだけを読み、大きすぎる画像は全体を読み込む前に弾く
      */
-    private static void verifyReadable(byte[] content, ImageFormat format) {
+    private static BufferedImage decode(byte[] content, ImageFormat format) {
         Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName(format.imageIoName);
         if (!readers.hasNext()) {
             throw new IllegalStateException("画像を読み込む部品がありません: " + format);
@@ -157,9 +169,11 @@ public class ImageUploadService {
             // 途中で途切れた JPEG は例外にならず警告だけが出るため、警告も不可として扱う
             boolean[] warned = {false};
             reader.addIIOReadWarningListener((source, warning) -> warned[0] = true);
-            if (reader.read(0) == null || warned[0]) {
+            BufferedImage image = reader.read(0);
+            if (image == null || warned[0]) {
                 throw unreadable();
             }
+            return image;
         } catch (IOException | RuntimeException e) {
             if (e instanceof InvalidImageException invalid) {
                 throw invalid;
