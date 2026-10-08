@@ -20,14 +20,15 @@ export function notificationText(type: NotificationType): string {
 
 /**
  * 通知をタップしたときの遷移先（docs/notification.md）。
- * - いいね：投稿の詳細画面がまだないため、いいねされた投稿が並ぶ自分のプロフィール（詳細画面ができたら /posts/{id} にする）
+ * - いいね：いいねされた投稿の詳細画面
  * - フォロー：相手のプロフィール
  * - 相談・承認・拒否・メッセージ：その会話のチャット
  */
 export function notificationLink(notification: NotificationItem): string {
   switch (notification.type) {
     case 'LIKED':
-      return '/profile'
+      // いいねの通知は必ず投稿を持つ（投稿を削除すると通知も消える）。念のため、ない場合は自分の投稿一覧へ
+      return notification.post === null ? '/profile' : `/posts/${notification.post.id}`
     case 'FOLLOWED':
       return `/users/${notification.actor.id}`
     default:

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/client'
 import { fetchMasters, type MastersResponse } from '../../api/masters'
-import { createPost, type PostResponse } from '../../api/posts'
+import { createPost } from '../../api/posts'
 import { useAuth } from '../../auth/authContext'
 import {
   INVALID_INPUT_MESSAGE,
@@ -20,7 +20,6 @@ import {
 import { ErrorBanner } from '../ErrorBanner'
 import { ImagePicker, type SelectedImage } from './ImagePicker'
 import { PanelHeader } from './PanelHeader'
-import { PostComplete } from './PostComplete'
 import { PostConfirm } from './PostConfirm'
 import { TagPanel } from './TagPanel'
 import '../auth.css'
@@ -38,8 +37,8 @@ const EMPTY_FORM: PostForm = {
 /** 入力画面の上に重ねて表示する選択・入力のパネル（docs/post.md の「別のページに移動して選択する」部分） */
 type Panel = 'fashion' | 'tags' | 'wornItems' | 'referenceUrl'
 
-/** 入力 → 確認 → 完了（docs/post.md「投稿の流れ（暫定）」） */
-type Step = 'input' | 'confirm' | 'complete'
+/** 入力 → 確認（docs/post.md「投稿の流れ」）。投稿したら、その投稿の詳細画面へ移る */
+type Step = 'input' | 'confirm'
 
 type MastersState =
   | { phase: 'loading' }
@@ -48,7 +47,7 @@ type MastersState =
 
 /**
  * 投稿作成（docs/post.md、design/Post Creation Screen.png・Check post content.png）。
- * 入力 → 確認 → 完了の各画面と、選択・入力のパネルは、URL を分けず同じページ内で切り替える
+ * 入力・確認の各画面と、選択・入力のパネルは、URL を分けず同じページ内で切り替える
  * （移動で入力途中の写真や文字が消えないようにするため）。下書き保存はまだ作っていない。
  */
 function PostPage() {
@@ -66,8 +65,6 @@ function PostPage() {
   const [bannerMessage, setBannerMessage] = useState<string | null>(null)
   const [step, setStep] = useState<Step>('input')
   const [submitting, setSubmitting] = useState(false)
-  /** 投稿に成功したときのサーバーの応答（完了画面で使う） */
-  const [createdPost, setCreatedPost] = useState<PostResponse | null>(null)
   const nextImageId = useRef(1)
 
   // ---- 選択肢の読み込み ----
@@ -161,7 +158,7 @@ function PostPage() {
     })
   }
 
-  // ---- 画面の切り替え（入力 → 確認 → 完了） ----
+  // ---- 画面の切り替え（入力 → 確認） ----
 
   const goTo = (next: Step) => {
     setStep(next)
@@ -212,9 +209,9 @@ function PostPage() {
         },
         token,
       )
-      // 投稿の詳細画面ができたら、完了画面ではなくそちらへ移動する（docs/post.md「投稿の流れ（暫定）」）
-      setCreatedPost(post)
-      goTo('complete')
+      // 投稿した投稿の詳細画面へ移る（docs/post.md「投稿の流れ」）。
+      // 「戻る」で送信済みの入力画面に戻らないよう、履歴を置き換える
+      navigate(`/posts/${post.id}`, { replace: true })
     } catch (err) {
       if (err instanceof ApiError && (err.status === 400 || err.status === 413) && err.body) {
         setFieldErrors(err.body.errors as PostFieldErrors)
@@ -227,17 +224,6 @@ function PostPage() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  /** 完了画面の「続けて投稿する」。空の入力画面に戻す */
-  const handleContinue = () => {
-    imagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl))
-    setImages([])
-    setForm(EMPTY_FORM)
-    setFieldErrors({})
-    setBannerMessage(null)
-    setCreatedPost(null)
-    goTo('input')
   }
 
   // 直接 /post を開いた場合は戻る先が無いため、ホームへ移動する
@@ -267,10 +253,6 @@ function PostPage() {
 
   const { fashionCategories, tags: officialTags } = masters.masters
   const selectedFashion = fashionCategories.find((c) => c.id === form.fashionCategoryId)
-
-  if (step === 'complete' && createdPost) {
-    return <PostComplete post={createdPost} onContinue={handleContinue} onHome={() => navigate('/')} />
-  }
 
   if (step === 'confirm') {
     return (

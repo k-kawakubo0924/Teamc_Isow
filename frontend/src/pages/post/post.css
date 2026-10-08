@@ -529,61 +529,6 @@
 
 /* ---- 確認画面（design/Check post content.png） ---- */
 
-.post-confirm-photo {
-  position: relative;
-  margin-bottom: 16px;
-  aspect-ratio: 4 / 3;
-  border-radius: 3px;
-  overflow: hidden;
-  background: #e6dfd5;
-}
-
-.post-confirm-photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.post-confirm-photo-count {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(43, 39, 36, 0.7);
-  font-size: 11px;
-  color: #fff;
-}
-
-.post-confirm-photo-nav {
-  position: absolute;
-  top: 50%;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: rgba(43, 39, 36, 0.6);
-  font-size: 20px;
-  line-height: 1;
-  color: #fff;
-  transform: translateY(-50%);
-  cursor: pointer;
-}
-
-.post-confirm-photo-nav:disabled {
-  opacity: 0.25;
-  cursor: default;
-}
-
-.post-confirm-photo-prev {
-  left: 8px;
-}
-
-.post-confirm-photo-next {
-  right: 8px;
-}
-
 .post-confirm-list {
   margin-bottom: 8px;
 }
@@ -596,42 +541,4 @@
 
 .post-confirm-empty {
   color: var(--color-text-muted);
-}
-
-/* ---- 完了画面（暫定） ---- */
-
-.post-complete-card {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  background: #fff;
-}
-
-.post-complete-card img {
-  flex-shrink: 0;
-  width: 96px;
-  height: 96px;
-  border-radius: 3px;
-  object-fit: cover;
-  background: #e6dfd5;
-}
-
-.post-complete-text {
-  min-width: 0;
-}
-
-.post-complete-title {
-  margin: 0 0 6px;
-  font-size: 14px;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.post-complete-meta {
-  margin: 0 0 4px;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  overflow-wrap: anywhere;
 }

@@ -76,6 +76,18 @@ npm run dev
 - `http://localhost:5173/health` を開くと、バックエンドの `/api/health` を呼び出した結果が画面に表示されます（疎通確認用）。
 - `http://localhost:5173/register` で新規会員登録、`http://localhost:5173/login` でログインができます。
 
+### テスト
+
+```bash
+# バックエンド
+cd backend
+./mvnw test
+
+# フロントエンド（画面の部品のテスト。Vitest + Testing Library で、ブラウザの代わりに jsdom で描画する）
+cd frontend
+npm test
+```
+
 ## 環境変数一覧
 
 ### ルート `.env`（docker-compose / backend）

@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../auth/authContext'
 import { ConsultButton } from '../../components/consult/ConsultButton'
 import { consultNote } from '../../components/consult/consultLabels'
+import { formatHeight } from '../../utils/height'
 import { PROFILE_COLUMNS, loadColumns, saveColumns, type Columns } from '../home/columnSetting'
 import { ColumnsSwitcher, EmptyMessage, PostGrid, type FetchPostPage } from '../home/PostGrid'
 import { goBack } from '../settings/goBack'
@@ -163,7 +164,7 @@ function ProfileHeader({ isMe }: { isMe: boolean }) {
 function ProfileSummary({ profile, masters }: { profile: ProfileResponse; masters: MastersResponse }) {
   // 設定されている項目だけを「・」でつなぐ
   const details = [
-    profile.heightCm !== null ? `${profile.heightCm}cm` : null,
+    formatHeight(profile.heightCm),
     masters.genders.find((option) => option.code === profile.gender)?.label,
     masters.ageGroups.find((option) => option.code === profile.ageGroup)?.label,
     profile.bodyType?.name,

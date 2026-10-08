@@ -2,6 +2,7 @@ package com.teamc.isow.backend.post;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -104,6 +105,14 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             """)
     Page<Long> searchIds(@Param("pattern") String pattern, @Param("categoryId") Long categoryId,
             @Param("ageGroup") String ageGroup, Pageable pageable);
+
+    /**
+     * 投稿の詳細：投稿者とファッションの種類を一緒に読み込む（別々に SQL を発行しないため）。
+     * 写真とタグは一緒に読み込まない（両方を JOIN すると「写真の枚数 × タグの数」の行が返るため）。
+     * 写真・タグはそれぞれ1本の SQL でまとめて読まれる（PostService.get）
+     */
+    @Query("SELECT p FROM Post p JOIN FETCH p.author JOIN FETCH p.fashionCategory WHERE p.id = :id")
+    Optional<Post> findDetailById(@Param("id") Long id);
 
     /** 投稿者とファッションの種類を一緒に読み込む（投稿ごとに SQL を発行しないため）。並び順は保証しない */
     @Query("SELECT p FROM Post p JOIN FETCH p.author JOIN FETCH p.fashionCategory WHERE p.id IN :ids")

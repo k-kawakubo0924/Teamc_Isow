@@ -1,0 +1,56 @@
+/* 投稿の写真（PostPhotoViewer。確認画面・詳細画面で共通。design/Check post content.png） */
+
+.post-photo {
+  position: relative;
+  margin-bottom: 16px;
+  aspect-ratio: 4 / 3;
+  border-radius: 3px;
+  overflow: hidden;
+  background: #e6dfd5;
+}
+
+.post-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.post-photo-count {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(43, 39, 36, 0.7);
+  font-size: 11px;
+  color: #fff;
+}
+
+.post-photo-nav {
+  position: absolute;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(43, 39, 36, 0.6);
+  font-size: 20px;
+  line-height: 1;
+  color: #fff;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.post-photo-nav:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.post-photo-prev {
+  left: 8px;
+}
+
+.post-photo-next {
+  right: 8px;
+}

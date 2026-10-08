@@ -2,6 +2,7 @@ package com.teamc.isow.backend.post;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -113,6 +114,35 @@ class PostQueryApiTest {
         getWithToken("/api/posts/" + post.getId())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.author.username").value("post_query_other"));
+    }
+
+    @Test
+    void 詳細の投稿者にはアイコンと身長も含まれ_未設定ならnull_個人情報は返さない() throws Exception {
+        jdbcTemplate.update("UPDATE users SET profile_image_url = 'http://localhost/uploads/icon.jpg', height_cm = 165 "
+                + "WHERE id = ?", other.getId());
+        Post withProfile = save(other, "アイコンと身長あり");
+        Post withoutProfile = save(me, "アイコンと身長なし");
+
+        getWithToken("/api/posts/" + withProfile.getId())
+                .andExpect(jsonPath("$.author.profileImageUrl").value("http://localhost/uploads/icon.jpg"))
+                .andExpect(jsonPath("$.author.heightCm").value(165))
+                .andExpect(jsonPath("$.author.email").doesNotExist())
+                .andExpect(jsonPath("$.author.phoneNumber").doesNotExist());
+        getWithToken("/api/posts/" + withoutProfile.getId())
+                .andExpect(jsonPath("$.author.profileImageUrl").value(nullValue()))
+                .andExpect(jsonPath("$.author.heightCm").value(nullValue()));
+    }
+
+    @Test
+    void 自分の投稿一覧の投稿者にも_同じ形でアイコンと身長が含まれる() throws Exception {
+        jdbcTemplate.update("UPDATE users SET height_cm = 172 WHERE id = ?", me.getId());
+        save(me, "自分の投稿");
+
+        getWithToken("/api/posts/me")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.posts[0].author.username").value("post_query_me"))
+                .andExpect(jsonPath("$.posts[0].author.heightCm").value(172))
+                .andExpect(jsonPath("$.posts[0].author.profileImageUrl").value(nullValue()));
     }
 
     @Test

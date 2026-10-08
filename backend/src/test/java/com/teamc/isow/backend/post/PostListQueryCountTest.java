@@ -102,6 +102,39 @@ class PostListQueryCountTest {
         assertThat(mine20).isEqualTo(mine5);
     }
 
+    @Test
+    void 投稿の詳細は写真の枚数とタグの数に関係なくSQLの本数が一定() {
+        String subject = String.valueOf(me.getId());
+        List<FashionCategory> categories = fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc();
+        List<Tag> tags = tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc();
+
+        // 写真1枚・タグ1つの投稿と、写真10枚・タグ10個の投稿（どちらも他人の投稿に、いいね・お気に入りあり）
+        Post small = postRepository.save(new Post(other, "少ない", categories.get(0), null, "説明", null,
+                List.of("http://localhost/uploads/s-1.jpg"), List.of(tags.get(0))));
+        List<String> tenImages = new java.util.ArrayList<>();
+        for (int i = 1; i <= Post.MAX_IMAGES; i++) {
+            tenImages.add("http://localhost/uploads/l-" + i + ".jpg");
+        }
+        Post large = postRepository.save(new Post(other, "多い", categories.get(0), "着用アイテム", "説明",
+                "https://example.com", tenImages, tags.subList(0, 10)));
+        for (Post post : List.of(small, large)) {
+            likeRepository.save(new PostLike(me, post));
+            favoriteRepository.save(new PostFavorite(me, post));
+        }
+
+        long smallCount = countSql(() -> postService.get(subject, small.getId()));
+        long largeCount = countSql(() -> postService.get(subject, large.getId()));
+
+        System.out.printf("### SQL の本数（投稿の詳細。写真1枚・タグ1つ → 写真10枚・タグ10個）: %d → %d%n",
+                smallCount, largeCount);
+        assertThat(largeCount).isEqualTo(smallCount);
+        // ログイン確認1、投稿・投稿者・ファッションの種類1、写真1、タグ1、いいね・お気に入り3
+        assertThat(largeCount).isEqualTo(7);
+        PostResponse detail = postService.get(subject, large.getId());
+        assertThat(detail.imageUrls()).hasSize(Post.MAX_IMAGES);
+        assertThat(detail.tags()).hasSize(10);
+    }
+
     /** 自分と他人の投稿を交互に作る（ホームの一覧では投稿者が複数いる状態にする） */
     private void createPosts(int count) {
         List<FashionCategory> categories = fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc();
