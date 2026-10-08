@@ -22,3 +22,7 @@
   docker compose down -v でDBを作り直す（ローカルのデータは消える）
 - dangerouslySetInnerHTML は使用しない。
   認証トークンを localStorage に保存しているため、XSS が致命的になる
+- アップロードされた画像は保存前にメタデータ（位置情報・撮影日時・端末情報など）を削除する。
+  向きの情報はピクセルを回転させてから削除する。ICC プロファイルは色が変わるため残す
+  （詳細は docs/post.md「写真のメタデータ（位置情報など）の削除」）
+- 画像の保存処理を追加・変更する場合は、必ず ImageUploadService.prepare() を通すこと
