@@ -19,7 +19,9 @@ import com.jayway.jsonpath.JsonPath;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.user.User;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.user.UserRepository;
+import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -124,8 +126,12 @@ class PostCreateApiTest {
         List<String> imageUrls = JsonPath.read(body, "$.imageUrls");
         assertThat(imageUrls.get(0)).endsWith(".png");
         assertThat(imageUrls.get(1)).endsWith(".jpg");
-        assertThat(Files.readAllBytes(uploadDir.resolve(fileName(imageUrls.get(0))))).isEqualTo(png);
-        assertThat(Files.readAllBytes(uploadDir.resolve(fileName(imageUrls.get(1))))).isEqualTo(jpeg);
+        // メタデータを取り除くために保存し直すため、バイト列は変わる。PNG は画素が1つも変わらず、JPEG は同じ大きさの画像として読める
+        assertThat(ImageTestSupport.pixels(Files.readAllBytes(uploadDir.resolve(fileName(imageUrls.get(0))))))
+                .isEqualTo(ImageTestSupport.pixels(png));
+        BufferedImage storedJpeg = ImageTestSupport.decode(Files.readAllBytes(uploadDir.resolve(fileName(imageUrls.get(1)))));
+        assertThat(storedJpeg.getWidth()).isEqualTo(40);
+        assertThat(storedJpeg.getHeight()).isEqualTo(30);
         Integer postId = JsonPath.read(body, "$.id");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT sort_order FROM post_images WHERE post_id = ? ORDER BY sort_order", Integer.class, postId))

@@ -50,6 +50,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
+		<!-- 画像の EXIF から写真の向き（Orientation）を読む（ImageMetadataStripper）。Java 標準には EXIF の項目を読む部品がないため -->
+		<dependency>
+			<groupId>com.drewnoakes</groupId>
+			<artifactId>metadata-extractor</artifactId>
+			<version>2.21.0</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -74,6 +80,13 @@
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<!-- テスト用に、位置情報・撮影日時・端末情報・向きを書き込んだ JPEG を作る（本番のコードでは使わない。正式版はまだ alpha のみ） -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-imaging</artifactId>
+			<version>1.0.0-alpha6</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
