@@ -5,6 +5,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -16,9 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminController {
 
     private final AdminAccess adminAccess;
+    private final AdminOperationLogQueryService operationLogQueryService;
 
-    public AdminController(AdminAccess adminAccess) {
+    public AdminController(AdminAccess adminAccess, AdminOperationLogQueryService operationLogQueryService) {
         this.adminAccess = adminAccess;
+        this.operationLogQueryService = operationLogQueryService;
     }
 
     /**
@@ -29,6 +32,15 @@ public class AdminController {
     public AdminMeResponse me(@AuthenticationPrincipal Jwt jwt) {
         User admin = adminAccess.requireAdmin(jwt.getSubject());
         return new AdminMeResponse(admin.getId(), admin.getUsername());
+    }
+
+    /** 管理操作のログの一覧（新しい順）。size は 1〜50 に丸める */
+    @GetMapping("/operation-logs")
+    public AdminOperationLogListResponse operationLogs(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return operationLogQueryService.list(jwt.getSubject(), page, size);
     }
 
     /** 管理者の情報。メールアドレスなどは返さない */
