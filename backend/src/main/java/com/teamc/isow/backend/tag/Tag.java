@@ -76,6 +76,27 @@ public class Tag {
         this.createdAt = LocalDateTime.now();
     }
 
+    /**
+     * 手入力のタグを公式タグにする（管理画面から。docs/admin.md）。
+     * 同じ行のまま変えるため、投稿との関連付け（post_tags）はそのまま残る。表示名は最初に登録されたときの表記のまま。
+     * 選択肢に出すために登録するものなので、無効になっていた場合は有効に戻す
+     */
+    public void makeOfficial(int displayOrder) {
+        this.official = true;
+        this.displayOrder = displayOrder;
+        this.active = true;
+    }
+
+    /** 選択肢・入力候補に出さないようにする（管理画面から。付けている投稿の表示は変わらない） */
+    public void deactivate() {
+        this.active = false;
+    }
+
+    /** 無効にしたものを、また選択肢・入力候補に出すようにする（管理画面から） */
+    public void activate() {
+        this.active = true;
+    }
+
     public Long getId() {
         return id;
     }
