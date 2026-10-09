@@ -28,14 +28,11 @@ export default function DmListPage() {
 
   return (
     <main className="dm-page">
+      {/*
+        design/DMlist.png の左上にある、ピン留めした相談の一覧を開くマークは、ピン留め機能が未実装のため置かない。
+        ピン留め機能を作るときに戻す（docs/dm.md「DM一覧の見出し」）
+      */}
       <header className="dm-header">
-        {/* 通知一覧（docs/notification.md）ができるまでは表示のみ（ホームと同じ） */}
-        <span className="dm-bell" role="img" aria-label="通知">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
-            <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2H4.5z" />
-            <path d="M10 20.5a2 2 0 0 0 4 0" strokeLinecap="round" />
-          </svg>
-        </span>
         <h1 className="dm-logo">ISHO</h1>
       </header>
 
