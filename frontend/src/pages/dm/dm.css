@@ -7,7 +7,7 @@
   box-sizing: border-box;
 }
 
-/* ---- DM一覧の見出し（ホームと同じ） ---- */
+/* ---- DM一覧の見出し（ロゴのみ。左上のピン留めのマークは未実装のため置かない。docs/dm.md） ---- */
 
 .dm-header {
   position: relative;
@@ -16,13 +16,6 @@
   justify-content: center;
   height: 56px;
   border-bottom: 1px solid var(--color-border);
-}
-
-.dm-bell {
-  position: absolute;
-  left: 16px;
-  display: inline-flex;
-  color: var(--color-text);
 }
 
 .dm-logo {
