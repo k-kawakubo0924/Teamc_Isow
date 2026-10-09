@@ -19,12 +19,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 /**
  * 認証・認可の設定。
  * 疎通確認・新規会員登録・ログイン・保存した画像の表示のみ認証なしで許可し、それ以外は JWT（Authorization: Bearer）による認証を必須とする。
+ * 管理者向けの API（/api/admin/**）は、さらに管理者であることを必須とし、管理者でなければ 404 を返す。
  */
 @Configuration
 public class SecurityConfig {
 
     @Value("${app.cors.allowed-origin}")
     private String allowedOrigin;
+
+    private final AdminAuthorizationManager adminAuthorizationManager;
+
+    public SecurityConfig(AdminAuthorizationManager adminAuthorizationManager) {
+        this.adminAuthorizationManager = adminAuthorizationManager;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -41,13 +48,23 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, LocalImageWebConfig.URL_PATH + "**").permitAll()
                 // サーバー内部エラーの応答が認証エラー(401)に置き換わらないよう、エラー画面は許可する
                 .requestMatchers("/error").permitAll()
+                // 管理者向けの API（docs/admin.md）。リクエストのたびに DB の role で管理者か確かめる。
+                // 前方一致のため、管理 API を足すときに個別の設定は要らない。anyRequest より前に置くこと
+                .requestMatchers("/api/admin/**").access(adminAuthorizationManager)
                 .anyRequest().authenticated()
             )
             // Authorization: Bearer のトークンを JwtConfig の JwtDecoder で検証する（署名・有効期限）
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
-            // 未認証のリクエストは 403 ではなく 401 を返す（ログイン画面への誘導に使う）
             .exceptionHandling(ex -> ex
+                // 未認証のリクエストは 403 ではなく 401 を返す（ログイン画面への誘導に使う）
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                // 認証済みだが権限がない場合は、403 ではなく、存在しない URL と同じ 404 を返す
+                // （管理者向けの API があることを、管理者でない人に分からせないため。docs/admin.md）。
+                // sendError で返すため、存在しない URL と同じくエラー画面（/error）を通り、本文の形も同じになる。
+                // 注意：現状この経路を通るのは /api/admin/** の規則だけである。
+                // ほかに認可の規則（hasRole など）を足すと、それも 404 になるので注意すること
+                .accessDeniedHandler((request, response, accessDeniedException) ->
+                        response.sendError(HttpStatus.NOT_FOUND.value()))
             );
         return http.build();
     }
