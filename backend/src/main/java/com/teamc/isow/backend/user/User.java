@@ -16,6 +16,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import org.hibernate.annotations.ColumnDefault;
 
 /**
  * 会員情報。ログイン・新規会員登録（docs/auth.md）とプロフィール（docs/profile.md）で使用する。
@@ -92,6 +93,15 @@ public class User {
     @Column(name = "profile_image_url", length = 2048)
     private String profileImageUrl;
 
+    /**
+     * 権限（docs/admin.md「権限の仕組み」）。Role の定数名（USER / ADMIN）を文字列で持つ（@Enumerated を使わない理由は Role のコメント）。
+     * NOT NULL で DB の既定値も USER のため DB 上は NULL になり得ないが、管理者かどうかは isAdmin() で
+     * 「ADMIN と一致するか」だけで判定し、NULL や想定外の値は管理者として扱わない（二重の守り）
+     */
+    @Column(name = "role", nullable = false, length = 20)
+    @ColumnDefault("'USER'")
+    private String role = Role.USER.name();
+
     /** 登録日時 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -111,6 +121,23 @@ public class User {
         this.username = username;
         // 新規登録では名前を聞かないため、ユーザ名を表示名の初期値にする（プロフィール編集で変更できる）
         this.displayName = username;
+    }
+
+    /**
+     * 管理者か。role が ADMIN と完全に一致するときだけ true（docs/admin.md「権限の仕組み」の注意）。
+     * NULL・小文字の admin・存在しない段階の名前などは、すべて管理者ではない。
+     * 「USER でなければ管理者」のような判定や、Role.valueOf（想定外の値で例外になる）は使わないこと
+     */
+    public boolean isAdmin() {
+        return Role.ADMIN.name().equals(role);
+    }
+
+    /**
+     * 管理者にする。起動時に ADMIN_EMAIL のユーザーにだけ使う（AdminAccountInitializer）。
+     * 画面・API から呼ぶ処理は作らない（管理者は画面から作れない。docs/admin.md）
+     */
+    public void promoteToAdmin() {
+        this.role = Role.ADMIN.name();
     }
 
     /**

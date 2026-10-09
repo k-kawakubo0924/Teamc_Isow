@@ -55,6 +55,16 @@ public abstract class MasterEntity {
         this.createdAt = LocalDateTime.now();
     }
 
+    /** 選択肢に出さないようにする（管理画面から。参照中のデータの表示は変わらない） */
+    public void deactivate() {
+        this.active = false;
+    }
+
+    /** 無効にしたものを、また選択肢に出すようにする（管理画面から） */
+    public void activate() {
+        this.active = true;
+    }
+
     public Long getId() {
         return id;
     }

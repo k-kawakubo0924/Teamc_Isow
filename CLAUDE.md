@@ -26,3 +26,8 @@
   向きの情報はピクセルを回転させてから削除する。ICC プロファイルは色が変わるため残す
   （詳細は docs/post.md「写真のメタデータ（位置情報など）の削除」）
 - 画像の保存処理を追加・変更する場合は、必ず ImageUploadService.prepare() を通すこと
+- 管理者向けの API は必ず /api/admin/** に置く。権限のチェックは必ずサーバー側で行い、
+  画面を隠すことを守りにしない（/api/admin/** 全体は SecurityConfig で管理者だけに許可し、
+  サービスでも AdminAccess.requireAdmin() で確かめる。管理者でなければ存在しない URL と同じ 404 を返す）。
+  データを変える管理操作は、同じトランザクションで AdminOperationLogger からログに残す
+  （詳細は docs/admin.md「権限の仕組み」「管理操作のログ」）
