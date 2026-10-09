@@ -1,6 +1,8 @@
-import { Route, Routes } from 'react-router'
+import { Navigate, Route, Routes } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RouteGuards'
 import { TabLayout } from './components/BottomNav'
+import AdminLayout from './pages/admin/AdminLayout'
+import { AdminAnnouncementsPage, AdminMastersPage, AdminOperationLogsPage } from './pages/admin/AdminPages'
 import DmChatPage from './pages/dm/DmChatPage'
 import DmListPage from './pages/dm/DmListPage'
 import DmRequestsPage from './pages/dm/DmRequestsPage'
@@ -9,6 +11,7 @@ import { FollowListPage } from './pages/follow/FollowListPage'
 import HealthCheckPage from './pages/HealthCheckPage'
 import HomePage from './pages/home/HomePage'
 import LoginPage from './pages/LoginPage'
+import NotFoundPage from './pages/NotFoundPage'
 import NotificationPage from './pages/notification/NotificationPage'
 import PostDetailPage from './pages/post/PostDetailPage'
 import PostPage from './pages/post/PostPage'
@@ -50,6 +53,25 @@ function App() {
         {/* 詳細設定（docs/settings.md）。見出しに戻るボタンがあるため、下部ナビゲーションを表示しない */}
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/profile" element={<ProfileEditPage />} />
+
+        {/*
+          管理画面（docs/admin.md）。PC 向けの別の枠で、下部ナビゲーションを表示しない。
+          未ログインなら他の画面と同じくログイン画面へ移り、管理者でなければ AdminLayout が「ページが見つかりません」を出す。
+          利用者アプリの画面から /admin へのリンクは置かない（管理者は URL を直接開く）
+        */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="/admin/masters" replace />} />
+          <Route path="masters" element={<AdminMastersPage />} />
+          <Route path="announcements" element={<AdminAnnouncementsPage />} />
+          <Route path="operation-logs" element={<AdminOperationLogsPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+
+        {/*
+          存在しない URL。ログインが必要な画面と同じく、未ログインならログイン画面へ移る
+          （未ログインの人に、/admin とそれ以外の存在しない URL の違いが見えないように）
+        */}
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
 
       <Route element={<GuestOnly />}>
