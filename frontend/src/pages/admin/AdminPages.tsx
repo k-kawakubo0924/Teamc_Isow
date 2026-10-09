@@ -1,11 +1,7 @@
 /*
- * 管理画面の各画面。今は見出しだけで、中身は後のステップで作る
- * （マスタ管理はステップ6、お知らせ・操作ログはステップ7。docs/admin.md）
+ * 管理画面のまだ中身のない画面。今は見出しだけで、中身は後のステップで作る
+ * （お知らせ・操作ログはステップ7。マスタ管理は AdminMastersPage。docs/admin.md）
  */
-
-export function AdminMastersPage() {
-  return <AdminPlaceholder title="マスタ管理" />
-}
 
 export function AdminAnnouncementsPage() {
   return <AdminPlaceholder title="お知らせ" />

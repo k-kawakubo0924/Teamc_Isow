@@ -26,6 +26,8 @@ vi.mock('./auth/authContext', () => ({
 vi.mock('./api/admin', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api/admin')>()),
   getAdminMe: adminMe,
+  // マスタ管理の画面の一覧は、ここでは読み込ませない（画面の中身は AdminMastersPage.test.tsx で確かめる）
+  listMasters: () => new Promise(() => {}),
 }))
 vi.mock('./components/BottomNav', async () => {
   const { Outlet } = await import('react-router')
