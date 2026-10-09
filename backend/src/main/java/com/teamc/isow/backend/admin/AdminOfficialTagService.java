@@ -50,7 +50,8 @@ public class AdminOfficialTagService {
     @Transactional
     public AdminOfficialTagCreateResponse create(String subject, String name) {
         User admin = adminAccess.requireAdmin(subject);
-        String displayName = AdminMasterNames.displayName(name, TagService.MAX_INPUT_LENGTH);
+        String displayName =
+                AdminMasterNames.requireValid(TagNameNormalizer.displayName(name), TagService.MAX_INPUT_LENGTH);
         int displayOrder = AdminMasterNames.nextDisplayOrder(tagRepository.findMaxOfficialDisplayOrder());
         Optional<Tag> existing = tagRepository.findByNormalizedName(TagNameNormalizer.key(displayName));
         if (existing.isPresent()) {

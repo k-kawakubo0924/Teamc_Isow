@@ -1,11 +1,12 @@
 package com.teamc.isow.backend.tag;
 
-import java.text.Normalizer;
+import com.teamc.isow.backend.common.NameNormalizer;
 import java.util.Locale;
 
 /**
  * タグ名の表記ゆれをそろえる。
  * 選択肢からの登録と投稿時の手入力で同じ処理を通し、同じタグが重複して作られないようにする。
+ * マスタの名前と共通の整え方（NameNormalizer）に、タグだけの「先頭の # を除く」を加えたもの
  */
 public final class TagNameNormalizer {
 
@@ -18,13 +19,9 @@ public final class TagNameNormalizer {
      * 大文字小文字は入力されたまま残す（Y2K → Y2K）
      */
     public static String displayName(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFKC)
-                .strip()
-                .replaceAll("\s+", " ");
-        if (normalized.startsWith("#")) {
+        String normalized = NameNormalizer.displayName(value);
+        // ハッシュタグとして # を付けて入力されることがあるため、タグだけ先頭の # を除く
+        if (normalized != null && normalized.startsWith("#")) {
             normalized = normalized.substring(1).strip();
         }
         return normalized;

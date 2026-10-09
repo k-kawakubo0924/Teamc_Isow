@@ -56,7 +56,9 @@ final class AdminTestSupport {
         jdbcTemplate.update("DELETE FROM posts");
         jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?)", ADMIN_EMAIL, USER_EMAIL);
         for (String table : new String[] {"fashion_categories", "body_types", "personal_colors", "tags"}) {
-            jdbcTemplate.update("DELETE FROM " + table + " WHERE name LIKE ?", NAME_PREFIX + "%");
+            // 先頭に # を付けた名前（マスタの名前の # が削られないことの確認で作る）も消す
+            jdbcTemplate.update("DELETE FROM " + table + " WHERE name LIKE ? OR name LIKE ?",
+                    NAME_PREFIX + "%", "#" + NAME_PREFIX + "%");
             jdbcTemplate.update("UPDATE " + table + " SET is_active = true");
         }
     }

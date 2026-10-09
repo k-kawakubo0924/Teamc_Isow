@@ -151,6 +151,22 @@ class AdminMasterApiTest {
     }
 
     @Test
+    void マスタの名前の先頭の記号は削らない_タグとは違う() throws Exception {
+        // タグは先頭の # を除く（ハッシュタグとして入力されるため）が、マスタの名前では意味のある文字として残す
+        add("fashion-categories", "＃管理テスト")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("#管理テスト"));
+
+        // # の有無だけが違う名前は、別の名前として追加できる
+        add("fashion-categories", "管理テスト")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("管理テスト"));
+        add("fashion-categories", "#管理テスト")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.name").exists());
+    }
+
+    @Test
     void 初期データと同じ名前は重複_無効なものと同じ名前も重複() throws Exception {
         String seeded = jdbcTemplate.queryForObject("SELECT name FROM body_types ORDER BY id LIMIT 1", String.class);
         jdbcTemplate.update("UPDATE body_types SET is_active = false WHERE name = ?", seeded);

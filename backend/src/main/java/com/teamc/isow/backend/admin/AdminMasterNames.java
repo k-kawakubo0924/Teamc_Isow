@@ -1,11 +1,10 @@
 package com.teamc.isow.backend.admin;
 
 import com.teamc.isow.backend.common.InputValidationException;
-import com.teamc.isow.backend.tag.TagNameNormalizer;
 
 /**
- * 管理画面で追加するマスタ・公式タグの名前を整える。
- * 表記ゆれは、タグと同じ TagNameNormalizer でそろえる（マスタには独自の正規化がないため、すでにある仕組みを使う）
+ * 管理画面で追加するマスタ・公式タグの名前の確認と、並び順・ログの内容。
+ * 表記ゆれのそろえ方は呼び出し元で選ぶ（マスタは NameNormalizer、公式タグは先頭の # も除く TagNameNormalizer）
  */
 final class AdminMasterNames {
 
@@ -19,12 +18,11 @@ final class AdminMasterNames {
     }
 
     /**
-     * 表示名の形に整えて返す
+     * 表示名の形に整えた名前を確かめて、そのまま返す
      *
      * @throws InputValidationException 空・maxLength 文字を超える場合（項目名は name）
      */
-    static String displayName(String name, int maxLength) {
-        String displayName = TagNameNormalizer.displayName(name);
+    static String requireValid(String displayName, int maxLength) {
         if (displayName == null || displayName.isEmpty()) {
             throw InputValidationException.of(FIELD, "名前を入力してください");
         }

@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.admin;
 
 import com.teamc.isow.backend.common.InputValidationException;
+import com.teamc.isow.backend.common.NameNormalizer;
 import com.teamc.isow.backend.master.BodyType;
 import com.teamc.isow.backend.master.BodyTypeRepository;
 import com.teamc.isow.backend.master.FashionCategory;
@@ -9,7 +10,6 @@ import com.teamc.isow.backend.master.MasterEntity;
 import com.teamc.isow.backend.master.MasterRepository;
 import com.teamc.isow.backend.master.PersonalColor;
 import com.teamc.isow.backend.master.PersonalColorRepository;
-import com.teamc.isow.backend.tag.TagNameNormalizer;
 import com.teamc.isow.backend.user.User;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -63,11 +63,12 @@ public class AdminMasterService {
     @Transactional
     public AdminMasterItem create(String subject, AdminMasterKind kind, String name) {
         User admin = adminAccess.requireAdmin(subject);
-        String displayName = AdminMasterNames.displayName(name, MAX_NAME_LENGTH);
+        String displayName = AdminMasterNames.requireValid(NameNormalizer.displayName(name), MAX_NAME_LENGTH);
         List<? extends MasterEntity> all = repository(kind).findAllByOrderByDisplayOrderAscIdAsc();
-        // マスタは件数が少ないため、すべて読み込んで比べる（名前の列は表記ゆれをそろえる前の初期データもあるため、DB の一意制約だけでは防げない）
-        String key = TagNameNormalizer.key(displayName);
-        if (all.stream().anyMatch(master -> key.equals(TagNameNormalizer.key(master.getName())))) {
+        // マスタは件数が少ないため、すべて読み込んで比べる（名前の列は表記ゆれをそろえる前の初期データもあるため、DB の一意制約だけでは防げない）。
+        // タグと違い、先頭の # は削らない（マスタの名前では意味のある文字として残す）
+        String key = NameNormalizer.key(displayName);
+        if (all.stream().anyMatch(master -> key.equals(NameNormalizer.key(master.getName())))) {
             throw InputValidationException.of(AdminMasterNames.FIELD,
                     "同じ名前の" + kind.getLabel() + "がすでにあります（無効にしているものも含みます）");
         }
