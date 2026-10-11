@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,14 @@ import org.springframework.transaction.support.TransactionTemplate;
  * </ul>
  */
 @Component
+@Order(AdminAccountInitializer.ORDER)
 public class AdminAccountInitializer implements ApplicationRunner {
+
+    /**
+     * 起動時の処理の順番。開発用のテストデータ（DevDataSeeder）の後に行い、投入したユーザーを ADMIN_EMAIL に書けば
+     * 最初の起動から管理者になるようにする
+     */
+    public static final int ORDER = 3;
 
     private static final Logger log = LoggerFactory.getLogger(AdminAccountInitializer.class);
 

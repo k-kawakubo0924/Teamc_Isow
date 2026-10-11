@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +28,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 既存の行は更新しない（名前の変更や無効化をしていても、起動のたびに元へ戻さない）。
  */
 @Component
+@Order(MasterDataSeeder.ORDER)
 public class MasterDataSeeder implements ApplicationRunner {
+
+    /** 起動時の処理の順番。選択肢は他の起動時の処理（開発用のテストデータなど）が使うため、最初に行う */
+    public static final int ORDER = 1;
 
     private static final Logger log = LoggerFactory.getLogger(MasterDataSeeder.class);
 
