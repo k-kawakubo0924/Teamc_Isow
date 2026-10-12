@@ -12,6 +12,7 @@ import com.teamc.isow.backend.dm.DmErrorResponse;
 import com.teamc.isow.backend.follow.SelfFollowException;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.notification.NotificationNotFoundException;
+import com.teamc.isow.backend.post.PostDeleteForbiddenException;
 import com.teamc.isow.backend.post.PostNotFoundException;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import java.util.LinkedHashMap;
@@ -61,6 +62,16 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiErrorResponse handlePostNotFound(PostNotFoundException e) {
         return new ApiErrorResponse("投稿が見つかりません。", Map.of());
+    }
+
+    /**
+     * 他人の投稿を削除しようとした。会話・通知・管理画面と違い 404 で隠さず、素直に 403 を返す
+     * （投稿はもともと誰でも見られるため、隠しても得るものがない。docs/post.md「投稿の削除」）
+     */
+    @ExceptionHandler(PostDeleteForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiErrorResponse handlePostDeleteForbidden(PostDeleteForbiddenException e) {
+        return new ApiErrorResponse("この投稿は削除できません。", Map.of());
     }
 
     @ExceptionHandler(UserNotFoundException.class)

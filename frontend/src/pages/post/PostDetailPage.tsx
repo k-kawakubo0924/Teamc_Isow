@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
-import { fetchPost, type PostResponse } from '../../api/posts'
+import { deletePost, fetchPost, type PostResponse } from '../../api/posts'
 import { useAuth } from '../../auth/authContext'
 import { formatHeight } from '../../utils/height'
 import { HeartIcon, StarIcon } from '../home/PostCard'
@@ -22,7 +22,7 @@ type State =
 /**
  * 投稿の詳細（/posts/{id}。docs/post.md「投稿の詳細画面」）。
  * 詳細画面の画面画像はないため、項目の並びは投稿の確認画面（design/Check post content.png）に合わせている。
- * 自分の投稿と他人の投稿で表示は変えない（編集・削除は docs/post.md で未確定）
+ * 自分の投稿にだけ、見出しの右に削除のメニューを出す（docs/post.md「投稿の削除」。削除できるかはサーバーが確かめる）
  */
 function PostDetailPage() {
   const { postId } = useParams()
@@ -74,6 +74,9 @@ function PostDetailView({ postId }: { postId: number | null }) {
     setReloadKey((key) => key + 1)
   }
 
+  // 自分の投稿のときだけ、削除のメニューを出す（表示を分けるだけで、削除できるかはサーバーが確かめる）
+  const ownPost = state.phase === 'ready' && state.post.ownedByMe ? state.post : null
+
   return (
     <main className="post-detail-page">
       <header className="post-detail-header">
@@ -81,6 +84,7 @@ function PostDetailView({ postId }: { postId: number | null }) {
           ‹
         </button>
         <h1 className="post-detail-heading">投稿</h1>
+        {ownPost && token && <PostDeleteMenu postId={ownPost.id} token={token} />}
       </header>
 
       {state.phase === 'loading' && (
@@ -119,6 +123,103 @@ function PostDetailView({ postId }: { postId: number | null }) {
         </div>
       )}
     </main>
+  )
+}
+
+/**
+ * 自分の投稿の「…」メニューと、削除の確認（docs/post.md「投稿の削除」）。
+ * 削除は元に戻せないため、ブラウザの確認ダイアログではなく画面の中で確かめる。
+ * 削除できたら、削除した投稿に「戻る」で戻らないよう、履歴を置き換えて自分のプロフィールへ移る
+ */
+function PostDeleteMenu({ postId, token }: { postId: number; token: string }) {
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const openConfirm = () => {
+    setMenuOpen(false)
+    setError(null)
+    setConfirming(true)
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    setError(null)
+    try {
+      await deletePost(postId, token)
+    } catch (err: unknown) {
+      // すでに削除されていた（別の画面で削除したなど）場合は、削除できたものとして扱う
+      if (!(err instanceof ApiError && err.status === 404)) {
+        setError(err instanceof Error ? err.message : String(err))
+        setDeleting(false)
+        return
+      }
+    }
+    navigate('/profile', { replace: true })
+  }
+
+  return (
+    <>
+      <div className="post-detail-menu">
+        <button
+          type="button"
+          className="post-detail-menu-button"
+          aria-label="投稿のメニュー"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          …
+        </button>
+        {menuOpen && (
+          <div className="post-detail-menu-list" role="menu">
+            <button type="button" role="menuitem" className="post-detail-menu-delete" onClick={openConfirm}>
+              削除
+            </button>
+          </div>
+        )}
+      </div>
+
+      {confirming && (
+        <div className="post-detail-confirm-backdrop">
+          <div
+            className="post-detail-confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="post-detail-confirm-title"
+            aria-describedby="post-detail-confirm-text"
+          >
+            <p id="post-detail-confirm-title" className="post-detail-confirm-title">
+              この投稿を削除しますか？
+            </p>
+            <p id="post-detail-confirm-text" className="post-detail-confirm-text">
+              写真・いいね・お気に入りも削除され、元に戻せません。
+            </p>
+            {error && (
+              <p className="post-detail-confirm-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="post-detail-confirm-buttons">
+              <button
+                type="button"
+                className="post-detail-confirm-cancel"
+                disabled={deleting}
+                autoFocus
+                onClick={() => setConfirming(false)}
+              >
+                キャンセル
+              </button>
+              <button type="button" className="post-detail-confirm-ok" disabled={deleting} onClick={handleDelete}>
+                {deleting ? '削除しています...' : '削除する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -64,5 +65,12 @@ public class PostController {
     @GetMapping("/{id:\\d+}")
     public PostResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         return postService.get(jwt.getSubject(), id);
+    }
+
+    /** 投稿を削除する。自分の投稿だけ（他人の投稿は 403）。id は数字のみ（それ以外は URL が一致せず 404） */
+    @DeleteMapping("/{id:\\d+}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        postService.delete(jwt.getSubject(), id);
     }
 }
