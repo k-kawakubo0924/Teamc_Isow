@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -31,7 +32,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 投稿の作成・取得。
+ * 投稿の作成・取得・削除。
  *
  * <p>作成時、画像の保存（ファイル）は DB のトランザクションに含められないため、次の順に進め、途中で失敗しても中途半端な状態を残さない。
  * <ol>
@@ -168,7 +169,7 @@ public class PostService {
                 imageUrls,
                 tags));
         // 作成した直後のため、いいね・お気に入りはまだない
-        return PostResponse.from(post, ReactionSummary.NONE);
+        return PostResponse.from(post, ReactionSummary.NONE, authorId);
     }
 
     /**
@@ -184,7 +185,43 @@ public class PostService {
     public PostResponse get(String subject, Long id) {
         Long userId = authService.requireCurrentUser(subject).getId();
         Post post = postRepository.findDetailById(id).orElseThrow(() -> new PostNotFoundException(id));
-        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id));
+        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId);
+    }
+
+    /**
+     * 投稿を削除する（docs/post.md「投稿の削除」）。削除できるのは投稿者本人だけ。
+     *
+     * <p>次の順に進める。写真のファイルは DB のようにロールバックできないため、DB の削除が確定してから消す。
+     * <ol>
+     *   <li>1つのトランザクションで、投稿を読み、投稿者を確かめ、写真の URL を控えてから投稿を削除する。
+     *       写真・タグとのつながりは JPA が、いいね・お気に入り・通知は DB の外部キー（ON DELETE CASCADE）が一緒に削除する</li>
+     *   <li>コミットの後に、控えた URL の写真のファイルを1件ずつ削除する。
+     *       対象は post_images に記録されていた URL そのものだけ（パターンやワイルドカードで探して消すことはしない）。
+     *       削除に失敗しても DB は戻さない（投稿は削除済みとして扱い、残ったファイルはログに残す）</li>
+     * </ol>
+     *
+     * @throws PostNotFoundException 投稿が存在しない場合（すでに削除された場合を含む）
+     * @throws PostDeleteForbiddenException 他人の投稿の場合（何も削除しない）
+     */
+    public void delete(String subject, Long id) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        List<String> imageUrls;
+        try {
+            imageUrls = transactionTemplate.execute(status -> {
+                Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
+                if (!post.getAuthor().getId().equals(userId)) {
+                    throw new PostDeleteForbiddenException(id);
+                }
+                List<String> urls = post.getImages().stream().map(PostImage::getImageUrl).toList();
+                postRepository.delete(post);
+                return urls;
+            });
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // 同じ投稿の削除がほぼ同時に届き、先に届いた方で削除済みになった
+            throw new PostNotFoundException(id);
+        }
+        log.info("投稿を削除しました: postId={}, userId={}, images={}", id, userId, imageUrls.size());
+        imageUploadService.deleteQuietly(imageUrls);
     }
 
     /**
@@ -202,7 +239,7 @@ public class PostService {
         Map<Long, ReactionSummary> reactions = reactionSummaryService.summarize(
                 authorId, posts.getContent().stream().map(Post::getId).toList());
         return new PostListResponse(
-                posts.getContent().stream().map(post -> PostResponse.from(post, reactions.get(post.getId()))).toList(),
+                posts.getContent().stream().map(post -> PostResponse.from(post, reactions.get(post.getId()), authorId)).toList(),
                 safePage,
                 safeSize,
                 posts.hasNext());

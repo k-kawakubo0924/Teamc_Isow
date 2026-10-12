@@ -1,4 +1,4 @@
-import { getJson, postForm } from './client'
+import { getJson, postForm, sendWithToken } from './client'
 
 /** 投稿作成で送る内容。images は表示順（1枚目がサムネイル） */
 export type CreatePostRequest = {
@@ -33,6 +33,8 @@ export type PostResponse = {
   likedByMe: boolean
   /** ログイン中のユーザーがお気に入りにしているか（本人にだけ返る） */
   favoritedByMe: boolean
+  /** ログイン中のユーザーの投稿か（削除のメニューを出すかの判断だけに使う。削除できるかはサーバーが確かめる） */
+  ownedByMe: boolean
   createdAt: string
 }
 
@@ -84,6 +86,14 @@ export const TIMELINE_PAGE_SIZE = 20
  */
 export function fetchPost(id: number, token: string, signal?: AbortSignal): Promise<PostResponse> {
   return getJson<PostResponse>(`/api/posts/${id}`, token, signal)
+}
+
+/**
+ * 自分の投稿を削除する（DELETE /api/posts/{id}）。
+ * 失敗時は ApiError（403: 他人の投稿 / 404: 存在しない・削除済み）を投げる
+ */
+export function deletePost(id: number, token: string): Promise<void> {
+  return sendWithToken<void>('DELETE', `/api/posts/${id}`, token)
 }
 
 /**

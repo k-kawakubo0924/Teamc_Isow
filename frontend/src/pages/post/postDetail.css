@@ -228,3 +228,114 @@
   font-size: 13px;
   color: #fff;
 }
+
+/* ---- 自分の投稿のメニューと、削除の確認（docs/post.md「投稿の削除」） ---- */
+
+.post-detail-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.post-detail-menu-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-detail-menu-list {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  z-index: 10;
+  min-width: 120px;
+  padding: 4px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+}
+
+.post-detail-menu-delete {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--color-error);
+  cursor: pointer;
+}
+
+.post-detail-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 35%);
+}
+
+.post-detail-confirm {
+  width: 100%;
+  max-width: 340px;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.post-detail-confirm-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.post-detail-confirm-text {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.post-detail-confirm-error {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--color-error);
+}
+
+.post-detail-confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.post-detail-confirm-cancel,
+.post-detail-confirm-ok {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-detail-confirm-ok {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+.post-detail-confirm-cancel:disabled,
+.post-detail-confirm-ok:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

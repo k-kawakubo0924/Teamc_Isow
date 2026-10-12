@@ -1,17 +1,23 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../../api/client'
 import type { PostResponse } from '../../api/posts'
 import PostDetailPage from './PostDetailPage'
 
 // API とログイン状態は差し替える（画面の表示だけを確かめる）
 const fetchPost = vi.fn<(id: number) => Promise<PostResponse>>()
-vi.mock('../../api/posts', () => ({ fetchPost: (id: number) => fetchPost(id) }))
+const deletePost = vi.fn<(id: number) => Promise<void>>()
+vi.mock('../../api/posts', () => ({
+  fetchPost: (id: number) => fetchPost(id),
+  deletePost: (id: number) => deletePost(id),
+}))
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
 
 afterEach(() => {
   cleanup()
   fetchPost.mockReset()
+  deletePost.mockReset()
 })
 
 function post(overrides: Partial<PostResponse> = {}, author: Partial<PostResponse['author']> = {}): PostResponse {
@@ -28,6 +34,7 @@ function post(overrides: Partial<PostResponse> = {}, author: Partial<PostRespons
     likeCount: 0,
     likedByMe: false,
     favoritedByMe: false,
+    ownedByMe: false,
     createdAt: '2026-10-08T12:00:00',
     ...overrides,
   }
@@ -96,5 +103,119 @@ describe('投稿の詳細画面', () => {
 
     expect(screen.queryByRole('link', { name: 'javascript:alert(1)' })).toBeNull()
     expect(screen.getByText('javascript:alert(1)')).toBeTruthy()
+  })
+})
+
+/** 削除の後に移る先（プロフィール）。「戻る」で、削除した投稿の詳細に戻らないことを確かめるためのボタンを置く */
+function ProfileStub() {
+  const navigate = useNavigate()
+  return (
+    <div>
+      <p>プロフィール画面</p>
+      <button type="button" onClick={() => navigate(-1)}>
+        ブラウザの戻る
+      </button>
+    </div>
+  )
+}
+
+/** ホーム → 投稿の詳細、の順に開いた状態にする */
+async function openFromHome(response: PostResponse) {
+  fetchPost.mockResolvedValue(response)
+  render(
+    <MemoryRouter initialEntries={['/', '/posts/1']} initialIndex={1}>
+      <Routes>
+        <Route path="/" element={<p>ホーム画面</p>} />
+        <Route path="/posts/:postId" element={<PostDetailPage />} />
+        <Route path="/profile" element={<ProfileStub />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+  await screen.findByText('@haru_st')
+}
+
+function openDeleteConfirm() {
+  fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: '削除' }))
+}
+
+describe('投稿の削除', () => {
+  it('他人の投稿には、削除のメニューを出さない', async () => {
+    await openFromHome(post({ ownedByMe: false }))
+
+    expect(screen.queryByRole('button', { name: '投稿のメニュー' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '削除' })).toBeNull()
+  })
+
+  it('自分の投稿では、メニューの「削除」で画面の中に確認を出し、まだ削除しない', async () => {
+    await openFromHome(post({ ownedByMe: true }))
+
+    openDeleteConfirm()
+
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog.textContent).toContain('この投稿を削除しますか？')
+    expect(dialog.textContent).toContain('元に戻せません')
+    expect(deletePost).not.toHaveBeenCalled()
+  })
+
+  it('「キャンセル」で確認を閉じ、削除しない', async () => {
+    await openFromHome(post({ ownedByMe: true }))
+    openDeleteConfirm()
+
+    fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(deletePost).not.toHaveBeenCalled()
+    expect(screen.getByText('@haru_st')).toBeTruthy()
+  })
+
+  it('「削除する」で削除し、プロフィールへ移る。戻るで削除した投稿には戻らない', async () => {
+    deletePost.mockResolvedValue(undefined)
+    await openFromHome(post({ ownedByMe: true }))
+    openDeleteConfirm()
+
+    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+
+    await screen.findByText('プロフィール画面')
+    expect(deletePost).toHaveBeenCalledWith(1)
+    // 詳細の履歴はプロフィールに置き換わっているため、戻るとホームに戻る
+    fireEvent.click(screen.getByRole('button', { name: 'ブラウザの戻る' }))
+    expect(await screen.findByText('ホーム画面')).toBeTruthy()
+  })
+
+  it('削除の通信中は、もう一度押せず、キャンセルもできない', async () => {
+    deletePost.mockReturnValue(new Promise(() => {}))
+    await openFromHome(post({ ownedByMe: true }))
+    openDeleteConfirm()
+
+    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+
+    expect(screen.getByRole('button', { name: '削除しています...' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'キャンセル' }).hasAttribute('disabled')).toBe(true)
+    expect(deletePost).toHaveBeenCalledTimes(1)
+  })
+
+  it('削除に失敗したら、確認の中にエラーを出して画面に留まる', async () => {
+    deletePost.mockRejectedValue(new ApiError(403, null, 'この投稿は削除できません。'))
+    await openFromHome(post({ ownedByMe: true }))
+    openDeleteConfirm()
+
+    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+
+    const dialog = screen.getByRole('alertdialog')
+    expect(await screen.findByText('この投稿は削除できません。')).toBeTruthy()
+    expect(dialog.contains(screen.getByText('この投稿は削除できません。'))).toBe(true)
+    expect(screen.queryByText('プロフィール画面')).toBeNull()
+    expect(screen.getByRole('button', { name: '削除する' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  it('すでに削除されていた（404）なら、削除できたものとしてプロフィールへ移る', async () => {
+    deletePost.mockRejectedValue(new ApiError(404, null, '投稿が見つかりません。'))
+    await openFromHome(post({ ownedByMe: true }))
+    openDeleteConfirm()
+
+    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+
+    expect(await screen.findByText('プロフィール画面')).toBeTruthy()
   })
 })

@@ -14,6 +14,7 @@ import java.util.List;
  * @param likeCount いいね件数（公開情報）
  * @param likedByMe ログイン中のユーザーがいいねしているか
  * @param favoritedByMe ログイン中のユーザーがお気に入りにしているか（本人にだけ返す）
+ * @param ownedByMe ログイン中のユーザーの投稿か（画面で削除のメニューを出すかの判断だけに使う。削除できるかはサーバーで確かめる）
  */
 public record PostResponse(
         Long id,
@@ -28,13 +29,15 @@ public record PostResponse(
         long likeCount,
         boolean likedByMe,
         boolean favoritedByMe,
+        boolean ownedByMe,
         LocalDateTime createdAt) {
 
     /**
      * 遅延読み込みの項目を使うため、トランザクションの中で呼ぶこと。
      * reactions は ReactionSummaryService でまとめて調べたもの（一覧で投稿ごとに SQL を発行しないため）
+     * viewerId はログイン中のユーザーの ID（ownedByMe の判定に使う）
      */
-    public static PostResponse from(Post post, ReactionSummary reactions) {
+    public static PostResponse from(Post post, ReactionSummary reactions, Long viewerId) {
         return new PostResponse(
                 post.getId(),
                 post.getTitle(),
@@ -53,6 +56,7 @@ public record PostResponse(
                 reactions.likeCount(),
                 reactions.likedByMe(),
                 reactions.favoritedByMe(),
+                post.getAuthor().getId().equals(viewerId),
                 post.getCreatedAt());
     }
 
