@@ -11,6 +11,8 @@ export type ProfileResponse = {
   username: string
   displayName: string
   profileImageUrl: string | null
+  /** ログイン中のユーザーがブロックしているか（docs/profile.md「ブロック」）。true なら、プロフィールの代わりにブロック中の表示を出す */
+  blockedByMe: boolean
   gender: string | null
   heightCm: number | null
   ageGroup: string | null

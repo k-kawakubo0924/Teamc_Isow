@@ -243,3 +243,76 @@
 .profile-panel {
   padding: 12px 16px 16px;
 }
+
+/* ---- ブロック（docs/profile.md「ブロック」） ---- */
+
+/* 相手のプロフィールの右上の⋮ */
+.profile-menu-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.profile-menu {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  padding: 4px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+}
+
+.profile-menu-item {
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-menu-danger {
+  color: var(--color-error);
+}
+
+/* 自分がブロックしている相手のプロフィール */
+.profile-blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.profile-blocked-title {
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-blocked-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.profile-blocked-button {
+  height: 36px;
+  margin-top: 8px;
+  padding: 0 20px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 3px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+}

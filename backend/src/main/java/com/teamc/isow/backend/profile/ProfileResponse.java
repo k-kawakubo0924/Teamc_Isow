@@ -18,6 +18,8 @@ import com.teamc.isow.backend.user.User;
  * @param followerCount フォロワーの件数（有効なフォローのみ）
  * @param me ログイン中のユーザー自身のプロフィールか（「編集」と「フォロー」のどちらのボタンを出すかに使う）
  * @param followingByMe ログイン中のユーザーがこのユーザーをフォローしているか。自分のプロフィールでは null
+ * @param blockedByMe ログイン中のユーザーがこのユーザーをブロックしているか（docs/profile.md「ブロック」）。
+ *     true なら、画面はプロフィールの代わりに「ブロック中のユーザーです」と解除のボタンを出す
  */
 public record ProfileResponse(
         Long id,
@@ -33,14 +35,16 @@ public record ProfileResponse(
         long followingCount,
         long followerCount,
         boolean me,
-        Boolean followingByMe) {
+        Boolean followingByMe,
+        boolean blockedByMe) {
 
     /**
      * bodyType・personalColor は読み込み済みであること（UserRepository.findWithProfileById）。
      * followingByMe は自分のプロフィールなら null を渡す
      */
     static ProfileResponse of(
-            User user, long postCount, long followingCount, long followerCount, Boolean followingByMe) {
+            User user, long postCount, long followingCount, long followerCount, Boolean followingByMe,
+            boolean blockedByMe) {
         return new ProfileResponse(
                 user.getId(),
                 user.getUsername(),
@@ -55,6 +59,7 @@ public record ProfileResponse(
                 followingCount,
                 followerCount,
                 followingByMe == null,
-                followingByMe);
+                followingByMe,
+                blockedByMe);
     }
 }

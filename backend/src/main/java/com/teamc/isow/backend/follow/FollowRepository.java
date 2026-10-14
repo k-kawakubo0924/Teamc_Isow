@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.follow;
 
+import com.teamc.isow.backend.block.BlockConditions;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -41,13 +42,25 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
             """)
     int restore(@Param("id") Long id, @Param("now") LocalDateTime now);
 
-    /** フォロー数（有効なフォローのみ） */
-    long countByFollowerIdAndActiveTrue(Long followerId);
+    /**
+     * フォロー数（有効なフォローのみ）。見ている人（viewerId）とブロックの間柄にある相手は数えない
+     * （フォロー中一覧と件数を合わせるため。BlockConditions。docs/profile.md「ブロック」）
+     */
+    @Query("""
+            SELECT COUNT(f) FROM Follow f JOIN f.followee u
+            WHERE f.follower.id = :followerId AND f.active = true
+              AND""" + BlockConditions.USER_VISIBLE)
+    long countVisibleFollowings(@Param("followerId") Long followerId, @Param("viewerId") Long viewerId);
 
-    /** フォロワー数（有効なフォローのみ） */
-    long countByFolloweeIdAndActiveTrue(Long followeeId);
+    /** フォロワー数（有効なフォローのみ）。見ている人（viewerId）とブロックの間柄にある相手は数えない */
+    @Query("""
+            SELECT COUNT(f) FROM Follow f JOIN f.follower u
+            WHERE f.followee.id = :followeeId AND f.active = true
+              AND""" + BlockConditions.USER_VISIBLE)
+    long countVisibleFollowers(@Param("followeeId") Long followeeId, @Param("viewerId") Long viewerId);
 
     // ---- 一覧。並び順は pageable で指定する ----
+    // 見ている人（viewerId）とブロックの間柄にある相手は除く（BlockConditions。件数の SQL と同じ条件）。
     // pattern は相手のユーザー名・表示名の絞り込み（小文字にした LIKE のパターン。FollowService.searchPattern で作る）。
     // 絞り込まない場合は "%"（すべてに一致する）を渡す
 
@@ -56,27 +69,28 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
             SELECT f FROM Follow f JOIN FETCH f.followee u
             WHERE f.follower.id = :followerId AND f.active = true
               AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
-            """)
-    Slice<Follow> findActiveFollowings(
-            @Param("followerId") Long followerId, @Param("pattern") String pattern, Pageable pageable);
+              AND""" + BlockConditions.USER_VISIBLE)
+    Slice<Follow> findActiveFollowings(@Param("followerId") Long followerId, @Param("viewerId") Long viewerId,
+            @Param("pattern") String pattern, Pageable pageable);
 
     /** フォロー中一覧（有効なフォローと、since より後に解除したもの）。本人が自分の一覧を見る場合に使う */
     @Query(value = """
             SELECT f FROM Follow f JOIN FETCH f.followee u
             WHERE f.follower.id = :followerId AND (f.active = true OR f.unfollowedAt > :since)
               AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
-            """)
+              AND""" + BlockConditions.USER_VISIBLE)
     Slice<Follow> findFollowingsIncludingUnfollowedSince(@Param("followerId") Long followerId,
-            @Param("since") LocalDateTime since, @Param("pattern") String pattern, Pageable pageable);
+            @Param("viewerId") Long viewerId, @Param("since") LocalDateTime since, @Param("pattern") String pattern,
+            Pageable pageable);
 
     /** フォロワー一覧（有効なフォローのみ） */
     @Query(value = """
             SELECT f FROM Follow f JOIN FETCH f.follower u
             WHERE f.followee.id = :followeeId AND f.active = true
               AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
-            """)
-    Slice<Follow> findActiveFollowers(
-            @Param("followeeId") Long followeeId, @Param("pattern") String pattern, Pageable pageable);
+              AND""" + BlockConditions.USER_VISIBLE)
+    Slice<Follow> findActiveFollowers(@Param("followeeId") Long followeeId, @Param("viewerId") Long viewerId,
+            @Param("pattern") String pattern, Pageable pageable);
 
     /** 指定したユーザーのうち、followerId のユーザーが有効にフォローしているユーザーの ID（1回の SQL で調べる） */
     @Query("""
@@ -85,4 +99,16 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
             """)
     List<Long> findFollowingIds(@Param("followerId") Long followerId,
             @Param("followeeIds") Collection<Long> followeeIds);
+
+    /**
+     * 2人の間のフォローを両方向で削除する（ブロックした時点。解除済みの行も消す）。
+     * 解除と違って行を残さないのは、ブロックの解除の後に「解除から5分以内の再フォロー」で元に戻らないようにするため
+     */
+    @Modifying
+    @Query("""
+            DELETE FROM Follow f
+            WHERE (f.follower.id = :userId1 AND f.followee.id = :userId2)
+               OR (f.follower.id = :userId2 AND f.followee.id = :userId1)
+            """)
+    int deleteBetween(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 }

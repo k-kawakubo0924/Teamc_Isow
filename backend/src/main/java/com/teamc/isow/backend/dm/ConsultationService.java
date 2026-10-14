@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.dm;
 
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.block.UserVisibility;
 import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserNotFoundException;
@@ -14,6 +15,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class ConsultationService {
     private final AuthService authService;
     private final DmProperties dmProperties;
     private final ApplicationEventPublisher events;
+    private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
 
     public ConsultationService(
@@ -52,7 +55,9 @@ public class ConsultationService {
             AuthService authService,
             DmProperties dmProperties,
             ApplicationEventPublisher events,
+            UserVisibility userVisibility,
             PlatformTransactionManager transactionManager) {
+        this.userVisibility = userVisibility;
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
@@ -85,13 +90,14 @@ public class ConsultationService {
         }
     }
 
-    /** userId の相手に相談を申し込めるか。存在しないユーザーは UserNotFoundException */
+    /** userId の相手に相談を申し込めるか。存在しないユーザー・ブロックの間柄にあるユーザーは UserNotFoundException */
     @Transactional(readOnly = true)
     public ConsultationStatusResponse status(String subject, Long userId) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
         if (!userRepository.existsById(userId)) {
             throw new UserNotFoundException(userId);
         }
+        userVisibility.requireVisibleUser(viewerId, userId);
         return toResponse(findUnavailability(viewerId, userId, LocalDateTime.now()).orElse(null));
     }
 
@@ -106,6 +112,8 @@ public class ConsultationService {
      */
     private Conversation create(Long requesterId, Long recipientId, String message) {
         User recipient = userRepository.findById(recipientId).orElseThrow(() -> new UserNotFoundException(recipientId));
+        // ブロックの間柄にある相手は、存在しないユーザーと同じ 404（docs/dm.md「ブロック」。ブロックされたことが分からないようにするため）
+        userVisibility.requireVisibleUser(requesterId, recipientId);
         findUnavailability(requesterId, recipientId, LocalDateTime.now()).ifPresent(u -> {
             throw new ConsultationUnavailableException(u.reason());
         });
@@ -124,15 +132,17 @@ public class ConsultationService {
 
     /**
      * 複数の相手について、申し込めるかをまとめて返す（フォロー中一覧の「相談する」ボタン）。
-     * 存在しないユーザーの ID は結果に含めない。人数に関係なく SQL の本数は一定
+     * 存在しないユーザーと、ブロックの間柄にあるユーザーの ID は結果に含めない。人数に関係なく SQL の本数は一定
      *
      * @param userIds 相手のユーザーID（1〜MAX_STATUS_USERS 人。範囲の確認は呼び出し側で行う）
      */
     @Transactional(readOnly = true)
     public ConsultationStatusesResponse statuses(String subject, Collection<Long> userIds) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
+        Set<Long> hidden = userVisibility.hiddenAmong(viewerId, new LinkedHashSet<>(userIds));
         List<Long> existing = userRepository.findAllById(new LinkedHashSet<>(userIds)).stream()
                 .map(User::getId)
+                .filter(id -> !hidden.contains(id))
                 .sorted()
                 .toList();
         Map<Long, Unavailability> unavailable = findUnavailabilities(viewerId, existing, LocalDateTime.now());

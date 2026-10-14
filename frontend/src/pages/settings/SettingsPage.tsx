@@ -85,6 +85,17 @@ function SettingsPage() {
           }
           onClick={showComingSoon}
         />
+        {/* ブロックした相手の一覧と解除（docs/profile.md「ブロック」）。画面画像にはない項目 */}
+        <MenuItem
+          label="ブロック中のアカウント"
+          icon={
+            <svg {...ICON_PROPS}>
+              <circle cx="12" cy="12" r="8" />
+              <path d="m6.5 6.5 11 11" />
+            </svg>
+          }
+          onClick={() => navigate('/settings/blocks')}
+        />
       </ul>
 
       <ul className="settings-menu">

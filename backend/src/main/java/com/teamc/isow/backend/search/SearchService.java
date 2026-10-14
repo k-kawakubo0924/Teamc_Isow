@@ -96,7 +96,7 @@ public class SearchService {
         Pageable pageable = PostCardService.pageRequest(page, size);
         String pattern = displayKeyword == null
                 ? null : SearchPatterns.contains(SearchKeywordNormalizer.key(displayKeyword));
-        Page<Long> ids = postRepository.searchIds(
+        Page<Long> ids = postRepository.searchIds(userId,
                 pattern, fashionCategoryId, parsedAgeGroup == null ? null : parsedAgeGroup.name(), pageable);
         PostSearchResponse response = new PostSearchResponse(postCardService.build(userId, ids.getContent()),
                 pageable.getPageNumber(), pageable.getPageSize(), ids.hasNext(), ids.getTotalElements());

@@ -32,9 +32,9 @@ public class TimelineService {
         Pageable pageable = PostCardService.pageRequest(page, size);
 
         Slice<Long> ids = switch (tab) {
-            case RECOMMENDED -> postRepository.findRecommendedIds(pageable);
+            case RECOMMENDED -> postRepository.findRecommendedIds(userId, pageable);
             case FOLLOWING -> postRepository.findFollowingIds(userId, pageable);
-            case LATEST -> postRepository.findLatestIds(pageable);
+            case LATEST -> postRepository.findLatestIds(userId, pageable);
         };
         return new TimelineResponse(postCardService.build(userId, ids.getContent()), tab.getParam(),
                 pageable.getPageNumber(), pageable.getPageSize(), ids.hasNext());

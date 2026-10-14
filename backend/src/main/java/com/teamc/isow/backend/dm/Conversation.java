@@ -186,6 +186,25 @@ public class Conversation {
         return user1.getId().equals(userId) || user2.getId().equals(userId);
     }
 
+    /**
+     * ブロックで会話を終了する（申請中・進行中 → 終了。docs/dm.md「ブロック」）。終了日時と終了した人（ブロックした人）を記録する。
+     * 申請中を「拒否」にしないのは、拒否の通知（「承認されませんでした」）と24時間の再申請の制限で、相手にブロックが分かるため。
+     * 終了しても過去のメッセージは両方から読める
+     *
+     * @param blocker ブロックした人（この会話の参加者）
+     */
+    public void endByBlock(User blocker) {
+        if (!getStatus().isOngoing()) {
+            throw new IllegalStateException("会話の状態が " + getStatus() + " のため、この操作はできません");
+        }
+        if (!isParticipant(blocker)) {
+            throw new IllegalArgumentException("この会話の参加者ではありません");
+        }
+        changeStatus(ConversationStatus.ENDED);
+        this.endedAt = LocalDateTime.now();
+        this.endedBy = blocker;
+    }
+
     /** status と ongoing を必ず一緒に変える */
     private void changeStatus(ConversationStatus newStatus) {
         this.status = newStatus.name();

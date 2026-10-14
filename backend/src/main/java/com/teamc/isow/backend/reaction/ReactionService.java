@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.reaction;
 
+import com.teamc.isow.backend.block.UserVisibility;
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.post.Post;
@@ -29,6 +30,7 @@ public class ReactionService {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final ApplicationEventPublisher events;
+    private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
 
     public ReactionService(
@@ -38,6 +40,7 @@ public class ReactionService {
             UserRepository userRepository,
             AuthService authService,
             ApplicationEventPublisher events,
+            UserVisibility userVisibility,
             PlatformTransactionManager transactionManager) {
         this.likeRepository = likeRepository;
         this.favoriteRepository = favoriteRepository;
@@ -45,6 +48,7 @@ public class ReactionService {
         this.userRepository = userRepository;
         this.authService = authService;
         this.events = events;
+        this.userVisibility = userVisibility;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -57,7 +61,7 @@ public class ReactionService {
         addIfAbsent(
                 () -> likeRepository.existsByUserIdAndPostId(userId, postId),
                 () -> {
-                    likeRepository.save(new PostLike(userReference(userId), findPost(postId)));
+                    likeRepository.save(new PostLike(userReference(userId), findPost(userId, postId)));
                     events.publishEvent(new NotificationEvents.Liked(postId, userId));
                 });
         return new LikeResponse(true, likeRepository.countByPostId(postId));
@@ -67,7 +71,7 @@ public class ReactionService {
     public LikeResponse unlike(String subject, Long postId) {
         Long userId = authService.requireCurrentUser(subject).getId();
         transactionTemplate.executeWithoutResult(status -> {
-            findPost(postId);
+            findPost(userId, postId);
             likeRepository.deleteByUserIdAndPostId(userId, postId);
         });
         return new LikeResponse(false, likeRepository.countByPostId(postId));
@@ -78,7 +82,7 @@ public class ReactionService {
         Long userId = authService.requireCurrentUser(subject).getId();
         addIfAbsent(
                 () -> favoriteRepository.existsByUserIdAndPostId(userId, postId),
-                () -> favoriteRepository.save(new PostFavorite(userReference(userId), findPost(postId))));
+                () -> favoriteRepository.save(new PostFavorite(userReference(userId), findPost(userId, postId))));
         return new FavoriteResponse(true);
     }
 
@@ -86,7 +90,7 @@ public class ReactionService {
     public FavoriteResponse unfavorite(String subject, Long postId) {
         Long userId = authService.requireCurrentUser(subject).getId();
         transactionTemplate.executeWithoutResult(status -> {
-            findPost(postId);
+            findPost(userId, postId);
             favoriteRepository.deleteByUserIdAndPostId(userId, postId);
         });
         return new FavoriteResponse(false);
@@ -113,8 +117,11 @@ public class ReactionService {
     }
 
     /** トランザクションの中で呼ぶ。存在しない投稿は 404 */
-    private Post findPost(Long postId) {
-        return postRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
+    private Post findPost(Long userId, Long postId) {
+        Post post = postRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
+        // 投稿者とブロックの間柄にある投稿も、存在しない投稿と同じ 404（docs/profile.md「ブロック」）
+        userVisibility.requireVisiblePost(userId, postId, post.getAuthor().getId());
+        return post;
     }
 
     /** ユーザーの行を読み込まずに、外部キーとして使う参照を作る（トランザクションの中で呼ぶ） */

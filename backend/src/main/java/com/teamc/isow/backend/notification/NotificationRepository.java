@@ -70,4 +70,13 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying
     @Query("UPDATE Notification n SET n.readAt = :now WHERE n.recipient.id = :recipientId AND n.readAt IS NULL")
     int markAllRead(@Param("recipientId") Long recipientId, @Param("now") LocalDateTime now);
+
+    /** 2人の間の通知を両方向で削除する（ブロックした時点。docs/profile.md「ブロック」）。削除した件数を返す */
+    @Modifying
+    @Query("""
+            DELETE FROM Notification n
+            WHERE (n.recipient.id = :userId1 AND n.actor.id = :userId2)
+               OR (n.recipient.id = :userId2 AND n.actor.id = :userId1)
+            """)
+    int deleteBetween(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 }

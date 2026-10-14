@@ -31,4 +31,16 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     /** 指定した投稿のうち、ユーザーがいいねしている投稿の ID（1回の SQL で調べる） */
     @Query("SELECT l.post.id FROM PostLike l WHERE l.user.id = :userId AND l.post.id IN :postIds")
     List<Long> findLikedPostIds(@Param("userId") Long userId, @Param("postIds") Collection<Long> postIds);
+
+    /**
+     * 2人の間のいいねを両方向で削除する（ブロックした時点。docs/profile.md「ブロック」）。
+     * userId1 が userId2 の投稿に付けたいいねと、userId2 が userId1 の投稿に付けたいいね。削除した件数を返す
+     */
+    @Modifying
+    @Query("""
+            DELETE FROM PostLike l
+            WHERE (l.user.id = :userId1 AND l.post.id IN (SELECT p.id FROM Post p WHERE p.author.id = :userId2))
+               OR (l.user.id = :userId2 AND l.post.id IN (SELECT p.id FROM Post p WHERE p.author.id = :userId1))
+            """)
+    int deleteBetween(@Param("userId1") Long userId1, @Param("userId2") Long userId2);
 }

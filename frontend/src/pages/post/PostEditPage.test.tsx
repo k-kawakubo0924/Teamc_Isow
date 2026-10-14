@@ -93,7 +93,8 @@ function titleInput(): HTMLInputElement {
 
 /** 選択肢を読み込み終わり、入力欄が出るまで待つ（読み込み中も見出しは出ているため、見出しでは待たない） */
 async function formReady() {
-  await screen.findByRole('button', { name: '確認' })
+  // 全体のテストを並べて動かすと、最初の描画に1秒（findBy の既定）を超えることがあるため、長めに待つ
+  await screen.findByRole('button', { name: '確認' }, { timeout: 5000 })
 }
 
 async function goToConfirm() {

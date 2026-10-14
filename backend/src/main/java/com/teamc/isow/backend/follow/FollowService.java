@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.follow;
 
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.block.UserVisibility;
 import com.teamc.isow.backend.common.SearchPatterns;
 import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.User;
@@ -48,6 +49,7 @@ public class FollowService {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final ApplicationEventPublisher events;
+    private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
 
     public FollowService(
@@ -55,11 +57,13 @@ public class FollowService {
             UserRepository userRepository,
             AuthService authService,
             ApplicationEventPublisher events,
+            UserVisibility userVisibility,
             PlatformTransactionManager transactionManager) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.authService = authService;
         this.events = events;
+        this.userVisibility = userVisibility;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -79,17 +83,17 @@ public class FollowService {
                 throw e;
             }
         }
-        return new FollowResponse(true, followRepository.countByFolloweeIdAndActiveTrue(followeeId));
+        return new FollowResponse(true, followRepository.countVisibleFollowers(followeeId, followerId));
     }
 
     /** フォローを解除する。フォローしていなくても成功として扱う。存在しないユーザーは 404 */
     public FollowResponse unfollow(String subject, Long followeeId) {
         Long followerId = authService.requireCurrentUser(subject).getId();
         transactionTemplate.executeWithoutResult(status -> {
-            requireUserExists(followeeId);
+            requireVisibleUser(followerId, followeeId);
             followRepository.unfollow(followerId, followeeId, LocalDateTime.now());
         });
-        return new FollowResponse(false, followRepository.countByFolloweeIdAndActiveTrue(followeeId));
+        return new FollowResponse(false, followRepository.countVisibleFollowers(followeeId, followerId));
     }
 
     /**
@@ -103,15 +107,15 @@ public class FollowService {
     public FollowListResponse listFollowings(
             String subject, Long userId, String query, FollowSort sort, int page, int size) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
-        requireUserExists(userId);
+        requireVisibleUser(viewerId, userId);
         Pageable pageable = pageable(sort, page, size);
         String pattern = searchPattern(query);
         Slice<Follow> follows = viewerId.equals(userId)
                 ? followRepository.findFollowingsIncludingUnfollowedSince(
-                        userId, LocalDateTime.now().minus(UNDO_PERIOD), pattern, pageable)
-                : followRepository.findActiveFollowings(userId, pattern, pageable);
+                        userId, viewerId, LocalDateTime.now().minus(UNDO_PERIOD), pattern, pageable)
+                : followRepository.findActiveFollowings(userId, viewerId, pattern, pageable);
         return toResponse(viewerId, follows, Follow::getFollowee,
-                followRepository.countByFollowerIdAndActiveTrue(userId), sort);
+                followRepository.countVisibleFollowings(userId, viewerId), sort);
     }
 
     /** userId のユーザーのフォロワー一覧（有効なフォローのみ）。query は listFollowings と同じ */
@@ -119,11 +123,11 @@ public class FollowService {
     public FollowListResponse listFollowers(
             String subject, Long userId, String query, FollowSort sort, int page, int size) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
-        requireUserExists(userId);
+        requireVisibleUser(viewerId, userId);
         Slice<Follow> follows = followRepository.findActiveFollowers(
-                userId, searchPattern(query), pageable(sort, page, size));
+                userId, viewerId, searchPattern(query), pageable(sort, page, size));
         return toResponse(viewerId, follows, Follow::getFollower,
-                followRepository.countByFolloweeIdAndActiveTrue(userId), sort);
+                followRepository.countVisibleFollowers(userId, viewerId), sort);
     }
 
     /** 検索欄の文字から、部分一致の LIKE のパターンを作る（SearchPatterns.contains と同じ） */
@@ -133,7 +137,7 @@ public class FollowService {
 
     /** トランザクションの中で呼ぶ */
     private void followIfAbsent(Long followerId, Long followeeId) {
-        requireUserExists(followeeId);
+        requireVisibleUser(followerId, followeeId);
         if (followRepository.existsActive(followerId, followeeId)) {
             return;
         }
@@ -184,9 +188,14 @@ public class FollowService {
                 pageable.getPageNumber(), pageable.getPageSize(), follows.hasNext());
     }
 
-    private void requireUserExists(Long userId) {
+    /**
+     * 存在して、viewerId から見えるユーザーであること。存在しない・ブロックの間柄にある（docs/profile.md「ブロック」）場合は、
+     * どちらも同じ UserNotFoundException（404。ブロックされたことが相手に分からないようにするため）
+     */
+    private void requireVisibleUser(Long viewerId, Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new UserNotFoundException(userId);
         }
+        userVisibility.requireVisibleUser(viewerId, userId);
     }
 }

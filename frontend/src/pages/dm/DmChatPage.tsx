@@ -1,9 +1,11 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { blockUser } from '../../api/blocks'
 import { ApiError } from '../../api/client'
 import { endConversation, sendMessage, type ConversationDetail, type Message } from '../../api/conversations'
 import { useAuth } from '../../auth/authContext'
 import { IMAGE_ACCEPT, validateImageFile } from '../../validation/postRules'
+import { blockConfirmText } from '../../components/block/blockText'
 import { goBack } from '../settings/goBack'
 import { DmAvatar } from './dmParts'
 import { useChat } from './useChat'
@@ -91,7 +93,11 @@ function ChatView({ id }: { id: number }) {
 
   return (
     <main className="chat-page">
-      <ChatHeader detail={detail} onEnded={(ended) => chat.setDetail((prev) => (prev ? { ...prev, ...ended } : prev))} />
+      <ChatHeader
+        detail={detail}
+        onEnded={(ended) => chat.setDetail((prev) => (prev ? { ...prev, ...ended } : prev))}
+        onBlocked={() => void chat.poll()}
+      />
 
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
         {chat.loadingOlder && (
@@ -137,20 +143,25 @@ function ChatError({ message }: { message: string }) {
   )
 }
 
-/** 上部：戻る・相手（押すとプロフィール）・メニュー（会話を終了する） */
+/**
+ * 上部：戻る・相手（押すとプロフィール）・メニュー（会話を終了する・ブロック）。
+ * ブロックは会話の状態に関係なくできる。ブロックすると進行中の相談は終了するため、会話の状態を取り直す（onBlocked。docs/dm.md「ブロック」）
+ */
 function ChatHeader({
   detail,
   onEnded,
+  onBlocked,
 }: {
   detail: ConversationDetail | null
   onEnded: (ended: Pick<ConversationDetail, 'status' | 'endedAt'>) => void
+  onBlocked: () => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { token } = useAuth()
   const menuId = useId()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [confirming, setConfirming] = useState(false)
+  const [confirming, setConfirming] = useState<'end' | 'block' | null>(null)
   const [ending, setEnding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const canEnd = detail?.status === 'ACTIVE'
@@ -162,9 +173,25 @@ function ChatHeader({
     try {
       const result = await endConversation(detail.conversationId, token)
       onEnded({ status: result.status, endedAt: result.endedAt })
-      setConfirming(false)
+      setConfirming(null)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '会話を終了できませんでした。時間をおいて再度お試しください。')
+    } finally {
+      setEnding(false)
+    }
+  }
+
+  /** ブロックする。通信中は「終了」と同じく ending で押せなくする */
+  const handleBlock = async () => {
+    if (!token || !detail || ending) return
+    setEnding(true)
+    setError(null)
+    try {
+      await blockUser(detail.partner.id, token)
+      setConfirming(null)
+      onBlocked()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'ブロックできませんでした。時間をおいて再度お試しください。')
     } finally {
       setEnding(false)
     }
@@ -182,8 +209,8 @@ function ChatHeader({
         </Link>
       )}
 
-      {/* 通報・ブロックは未実装のため、いまは「会話を終了する」だけ。操作がないときはメニューを出さない */}
-      {canEnd && (
+      {/* 通報は次の段階で作る。いまは「会話を終了する」（進行中のときだけ）と「ブロック」 */}
+      {detail && (
         <div className="chat-menu-wrap">
           <button
             type="button"
@@ -200,6 +227,21 @@ function ChatHeader({
           </button>
           {menuOpen && (
             <ul className="chat-menu" id={menuId} role="menu">
+              {canEnd && (
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="chat-menu-item chat-menu-danger"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setConfirming('end')
+                    }}
+                  >
+                    会話を終了する
+                  </button>
+                </li>
+              )}
               <li role="none">
                 <button
                   type="button"
@@ -207,10 +249,10 @@ function ChatHeader({
                   className="chat-menu-item chat-menu-danger"
                   onClick={() => {
                     setMenuOpen(false)
-                    setConfirming(true)
+                    setConfirming('block')
                   }}
                 >
-                  会話を終了する
+                  ブロック
                 </button>
               </li>
             </ul>
@@ -218,7 +260,7 @@ function ChatHeader({
         </div>
       )}
 
-      {confirming && (
+      {confirming === 'end' && (
         <ConfirmDialog
           title="会話を終了しますか？"
           body="終了すると、この相手とメッセージを送り合えなくなります。この操作は取り消せません。"
@@ -227,7 +269,20 @@ function ChatHeader({
           error={error}
           onConfirm={handleEnd}
           onCancel={() => {
-            setConfirming(false)
+            setConfirming(null)
+            setError(null)
+          }}
+        />
+      )}
+      {confirming === 'block' && detail && (
+        <ConfirmDialog
+          {...blockConfirmText(detail.partner.username)}
+          confirmLabel={ending ? 'ブロックしています...' : 'ブロックする'}
+          busy={ending}
+          error={error}
+          onConfirm={handleBlock}
+          onCancel={() => {
+            setConfirming(null)
             setError(null)
           }}
         />
