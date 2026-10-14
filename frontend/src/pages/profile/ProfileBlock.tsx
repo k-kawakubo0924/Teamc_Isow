@@ -4,16 +4,18 @@ import type { ProfileResponse } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
 import { BlockConfirmDialog } from '../../components/block/BlockConfirmDialog'
 import { blockConfirmText, unblockConfirmText } from '../../components/block/blockText'
+import { ReportDialog } from '../../components/report/ReportDialog'
 
 /**
- * 相手のプロフィールの右上の⋮（docs/profile.md「ブロック」）。
- * profile.md の当初の設計では「通報・非表示・ブロック」を並べる想定だったが、通報は次の段階、非表示（ミュート）は作っていないため、
- * いまは「ブロック」だけを置く
+ * 相手のプロフィールの右上の⋮（docs/profile.md「ブロック」・docs/admin.md「通報」）。
+ * profile.md の当初の設計では「通報・非表示・ブロック」を並べる想定だったが、非表示（ミュート）は作っていないため、
+ * 「通報」と「ブロック」を置く
  */
 export function ProfileBlockMenu({ profile, onBlocked }: { profile: ProfileResponse; onBlocked: () => void }) {
   const { token } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [reporting, setReporting] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -75,6 +77,17 @@ export function ProfileBlockMenu({ profile, onBlocked }: { profile: ProfileRespo
             className="profile-menu-item profile-menu-danger"
             onClick={() => {
               setMenuOpen(false)
+              setReporting(true)
+            }}
+          >
+            通報
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="profile-menu-item profile-menu-danger"
+            onClick={() => {
+              setMenuOpen(false)
               setError(null)
               setConfirming(true)
             }}
@@ -82,6 +95,16 @@ export function ProfileBlockMenu({ profile, onBlocked }: { profile: ProfileRespo
             ブロック
           </button>
         </div>
+      )}
+      {reporting && (
+        <ReportDialog
+          targetType="USER"
+          targetId={profile.id}
+          owner={{ id: profile.id, username: profile.username }}
+          blockable
+          onClose={() => setReporting(false)}
+          onBlocked={onBlocked}
+        />
       )}
       {confirming && (
         <BlockConfirmDialog

@@ -122,6 +122,9 @@ class BlockVisibilityTest {
         own("DELETE /api/users/{userId}/block", "自分がしたブロックを解除するだけ");
         own("GET /api/blocks", "自分がブロックした人の一覧（ブロックした相手を出すための画面）");
 
+        // ---- 通報（docs/admin.md「通報」） ----
+        target("POST /api/reports");
+
         // ---- 検索 ----
         checked("GET /api/search/posts", "/api/search/posts?q=BLKPOST");
         checked("GET /api/search/users", "/api/search/users?q=blkuser");

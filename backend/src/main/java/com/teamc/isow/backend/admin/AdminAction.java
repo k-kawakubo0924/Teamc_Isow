@@ -22,5 +22,13 @@ public enum AdminAction {
     /** お知らせを発行した */
     ANNOUNCEMENT_PUBLISHED,
     /** お知らせを取り消した（行は消さず、利用者側に出さないようにした） */
-    ANNOUNCEMENT_WITHDRAWN
+    ANNOUNCEMENT_WITHDRAWN,
+    /** 通報を「対応済み」にした（措置はまだない。状態を記録しただけ） */
+    REPORT_RESOLVED,
+    /** 通報を「却下」にした */
+    REPORT_DISMISSED,
+    /** 通報を「未対応」に戻した */
+    REPORT_REOPENED,
+    /** 通報された DM のメッセージ（と前後）を見た。データは変えないが、DM を見たことは記録する（docs/admin.md「方針」） */
+    REPORT_DM_VIEWED
 }

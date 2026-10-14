@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { blockUser } from '../../api/blocks'
 import { ApiError } from '../../api/client'
 import { deletePost, fetchPost, type PostResponse } from '../../api/posts'
 import { useAuth } from '../../auth/authContext'
+import { BlockConfirmDialog } from '../../components/block/BlockConfirmDialog'
+import { blockConfirmText } from '../../components/block/blockText'
+import { ReportDialog } from '../../components/report/ReportDialog'
 import { formatHeight } from '../../utils/height'
 import { HeartIcon, StarIcon } from '../home/PostCard'
 import { useReactions, type ReactionTarget } from '../home/useReactions'
@@ -76,6 +80,8 @@ function PostDetailView({ postId }: { postId: number | null }) {
 
   // 自分の投稿のときだけ、編集・削除のメニューを出す（表示を分けるだけで、できるかはサーバーが確かめる）
   const ownPost = state.phase === 'ready' && state.post.ownedByMe ? state.post : null
+  // 他人の投稿には、通報・ブロックのメニューを出す（docs/admin.md「通報」・docs/profile.md「ブロック」）
+  const otherPost = state.phase === 'ready' && !state.post.ownedByMe ? state.post : null
 
   return (
     <main className="post-detail-page">
@@ -85,6 +91,7 @@ function PostDetailView({ postId }: { postId: number | null }) {
         </button>
         <h1 className="post-detail-heading">投稿</h1>
         {ownPost && token && <PostMenu postId={ownPost.id} token={token} />}
+        {otherPost && token && <OtherPostMenu post={otherPost} token={token} />}
       </header>
 
       {state.phase === 'loading' && (
@@ -227,6 +234,87 @@ function PostMenu({ postId, token }: { postId: number; token: string }) {
             </div>
           </div>
         </div>
+      )}
+    </>
+  )
+}
+
+/**
+ * 他人の投稿の「…」メニュー（通報・ブロック）。ブロックしたら、その投稿は見えなくなるため、履歴を置き換えてホームへ移る
+ */
+function OtherPostMenu({ post, token }: { post: PostResponse; token: string }) {
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [dialog, setDialog] = useState<'report' | 'block' | null>(null)
+  const [blocking, setBlocking] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleBlocked = () => navigate('/', { replace: true })
+
+  const handleBlock = async () => {
+    setBlocking(true)
+    setError(null)
+    try {
+      await blockUser(post.author.id, token)
+      handleBlocked()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ブロックできませんでした。時間をおいて再度お試しください。')
+      setBlocking(false)
+    }
+  }
+
+  const open = (next: 'report' | 'block') => {
+    setMenuOpen(false)
+    setError(null)
+    setDialog(next)
+  }
+
+  const text = blockConfirmText(post.author.username)
+  return (
+    <>
+      <div className="post-detail-menu">
+        <button
+          type="button"
+          className="post-detail-menu-button"
+          aria-label="投稿のメニュー"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((value) => !value)}
+        >
+          …
+        </button>
+        {menuOpen && (
+          <div className="post-detail-menu-list" role="menu">
+            <button type="button" role="menuitem" className="post-detail-menu-delete" onClick={() => open('report')}>
+              通報
+            </button>
+            <button type="button" role="menuitem" className="post-detail-menu-delete" onClick={() => open('block')}>
+              ブロック
+            </button>
+          </div>
+        )}
+      </div>
+      {dialog === 'report' && (
+        <ReportDialog
+          targetType="POST"
+          targetId={post.id}
+          owner={{ id: post.author.id, username: post.author.username }}
+          blockable
+          onClose={() => setDialog(null)}
+          onBlocked={handleBlocked}
+        />
+      )}
+      {dialog === 'block' && (
+        <BlockConfirmDialog
+          title={text.title}
+          body={text.body}
+          confirmLabel="ブロックする"
+          busyLabel="ブロックしています..."
+          busy={blocking}
+          error={error}
+          onConfirm={handleBlock}
+          onCancel={() => setDialog(null)}
+        />
       )}
     </>
   )

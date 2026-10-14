@@ -17,5 +17,7 @@ public enum AdminTargetType {
     /** タグ（tags） */
     TAG,
     /** お知らせ */
-    ANNOUNCEMENT
+    ANNOUNCEMENT,
+    /** 通報（report_cases。対象ごとにまとめた通報。docs/admin.md「通報」） */
+    REPORT
 }

@@ -12,6 +12,10 @@ const ACTION_LABELS: Record<string, string> = {
   MASTER_ACTIVATED: '有効に戻した',
   ANNOUNCEMENT_PUBLISHED: 'お知らせの発行',
   ANNOUNCEMENT_WITHDRAWN: 'お知らせの取り消し',
+  REPORT_RESOLVED: '通報を対応済みにした',
+  REPORT_DISMISSED: '通報を却下した',
+  REPORT_REOPENED: '通報を未対応に戻した',
+  REPORT_DM_VIEWED: '通報された DM を表示した',
 }
 
 /** 対象の種類（バックエンドの AdminTargetType）の表示名 */
@@ -22,6 +26,7 @@ const TARGET_LABELS: Record<string, string> = {
   PERSONAL_COLOR: 'パーソナルカラー',
   TAG: 'タグ',
   ANNOUNCEMENT: 'お知らせ',
+  REPORT: '通報',
 }
 
 /**

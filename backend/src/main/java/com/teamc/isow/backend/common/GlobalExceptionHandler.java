@@ -18,6 +18,9 @@ import com.teamc.isow.backend.notification.NotificationNotFoundException;
 import com.teamc.isow.backend.post.PostDeleteForbiddenException;
 import com.teamc.isow.backend.post.PostEditForbiddenException;
 import com.teamc.isow.backend.post.PostNotFoundException;
+import com.teamc.isow.backend.report.AdminReportConflictException;
+import com.teamc.isow.backend.report.ReportLimitExceededException;
+import com.teamc.isow.backend.report.ReportTargetNotFoundException;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -110,6 +113,27 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiErrorResponse handleAnnouncementAlreadyWithdrawn(AnnouncementAlreadyWithdrawnException e) {
         return new ApiErrorResponse("このお知らせはすでに取り消されています。", Map.of());
+    }
+
+    /** 通報する対象が存在しない・見えない・当事者でない会話のメッセージ（どれも同じ応答にする。docs/admin.md「通報」） */
+    @ExceptionHandler(ReportTargetNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleReportTargetNotFound(ReportTargetNotFoundException e) {
+        return new ApiErrorResponse("通報する対象が見つかりません。", Map.of());
+    }
+
+    /** 1人1日の通報の上限を超えた */
+    @ExceptionHandler(ReportLimitExceededException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ApiErrorResponse handleReportLimitExceeded(ReportLimitExceededException e) {
+        return new ApiErrorResponse("通報の上限に達しました。時間をおいて再度お試しください。", Map.of());
+    }
+
+    /** 管理画面で、通報の状態を変えられない（すでにその状態など）。理由は例外の message */
+    @ExceptionHandler(AdminReportConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleAdminReportConflict(AdminReportConflictException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
     }
 
     @ExceptionHandler(SelfBlockException.class)

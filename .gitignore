@@ -7,6 +7,8 @@
 backend/target/
 # 開発中にアップロードされた画像（app.image.local.dir の既定の保存先）
 backend/uploads/
+# 通報の証拠のコピー（app.evidence.local.dir の既定の保存先）
+backend/evidence/
 *.class
 *.jar
 !.mvn/wrapper/maven-wrapper.jar

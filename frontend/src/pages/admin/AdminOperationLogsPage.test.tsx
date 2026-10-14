@@ -153,11 +153,11 @@ describe('操作ログの一覧', () => {
   })
 
   it('後から増えた操作の種類など、知らない値は定数名のまま出す（表示が消えないように）', async () => {
-    stored = [log(1, 'USER_SUSPENDED', 'REPORT', { detail: null })]
+    stored = [log(1, 'USER_SUSPENDED', 'COMMENT', { detail: null })]
     renderPage()
 
     await screen.findByText('USER_SUSPENDED')
-    expect(cells(bodyRows()[0])).toEqual(['2026/10/09 10:01:00', 'admin', 'USER_SUSPENDED', 'REPORT（ID: 10）', ''])
+    expect(cells(bodyRows()[0])).toEqual(['2026/10/09 10:01:00', 'admin', 'USER_SUSPENDED', 'COMMENT（ID: 10）', ''])
   })
 
   it('ログがなければ、そのことを出す', async () => {

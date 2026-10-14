@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../api/client'
@@ -13,6 +13,12 @@ vi.mock('../../api/posts', () => ({
   deletePost: (id: number) => deletePost(id),
 }))
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
+const blockUser = vi.fn<(id: number) => Promise<void>>()
+vi.mock('../../api/blocks', () => ({ blockUser: (id: number) => blockUser(id) }))
+vi.mock('../../api/reports', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/reports')>()),
+  reportTarget: vi.fn(),
+}))
 
 afterEach(() => {
   cleanup()
@@ -141,11 +147,13 @@ function openDeleteConfirm() {
 }
 
 describe('投稿の削除', () => {
-  it('他人の投稿には、削除のメニューを出さない', async () => {
+  it('他人の投稿のメニューには、削除（と編集）を出さない', async () => {
     await openFromHome(post({ ownedByMe: false }))
 
-    expect(screen.queryByRole('button', { name: '投稿のメニュー' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+
     expect(screen.queryByRole('menuitem', { name: '削除' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '編集' })).toBeNull()
   })
 
   it('自分の投稿では、メニューの「削除」で画面の中に確認を出し、まだ削除しない', async () => {
@@ -259,5 +267,39 @@ describe('投稿の編集', () => {
 
     expect(container.querySelector('.post-detail-edited')).toBeNull()
     expect(container.textContent).not.toContain('編集済み')
+  })
+})
+
+describe('他人の投稿の「…」（通報・ブロック）', () => {
+  it('他人の投稿の「…」には「通報」と「ブロック」がある', async () => {
+    await open(post({ ownedByMe: false }))
+
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['通報', 'ブロック'])
+  })
+
+  it('「通報」で、この投稿を対象にした通報の入力を出す', async () => {
+    await open(post({ ownedByMe: false }))
+
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '通報' }))
+
+    const dialog = screen.getByRole('dialog', { name: '投稿を通報' })
+    expect(within(dialog).getByLabelText('他人の写真の無断転載')).toBeTruthy()
+  })
+
+  it('「ブロック」で投稿者のブロックを確かめ、ブロックしたらホームへ移る', async () => {
+    blockUser.mockResolvedValue(undefined)
+    await openFromHome(post({ ownedByMe: false }))
+
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ブロック' }))
+    const confirm = screen.getByRole('alertdialog')
+    expect(confirm.textContent).toContain('@haru_st さんをブロックしますか？')
+    fireEvent.click(within(confirm).getByRole('button', { name: 'ブロックする' }))
+
+    expect(await screen.findByText('ホーム画面')).toBeTruthy()
+    expect(blockUser).toHaveBeenCalledWith(2)
   })
 })

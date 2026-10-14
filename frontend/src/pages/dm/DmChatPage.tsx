@@ -6,6 +6,7 @@ import { endConversation, sendMessage, type ConversationDetail, type Message } f
 import { useAuth } from '../../auth/authContext'
 import { IMAGE_ACCEPT, validateImageFile } from '../../validation/postRules'
 import { blockConfirmText } from '../../components/block/blockText'
+import { ReportDialog } from '../../components/report/ReportDialog'
 import { goBack } from '../settings/goBack'
 import { DmAvatar } from './dmParts'
 import { useChat } from './useChat'
@@ -44,6 +45,9 @@ function ChatView({ id }: { id: number }) {
   // 古いメッセージを先頭に足す前の、スクロールの高さと位置（足した後に、見ていた位置へ戻すため）
   const anchorRef = useRef<{ height: number; top: number } | null>(null)
   const edgesRef = useRef<{ first: number | null; last: number | null }>({ first: null, last: null })
+  // 押した相手のメッセージ（下に「このメッセージを通報」を出す）と、通報の入力を開いているメッセージ（docs/admin.md「通報」）
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null)
+  const [reportingMessageId, setReportingMessageId] = useState<number | null>(null)
 
   const scrollToBottom = () => {
     const el = scrollRef.current
@@ -109,11 +113,32 @@ function ChatView({ id }: { id: number }) {
         <ol className="chat-list">
           {messages.map((message) => (
             <li key={message.id}>
-              <Bubble message={message} detail={detail} onImageLoad={handleImageLoad} />
+              <Bubble
+                message={message}
+                detail={detail}
+                onImageLoad={handleImageLoad}
+                selected={selectedMessageId === message.id}
+                onSelect={() => setSelectedMessageId((prev) => (prev === message.id ? null : message.id))}
+                onReport={() => {
+                  setSelectedMessageId(null)
+                  setReportingMessageId(message.id)
+                }}
+              />
             </li>
           ))}
         </ol>
       </div>
+
+      {detail && reportingMessageId !== null && (
+        <ReportDialog
+          targetType="MESSAGE"
+          targetId={reportingMessageId}
+          owner={{ id: detail.partner.id, username: detail.partner.username }}
+          blockable
+          onClose={() => setReportingMessageId(null)}
+          onBlocked={() => void chat.poll()}
+        />
+      )}
 
       {detail && (
         <ChatComposer
@@ -351,25 +376,50 @@ function ConfirmDialog({
   )
 }
 
-/** 吹き出し1つ。相手は左（アイコン付き・白）、自分は右（アクセント色）。時刻は吹き出しの外側の下 */
+/**
+ * 吹き出し1つ。相手は左（アイコン付き・白）、自分は右（アクセント色）。時刻は吹き出しの外側の下。
+ * 相手のメッセージは押すと、下に「このメッセージを通報」を出す（docs/admin.md「通報」。自分のメッセージは通報できない）
+ */
 function Bubble({
   message,
   detail,
   onImageLoad,
+  selected,
+  onSelect,
+  onReport,
 }: {
   message: Message
   detail: ConversationDetail | null
   onImageLoad: () => void
+  selected: boolean
+  onSelect: () => void
+  onReport: () => void
 }) {
+  const content = (
+    <>
+      {message.imageUrl && (
+        <img className="chat-image" src={message.imageUrl} alt="送信された画像" onLoad={onImageLoad} />
+      )}
+      {message.body !== null && <p className="chat-bubble">{message.body}</p>}
+    </>
+  )
   return (
     <div className={`chat-row ${message.mine ? 'chat-row-mine' : 'chat-row-theirs'}`}>
       {!message.mine && detail && <DmAvatar partner={detail.partner} />}
-      <div className="chat-bubble-group">
-        {message.imageUrl && (
-          <img className="chat-image" src={message.imageUrl} alt="送信された画像" onLoad={onImageLoad} />
-        )}
-        {message.body !== null && <p className="chat-bubble">{message.body}</p>}
-      </div>
+      {message.mine ? (
+        <div className="chat-bubble-group">{content}</div>
+      ) : (
+        <div className="chat-bubble-group">
+          <button type="button" className="chat-bubble-select" aria-expanded={selected} onClick={onSelect}>
+            {content}
+          </button>
+          {selected && (
+            <button type="button" className="chat-report-button" onClick={onReport}>
+              このメッセージを通報
+            </button>
+          )}
+        </div>
+      )}
       <time className="chat-time" dateTime={message.sentAt}>
         {formatSentAt(message.sentAt)}
       </time>

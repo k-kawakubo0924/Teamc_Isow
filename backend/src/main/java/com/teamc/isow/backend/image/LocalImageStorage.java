@@ -43,16 +43,30 @@ public class LocalImageStorage implements ImageStorage {
     }
 
     @Override
+    public byte[] read(String url) {
+        try {
+            return Files.readAllBytes(resolveUrl(url));
+        } catch (IOException e) {
+            throw new UncheckedIOException("画像を読めませんでした: " + url, e);
+        }
+    }
+
+    @Override
     public void delete(String url) {
+        try {
+            Files.deleteIfExists(resolveUrl(url));
+        } catch (IOException e) {
+            throw new UncheckedIOException("画像を削除できませんでした: " + url, e);
+        }
+    }
+
+    /** store() が返した形の URL から、保存先フォルダ直下のファイルを求める */
+    private Path resolveUrl(String url) {
         String prefix = publicBaseUrl + "/";
         if (url == null || !url.startsWith(prefix)) {
             throw new IllegalArgumentException("この保存先の URL ではありません: " + url);
         }
-        try {
-            Files.deleteIfExists(resolve(url.substring(prefix.length())));
-        } catch (IOException e) {
-            throw new UncheckedIOException("画像を削除できませんでした: " + url, e);
-        }
+        return resolve(url.substring(prefix.length()));
     }
 
     /** 保存先フォルダ直下のファイルを指していることを確認する（../ などでフォルダの外を指させない） */
