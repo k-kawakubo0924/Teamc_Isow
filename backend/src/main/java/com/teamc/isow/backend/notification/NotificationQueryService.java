@@ -1,9 +1,11 @@
 package com.teamc.isow.backend.notification;
 
+import com.teamc.isow.backend.announcement.AnnouncementQueryService;
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.post.PostCardService;
 import com.teamc.isow.backend.post.PostRepository;
 import com.teamc.isow.backend.post.PostThumbnail;
+import com.teamc.isow.backend.user.User;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +28,14 @@ public class NotificationQueryService {
     private final NotificationRepository notificationRepository;
     private final PostRepository postRepository;
     private final AuthService authService;
+    private final AnnouncementQueryService announcementQueryService;
 
-    public NotificationQueryService(
-            NotificationRepository notificationRepository, PostRepository postRepository, AuthService authService) {
+    public NotificationQueryService(NotificationRepository notificationRepository, PostRepository postRepository,
+            AuthService authService, AnnouncementQueryService announcementQueryService) {
         this.notificationRepository = notificationRepository;
         this.postRepository = postRepository;
         this.authService = authService;
+        this.announcementQueryService = announcementQueryService;
     }
 
     /** 自分の通知を通知日時の新しい順に返す。page は 0 から。範囲外の page・size はエラーにせず丸める（ホームの一覧と同じ） */
@@ -60,12 +64,16 @@ public class NotificationQueryService {
                 items, pageable.getPageNumber(), pageable.getPageSize(), notifications.hasNext());
     }
 
-    /** 未読件数（ベルのバッジ用）。メッセージの通知は DM のバッジで別に数えるため含めない */
+    /**
+     * 未読件数（ベルとタブのバッジ用）。通知とお知らせを別々に返す（ベルには画面側で合計を出す）。
+     * メッセージの通知は DM のバッジで別に数えるため含めない
+     */
     @Transactional(readOnly = true)
     public NotificationSummaryResponse summary(String subject) {
-        Long userId = authService.requireCurrentUser(subject).getId();
-        return new NotificationSummaryResponse(notificationRepository.countUnreadExcludingType(
-                userId, NotificationType.MESSAGE_RECEIVED.name()));
+        User user = authService.requireCurrentUser(subject);
+        return new NotificationSummaryResponse(
+                notificationRepository.countUnreadExcludingType(user.getId(), NotificationType.MESSAGE_RECEIVED.name()),
+                announcementQueryService.countUnread(user));
     }
 
     /** 既読にする。すでに既読なら最初に既読にした日時のまま */

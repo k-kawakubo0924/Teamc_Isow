@@ -31,7 +31,7 @@ function renderPage(page: ReactElement) {
   return render(
     <MemoryRouter>
       <DmSummaryContext.Provider value={{ summary: null, refresh: () => {} }}>
-        <NotificationSummaryContext.Provider value={{ summary: { unreadCount: 3 }, refresh: () => {} }}>
+        <NotificationSummaryContext.Provider value={{ summary: { unreadCount: 3, unreadAnnouncementCount: 0 }, refresh: () => {} }}>
           {page}
         </NotificationSummaryContext.Provider>
       </DmSummaryContext.Provider>

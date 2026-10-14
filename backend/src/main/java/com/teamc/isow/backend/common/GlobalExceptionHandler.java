@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.common;
 
+import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
@@ -85,6 +86,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiErrorResponse handleNotificationNotFound(NotificationNotFoundException e) {
         return new ApiErrorResponse("通知が見つかりません。", Map.of());
+    }
+
+    /** お知らせが存在しない */
+    @ExceptionHandler(AnnouncementNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleAnnouncementNotFound(AnnouncementNotFoundException e) {
+        return new ApiErrorResponse("お知らせが見つかりません。", Map.of());
     }
 
     @ExceptionHandler(SelfFollowException.class)

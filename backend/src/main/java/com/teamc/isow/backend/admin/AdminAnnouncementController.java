@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * お知らせの発行・一覧の API（docs/admin.md「お知らせの発行」）。/api/admin/** は SecurityConfig で管理者だけに許可している。
- * 利用者側でお知らせを見る API は、まだない（表示場所が未確定のため）
+ * 利用者側でお知らせを見る API は AnnouncementController（/api/announcements）
  */
 @RestController
 @RequestMapping("/api/admin/announcements")

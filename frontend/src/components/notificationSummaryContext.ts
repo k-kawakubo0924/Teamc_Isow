@@ -18,3 +18,8 @@ export function useNotificationSummary(): NotificationSummaryContextValue {
   }
   return value
 }
+
+/** ホームのベルのバッジに出す件数（未読の通知 ＋ 未読のお知らせ。タブではそれぞれを出す） */
+export function notificationBadgeCount(summary: NotificationSummary | null): number {
+  return summary === null ? 0 : summary.unreadCount + summary.unreadAnnouncementCount
+}
