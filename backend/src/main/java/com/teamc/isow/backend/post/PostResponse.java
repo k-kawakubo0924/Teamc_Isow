@@ -14,7 +14,8 @@ import java.util.List;
  * @param likeCount いいね件数（公開情報）
  * @param likedByMe ログイン中のユーザーがいいねしているか
  * @param favoritedByMe ログイン中のユーザーがお気に入りにしているか（本人にだけ返す）
- * @param ownedByMe ログイン中のユーザーの投稿か（画面で削除のメニューを出すかの判断だけに使う。削除できるかはサーバーで確かめる）
+ * @param ownedByMe ログイン中のユーザーの投稿か（画面で編集・削除のメニューを出すかの判断だけに使う。できるかはサーバーで確かめる）
+ * @param editedAt 投稿者が最後に編集した日時。編集していなければ null（画面の「編集済み」の表示に使う）
  */
 public record PostResponse(
         Long id,
@@ -30,7 +31,8 @@ public record PostResponse(
         boolean likedByMe,
         boolean favoritedByMe,
         boolean ownedByMe,
-        LocalDateTime createdAt) {
+        LocalDateTime createdAt,
+        LocalDateTime editedAt) {
 
     /**
      * 遅延読み込みの項目を使うため、トランザクションの中で呼ぶこと。
@@ -57,7 +59,8 @@ public record PostResponse(
                 reactions.likedByMe(),
                 reactions.favoritedByMe(),
                 post.getAuthor().getId().equals(viewerId),
-                post.getCreatedAt());
+                post.getCreatedAt(),
+                post.getEditedAt());
     }
 
     public record FashionCategoryResponse(Long id, String name) {

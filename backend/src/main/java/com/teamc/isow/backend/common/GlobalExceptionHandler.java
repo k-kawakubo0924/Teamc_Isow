@@ -15,6 +15,7 @@ import com.teamc.isow.backend.follow.SelfFollowException;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.notification.NotificationNotFoundException;
 import com.teamc.isow.backend.post.PostDeleteForbiddenException;
+import com.teamc.isow.backend.post.PostEditForbiddenException;
 import com.teamc.isow.backend.post.PostNotFoundException;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import java.util.LinkedHashMap;
@@ -74,6 +75,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiErrorResponse handlePostDeleteForbidden(PostDeleteForbiddenException e) {
         return new ApiErrorResponse("この投稿は削除できません。", Map.of());
+    }
+
+    /** 他人の投稿を編集しようとした。削除と同じ理由で 404 で隠さず 403 を返す（docs/post.md「投稿の編集」） */
+    @ExceptionHandler(PostEditForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiErrorResponse handlePostEditForbidden(PostEditForbiddenException e) {
+        return new ApiErrorResponse("この投稿は編集できません。", Map.of());
     }
 
     @ExceptionHandler(UserNotFoundException.class)

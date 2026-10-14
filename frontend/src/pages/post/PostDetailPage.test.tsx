@@ -36,6 +36,7 @@ function post(overrides: Partial<PostResponse> = {}, author: Partial<PostRespons
     favoritedByMe: false,
     ownedByMe: false,
     createdAt: '2026-10-08T12:00:00',
+    editedAt: null,
     ...overrides,
   }
 }
@@ -217,5 +218,46 @@ describe('投稿の削除', () => {
     fireEvent.click(screen.getByRole('button', { name: '削除する' }))
 
     expect(await screen.findByText('プロフィール画面')).toBeTruthy()
+  })
+})
+
+describe('投稿の編集', () => {
+  it('自分の投稿では、メニューの「削除」の上に「編集」があり、押すと編集画面へ移る', async () => {
+    fetchPost.mockResolvedValue(post({ ownedByMe: true }))
+    render(
+      <MemoryRouter initialEntries={['/posts/1']}>
+        <Routes>
+          <Route path="/posts/:postId" element={<PostDetailPage />} />
+          <Route path="/posts/:postId/edit" element={<p>編集画面</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText('@haru_st')
+
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    const items = screen.getAllByRole('menuitem').map((item) => item.textContent)
+    expect(items).toEqual(['編集', '削除'])
+    fireEvent.click(screen.getByRole('menuitem', { name: '編集' }))
+
+    expect(await screen.findByText('編集画面')).toBeTruthy()
+  })
+
+  it('他人の投稿には、編集のメニューを出さない', async () => {
+    await open(post({ ownedByMe: false }))
+
+    expect(screen.queryByRole('menuitem', { name: '編集' })).toBeNull()
+  })
+
+  it('編集した投稿は、投稿日の横に「編集済み」を出す', async () => {
+    const { container } = await open(post({ editedAt: '2026-10-09T08:00:00' }))
+
+    expect(container.querySelector('.post-detail-edited')?.textContent).toBe('編集済み')
+  })
+
+  it('編集していない投稿には「編集済み」を出さない', async () => {
+    const { container } = await open(post())
+
+    expect(container.querySelector('.post-detail-edited')).toBeNull()
+    expect(container.textContent).not.toContain('編集済み')
   })
 })

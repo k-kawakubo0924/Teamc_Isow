@@ -1,4 +1,4 @@
-import { getJson, postForm, sendWithToken } from './client'
+import { getJson, postForm, putJson, sendWithToken } from './client'
 
 /** 投稿作成で送る内容。images は表示順（1枚目がサムネイル） */
 export type CreatePostRequest = {
@@ -36,6 +36,8 @@ export type PostResponse = {
   /** ログイン中のユーザーの投稿か（削除のメニューを出すかの判断だけに使う。削除できるかはサーバーが確かめる） */
   ownedByMe: boolean
   createdAt: string
+  /** 投稿者が最後に編集した日時。編集していなければ null（詳細画面の「編集済み」の表示に使う） */
+  editedAt: string | null
 }
 
 /** ホームの投稿一覧のタブ */
@@ -115,4 +117,23 @@ export function createPost(request: CreatePostRequest, token: string): Promise<P
   form.append('description', request.description)
   if (request.referenceUrl !== '') form.append('referenceUrl', request.referenceUrl)
   return postForm<PostResponse>('/api/posts', form, token)
+}
+
+/** 投稿の編集で送る内容（文字の情報だけ。写真は編集できない。docs/post.md「投稿の編集」） */
+export type UpdatePostRequest = {
+  title: string
+  fashionCategoryId: number
+  /** タグ名（公式タグ・手入力のタグとも名前で送る） */
+  tags: string[]
+  wornItems: string
+  description: string
+  referenceUrl: string
+}
+
+/**
+ * 自分の投稿の文字の情報を編集する（PUT /api/posts/{id}、JSON）。編集した後の投稿を返す。
+ * 失敗時は ApiError（400: 入力エラー / 403: 他人の投稿 / 404: 存在しない・削除済み）を投げる
+ */
+export function updatePost(id: number, request: UpdatePostRequest, token: string): Promise<PostResponse> {
+  return putJson<PostResponse>(`/api/posts/${id}`, request, token)
 }

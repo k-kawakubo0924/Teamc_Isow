@@ -22,7 +22,7 @@ type State =
 /**
  * 投稿の詳細（/posts/{id}。docs/post.md「投稿の詳細画面」）。
  * 詳細画面の画面画像はないため、項目の並びは投稿の確認画面（design/Check post content.png）に合わせている。
- * 自分の投稿にだけ、見出しの右に削除のメニューを出す（docs/post.md「投稿の削除」。削除できるかはサーバーが確かめる）
+ * 自分の投稿にだけ、見出しの右に編集・削除のメニューを出す（docs/post.md「投稿の編集」「投稿の削除」。できるかはサーバーが確かめる）
  */
 function PostDetailPage() {
   const { postId } = useParams()
@@ -74,7 +74,7 @@ function PostDetailView({ postId }: { postId: number | null }) {
     setReloadKey((key) => key + 1)
   }
 
-  // 自分の投稿のときだけ、削除のメニューを出す（表示を分けるだけで、削除できるかはサーバーが確かめる）
+  // 自分の投稿のときだけ、編集・削除のメニューを出す（表示を分けるだけで、できるかはサーバーが確かめる）
   const ownPost = state.phase === 'ready' && state.post.ownedByMe ? state.post : null
 
   return (
@@ -84,7 +84,7 @@ function PostDetailView({ postId }: { postId: number | null }) {
           ‹
         </button>
         <h1 className="post-detail-heading">投稿</h1>
-        {ownPost && token && <PostDeleteMenu postId={ownPost.id} token={token} />}
+        {ownPost && token && <PostMenu postId={ownPost.id} token={token} />}
       </header>
 
       {state.phase === 'loading' && (
@@ -127,11 +127,11 @@ function PostDetailView({ postId }: { postId: number | null }) {
 }
 
 /**
- * 自分の投稿の「…」メニューと、削除の確認（docs/post.md「投稿の削除」）。
+ * 自分の投稿の「…」メニュー（編集・削除）と、削除の確認（docs/post.md「投稿の編集」「投稿の削除」）。
  * 削除は元に戻せないため、ブラウザの確認ダイアログではなく画面の中で確かめる。
  * 削除できたら、削除した投稿に「戻る」で戻らないよう、履歴を置き換えて自分のプロフィールへ移る
  */
-function PostDeleteMenu({ postId, token }: { postId: number; token: string }) {
+function PostMenu({ postId, token }: { postId: number; token: string }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -175,6 +175,15 @@ function PostDeleteMenu({ postId, token }: { postId: number; token: string }) {
         </button>
         {menuOpen && (
           <div className="post-detail-menu-list" role="menu">
+            {/* 編集は文字の情報だけ（写真は変えられない。docs/post.md「投稿の編集」） */}
+            <button
+              type="button"
+              role="menuitem"
+              className="post-detail-menu-edit"
+              onClick={() => navigate(`/posts/${postId}/edit`)}
+            >
+              編集
+            </button>
             <button type="button" role="menuitem" className="post-detail-menu-delete" onClick={openConfirm}>
               削除
             </button>
@@ -311,6 +320,8 @@ function PostDetailContent({
         )}
         <DetailRow label="投稿日">
           <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
+          {/* 投稿者が編集した投稿には印を出す（いつ・何を変えたかの履歴は持たない） */}
+          {post.editedAt && <span className="post-detail-edited">編集済み</span>}
         </DetailRow>
       </dl>
     </article>
