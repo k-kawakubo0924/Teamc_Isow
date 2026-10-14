@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { listAnnouncements, publishAnnouncement, type AdminAnnouncement } from '../../api/admin'
+import { listAnnouncements, publishAnnouncement, withdrawAnnouncement, type AdminAnnouncement } from '../../api/admin'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/authContext'
 import { formatAdminDateTime } from './adminFormat'
@@ -12,7 +12,8 @@ type FieldErrors = { title?: string; body?: string }
 
 /**
  * お知らせ（docs/admin.md「お知らせの発行」）。題名と本文を入れて発行し、発行済みのものを新しい順に一覧する。
- * 発行後の訂正・取り消しはないため、発行の前に画面の中で確かめる
+ * 発行するとすぐに利用者に表示され、訂正はできないため、発行の前に画面の中で確かめる。
+ * 誤りがあったときは一覧から取り消す（行は残り「取り消し済み」になる）。取り消しも画面の中で確かめる
  */
 function AdminAnnouncementsPage() {
   const { token } = useAuth()
@@ -40,6 +41,11 @@ function AnnouncementsPanel({ token }: { token: string }) {
   const submittingRef = useRef(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  /** 取り消しを確かめているお知らせの ID */
+  const [withdrawingId, setWithdrawingId] = useState<number | null>(null)
+  const [withdrawSubmitting, setWithdrawSubmitting] = useState(false)
+  const withdrawSubmittingRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -115,6 +121,27 @@ function AnnouncementsPanel({ token }: { token: string }) {
     }
   }
 
+  /** 確認で「取り消す」を押した。取り消した後の1件で一覧を置き換える（一覧は読み直さない） */
+  const withdraw = async (id: number) => {
+    if (withdrawSubmittingRef.current) return
+    withdrawSubmittingRef.current = true
+    setWithdrawSubmitting(true)
+    setNotice(null)
+    setSubmitError(null)
+    try {
+      const withdrawn = await withdrawAnnouncement(id, token)
+      setItems((prev) => (prev ?? []).map((item) => (item.id === id ? withdrawn : item)))
+      setNotice('お知らせを取り消しました')
+    } catch (err) {
+      // ほかの管理者が先に取り消していた（409）など。サーバーの理由をそのまま出す
+      setSubmitError(errorMessage(err))
+    } finally {
+      withdrawSubmittingRef.current = false
+      setWithdrawSubmitting(false)
+      setWithdrawingId(null)
+    }
+  }
+
   return (
     <div className="admin-announcements">
       <form className="admin-announcements-form" onSubmit={handleSubmit} noValidate>
@@ -165,7 +192,7 @@ function AnnouncementsPanel({ token }: { token: string }) {
       </form>
 
       {confirming && (
-        // ブラウザの確認ダイアログではなく、画面の中で確かめる（発行後の訂正・取り消しはないため）
+        // ブラウザの確認ダイアログではなく、画面の中で確かめる（発行後の訂正はできないため）
         <div className="admin-announcements-confirm" role="alertdialog" aria-labelledby="admin-announcements-confirm-title">
           <p id="admin-announcements-confirm-title" className="admin-announcements-confirm-title">
             このお知らせを発行しますか？
@@ -175,8 +202,8 @@ function AnnouncementsPanel({ token }: { token: string }) {
             <p className="admin-announcements-body">{trimmedBody}</p>
           </div>
           <p className="admin-announcements-confirm-text">
-            発行したお知らせは、あとから訂正・取り消しはできません。
-            今は利用者側にお知らせを表示する画面はありませんが、利用者側の表示ができたあとは、発行したお知らせはすべての利用者に表示され、取り消せなくなります。
+            発行するとすぐにすべての利用者に表示されます。発行したお知らせは、あとから訂正はできません。
+            誤りがあったときは、取り消してから正しい内容で発行し直してください。
           </p>
           <div className="admin-announcements-confirm-buttons">
             {/* 誤って続けて押しても発行しないよう、最初は「戻って直す」を選んだ状態にする */}
@@ -220,12 +247,41 @@ function AnnouncementsPanel({ token }: { token: string }) {
       ) : (
         <div className="admin-announcements-list">
           {items.map((item) => (
-            <article key={item.id} className="admin-announcements-item">
+            <article
+              key={item.id}
+              className={`admin-announcements-item${item.withdrawnAt ? ' admin-announcements-item-withdrawn' : ''}`}
+            >
               <h3 className="admin-announcements-item-title">{item.title}</h3>
               <p className="admin-announcements-meta">
                 <time dateTime={item.publishedAt}>{formatAdminDateTime(item.publishedAt)}</time>
                 <span>発行：{item.publisherUsername}</span>
               </p>
+              {item.withdrawnAt ? (
+                <p className="admin-announcements-withdrawn">
+                  取り消し済み（<time dateTime={item.withdrawnAt}>{formatAdminDateTime(item.withdrawnAt)}</time>
+                  ・取り消し：{item.withdrawnByUsername}）
+                </p>
+              ) : withdrawingId === item.id ? (
+                <WithdrawConfirm
+                  item={item}
+                  submitting={withdrawSubmitting}
+                  onCancel={() => setWithdrawingId(null)}
+                  onWithdraw={() => withdraw(item.id)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="admin-announcements-withdraw"
+                  disabled={withdrawSubmitting}
+                  onClick={() => {
+                    setNotice(null)
+                    setSubmitError(null)
+                    setWithdrawingId(item.id)
+                  }}
+                >
+                  取り消す
+                </button>
+              )}
               {/* 文字のまま出す（HTML として扱わない）。改行は CSS（white-space: pre-wrap）でそのまま表示する */}
               <p className="admin-announcements-body">{item.body}</p>
             </article>
@@ -237,6 +293,41 @@ function AnnouncementsPanel({ token }: { token: string }) {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/** 取り消しの確認（ブラウザの確認ダイアログではなく、画面の中で確かめる） */
+function WithdrawConfirm({
+  item,
+  submitting,
+  onCancel,
+  onWithdraw,
+}: {
+  item: AdminAnnouncement
+  submitting: boolean
+  onCancel: () => void
+  onWithdraw: () => void
+}) {
+  const titleId = `admin-announcements-withdraw-title-${item.id}`
+  return (
+    <div className="admin-announcements-confirm" role="alertdialog" aria-labelledby={titleId}>
+      <p id={titleId} className="admin-announcements-confirm-title">
+        「{item.title}」を取り消しますか？
+      </p>
+      <p className="admin-announcements-confirm-text">
+        取り消すと、利用者の画面から消えます（通知一覧の「お知らせ」タブに出なくなり、未読の件数にも数えません）。
+        取り消したお知らせは元に戻せません。この一覧には「取り消し済み」として残ります。
+      </p>
+      <div className="admin-announcements-confirm-buttons">
+        {/* 誤って続けて押しても取り消さないよう、最初は「やめる」を選んだ状態にする */}
+        <button type="button" className="admin-announcements-confirm-cancel" autoFocus disabled={submitting} onClick={onCancel}>
+          やめる
+        </button>
+        <button type="button" className="admin-announcements-confirm-ok" disabled={submitting} onClick={onWithdraw}>
+          {submitting ? '取り消し中…' : '取り消す'}
+        </button>
+      </div>
     </div>
   )
 }

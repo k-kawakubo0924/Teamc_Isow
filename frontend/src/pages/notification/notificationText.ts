@@ -35,3 +35,12 @@ export function notificationLink(notification: NotificationItem): string {
       return notification.conversationId === null ? '/notifications' : `/dm/${notification.conversationId}`
   }
 }
+
+/**
+ * お知らせの発行日（"2026-10-08T09:05:00" を「2026/10/08」の形にする）。
+ * お知らせは古いものも残るため、「〇日前」ではなく日付で出す。サーバーの日付をそのまま出す（ブラウザのタイムゾーンで変換しない）
+ */
+export function announcementDate(value: string): string {
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return m === null ? value : `${m[1]}/${m[2]}/${m[3]}`
+}

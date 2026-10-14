@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { fetchTimeline, type TimelineTab } from '../../api/posts'
 import { fetchMyProfile } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
-import { useNotificationSummary } from '../../components/notificationSummaryContext'
+import { notificationBadgeCount, useNotificationSummary } from '../../components/notificationSummaryContext'
 import { HOME_COLUMNS, loadColumns, saveColumns, type Columns } from './columnSetting'
 import { NewMessages } from './NewMessages'
 import { ColumnsSwitcher, EmptyMessage, PostGrid } from './PostGrid'
@@ -84,11 +84,11 @@ function HomePage() {
 
 /**
  * 左上のベル。押すと通知一覧（docs/notification.md）を開く。
- * 未読件数（メッセージの通知は含めない）をバッジで出す。取り直すタイミングは DM のバッジと同じ（NotificationSummaryProvider）
+ * 未読の通知（メッセージの通知は含めない）と未読のお知らせの合計をバッジで出す。取り直すタイミングは DM のバッジと同じ（NotificationSummaryProvider）
  */
 function NotificationBell() {
   const { summary } = useNotificationSummary()
-  const count = summary?.unreadCount ?? 0
+  const count = notificationBadgeCount(summary)
   return (
     <Link to="/notifications" className="home-bell" aria-label={count > 0 ? `通知（未読 ${count}件）` : '通知'}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">

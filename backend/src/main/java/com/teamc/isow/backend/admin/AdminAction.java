@@ -20,5 +20,7 @@ public enum AdminAction {
     /** 無効にしたマスタを有効に戻した */
     MASTER_ACTIVATED,
     /** お知らせを発行した */
-    ANNOUNCEMENT_PUBLISHED
+    ANNOUNCEMENT_PUBLISHED,
+    /** お知らせを取り消した（行は消さず、利用者側に出さないようにした） */
+    ANNOUNCEMENT_WITHDRAWN
 }

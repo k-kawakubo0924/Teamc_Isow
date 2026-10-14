@@ -283,3 +283,65 @@
   font-size: 13px;
   color: #fff;
 }
+
+/* ---- お知らせ（「お知らせ」タブ） ---- */
+
+.notification-announcement {
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+}
+
+/* 既読は暗めの背景にして、未読と見分けやすくする（通知のカードと同じ） */
+.notification-announcement-read {
+  background: #ebe6de;
+}
+
+.notification-announcement-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 12px 10px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.notification-announcement-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.notification-announcement-meta {
+  display: flex;
+  align-items: center;
+  align-self: flex-end;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.notification-announcement-chevron {
+  transition: transform 0.15s;
+}
+
+.notification-announcement-toggle[aria-expanded='true'] .notification-announcement-chevron {
+  transform: rotate(180deg);
+}
+
+/* 本文は文字のまま出し、改行はそのまま表示する（HTML として扱わない） */
+.notification-announcement-body {
+  margin: 0;
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

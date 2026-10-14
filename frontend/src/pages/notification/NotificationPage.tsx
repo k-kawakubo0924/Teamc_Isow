@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
+import { fetchAnnouncements, markAnnouncementRead, type Announcement } from '../../api/announcements'
 import {
   deleteNotification,
   fetchNotifications,
@@ -8,10 +9,10 @@ import {
 } from '../../api/notifications'
 import { useAuth } from '../../auth/authContext'
 import { useNotificationSummary } from '../../components/notificationSummaryContext'
-import { useLoadMoreOnScroll, usePagedList } from '../../hooks/usePagedList'
+import { useLoadMoreOnScroll, usePagedList, type PagedListState } from '../../hooks/usePagedList'
 import { timeAgo } from '../../utils/timeAgo'
 import { goBack } from '../settings/goBack'
-import { notificationLink, notificationText } from './notificationText'
+import { announcementDate, notificationLink, notificationText } from './notificationText'
 import './notification.css'
 
 type Tab = 'activity' | 'news'
@@ -21,8 +22,8 @@ const TOAST_DURATION_MS = 4000
 
 /**
  * 通知一覧（docs/notification.md、design/Notification.png・Nonotification.png）。
- * 「いいね・フォロー」タブにすべての通知を表示する。「お知らせ」タブは運営からの通知を出す場所で、
- * 発行する仕組みがまだないため、常に「お知らせはありません」と表示する。
+ * 「いいね・フォロー」タブにすべての通知を表示する。「お知らせ」タブには管理者が発行した運営からのお知らせを表示する。
+ * タブのバッジはそれぞれの未読件数（ホームのベルには2つの合計を出す）。
  */
 function NotificationPage() {
   const navigate = useNavigate()
@@ -30,6 +31,7 @@ function NotificationPage() {
   const { summary } = useNotificationSummary()
   const [tab, setTab] = useState<Tab>('activity')
   const unreadCount = summary?.unreadCount ?? 0
+  const unreadAnnouncementCount = summary?.unreadAnnouncementCount ?? 0
 
   return (
     <main className="notification-page">
@@ -51,12 +53,8 @@ function NotificationPage() {
           onClick={() => setTab('activity')}
         >
           いいね・フォロー
-          {/* ベルのバッジと同じ件数（メッセージの通知は DM のバッジで数えるため含めない） */}
-          {unreadCount > 0 && (
-            <span className="notification-tab-badge" aria-label={`未読 ${unreadCount}件`}>
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
+          {/* メッセージの通知は DM のバッジで数えるため含めない */}
+          <TabBadge count={unreadCount} />
         </button>
         <button
           type="button"
@@ -68,6 +66,7 @@ function NotificationPage() {
           onClick={() => setTab('news')}
         >
           お知らせ
+          <TabBadge count={unreadAnnouncementCount} />
         </button>
       </div>
 
@@ -75,7 +74,7 @@ function NotificationPage() {
         {tab === 'activity' ? (
           <ActivityList />
         ) : (
-          <Empty title="お知らせはありません" />
+          <AnnouncementList />
         )}
       </section>
     </main>
@@ -174,6 +173,124 @@ function ActivityList() {
           {toast}
         </div>
       )}
+      <ListFooter state={state} retry={retry} sentinelRef={sentinelRef} />
+    </>
+  )
+}
+
+/**
+ * 「お知らせ」タブ（docs/notification.md「お知らせ」）。題名と発行日だけを出し、押すとその場で本文を開く
+ * （別の画面に移ると、戻ったときにタブが「いいね・フォロー」に戻ってしまうため）。
+ * 本文は一覧と一緒に読み込んであるため、開くときに通信しない。未読のものを開いたら既読にする。
+ * お知らせは全員に同じものを出すため、「未読に戻す」「削除」のメニューは出さない
+ */
+function AnnouncementList() {
+  const { token } = useAuth()
+  const { refresh: refreshSummary } = useNotificationSummary()
+  const { state, loadMore, retry, updateItem } = usePagedList<Announcement>(
+    (page, authToken, signal) =>
+      fetchAnnouncements(page, authToken, signal).then((result) => ({
+        items: result.announcements,
+        hasNext: result.hasNext,
+      })),
+    token,
+  )
+  const sentinelRef = useLoadMoreOnScroll(loadMore)
+  const [openIds, setOpenIds] = useState<ReadonlySet<number>>(() => new Set())
+
+  /** 開く・閉じる。未読のものを開いたら既読にする（既読にする通信は待たずに本文を開く） */
+  const handleToggle = (announcement: Announcement) => {
+    const opening = !openIds.has(announcement.id)
+    setOpenIds((prev) => {
+      const next = new Set(prev)
+      if (opening) next.add(announcement.id)
+      else next.delete(announcement.id)
+      return next
+    })
+    if (opening && token && !announcement.read) {
+      updateItem(announcement.id, { read: true })
+      markAnnouncementRead(announcement.id, token)
+        .then(refreshSummary)
+        .catch(() => {
+          // 既読にできなくても本文は開いたままにする（次に一覧を開いたときに未読のまま表示される）
+        })
+    }
+  }
+
+  const announcements = state.items
+  const isEmpty = announcements.length === 0 && !state.hasNext && state.status === 'idle'
+
+  return (
+    <>
+      {isEmpty ? (
+        <Empty title="お知らせはありません" />
+      ) : (
+        <ul className="notification-list">
+          {announcements.map((announcement) => {
+            const open = openIds.has(announcement.id)
+            const bodyId = `notification-announcement-body-${announcement.id}`
+            return (
+              <li key={announcement.id}>
+                {/* 未読は白、既読は暗めの背景にする（通知のカードと同じ） */}
+                <article
+                  className={`notification-announcement${announcement.read ? ' notification-announcement-read' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="notification-announcement-toggle"
+                    aria-expanded={open}
+                    aria-controls={open ? bodyId : undefined}
+                    onClick={() => handleToggle(announcement)}
+                  >
+                    <span className="notification-announcement-title">{announcement.title}</span>
+                    <span className="notification-announcement-meta">
+                      {!announcement.read && <span className="notification-visually-hidden">未読 </span>}
+                      <time dateTime={announcement.publishedAt}>{announcementDate(announcement.publishedAt)}</time>
+                      <svg
+                        className="notification-announcement-chevron"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </span>
+                  </button>
+                  {/* 文字のまま出す（HTML として扱わない）。改行は CSS（white-space: pre-wrap）でそのまま表示する */}
+                  {open && (
+                    <p id={bodyId} className="notification-announcement-body">
+                      {announcement.body}
+                    </p>
+                  )}
+                </article>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <ListFooter state={state} retry={retry} sentinelRef={sentinelRef} />
+    </>
+  )
+}
+
+/** 一覧の下の、読み込み中・エラーの表示と、無限スクロールの目印（2つのタブで共通） */
+function ListFooter<T>({
+  state,
+  retry,
+  sentinelRef,
+}: {
+  state: PagedListState<T>
+  retry: () => void
+  sentinelRef: RefObject<HTMLDivElement | null>
+}) {
+  return (
+    <>
       {state.status === 'loading' && (
         <p className="notification-status" role="status">
           読み込み中...
@@ -190,6 +307,16 @@ function ActivityList() {
       {/* 次のページがある間だけ置く、無限スクロールの目印 */}
       {state.hasNext && <div ref={sentinelRef} className="notification-sentinel" aria-hidden="true" />}
     </>
+  )
+}
+
+/** タブの未読件数のバッジ。0件なら出さない */
+function TabBadge({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <span className="notification-tab-badge" aria-label={`未読 ${count}件`}>
+      {count > 99 ? '99+' : count}
+    </span>
   )
 }
 

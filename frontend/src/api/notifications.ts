@@ -38,9 +38,12 @@ export function fetchNotifications(page: number, token: string, signal?: AbortSi
   return getJson<NotificationListResponse>(`/api/notifications?page=${page}&size=${TIMELINE_PAGE_SIZE}`, token, signal)
 }
 
-/** 未読件数（GET /api/notifications/summary。ベルのバッジ用。メッセージの通知は含まない） */
+/** 未読件数（GET /api/notifications/summary。ベルとタブのバッジ用） */
 export type NotificationSummary = {
+  /** 未読の通知（「いいね・フォロー」タブ）。メッセージの通知は含まない（DM のバッジで数えるため） */
   unreadCount: number
+  /** 未読のお知らせ（「お知らせ」タブ）。取り消したもの・登録より前に発行されたものは含まない */
+  unreadAnnouncementCount: number
 }
 
 export function fetchNotificationSummary(token: string, signal?: AbortSignal): Promise<NotificationSummary> {

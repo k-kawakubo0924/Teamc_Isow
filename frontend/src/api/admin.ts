@@ -72,6 +72,11 @@ export type AdminAnnouncement = {
   publisherId: number
   /** 発行した管理者のユーザー名（発行した時点の値） */
   publisherUsername: string
+  /** 取り消した日時。取り消していなければ null */
+  withdrawnAt: string | null
+  withdrawnById: number | null
+  /** 取り消した管理者のユーザー名（取り消した時点の値）。取り消していなければ null */
+  withdrawnByUsername: string | null
 }
 
 export type AdminAnnouncementList = {
@@ -89,6 +94,11 @@ export function listAnnouncements(page: number, token: string): Promise<AdminAnn
 /** 発行する。入力の誤りは ApiError（400。errors.title・errors.body に理由） */
 export function publishAnnouncement(title: string, body: string, token: string): Promise<AdminAnnouncement> {
   return postJson<AdminAnnouncement>('/api/admin/announcements', { title, body }, token)
+}
+
+/** 取り消す（行は消さず、利用者側に出さなくなる）。取り消した後の1件を返す。すでに取り消していれば ApiError（409） */
+export function withdrawAnnouncement(id: number, token: string): Promise<AdminAnnouncement> {
+  return sendWithToken<AdminAnnouncement>('POST', `/api/admin/announcements/${id}/withdraw`, token)
 }
 
 /** 管理操作のログの1件（バックエンドの AdminOperationLogListResponse.Item） */
