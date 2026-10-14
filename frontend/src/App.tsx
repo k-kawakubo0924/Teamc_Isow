@@ -16,6 +16,7 @@ import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import NotificationPage from './pages/notification/NotificationPage'
 import PostDetailPage from './pages/post/PostDetailPage'
+import PostEditPage from './pages/post/PostEditPage'
 import PostPage from './pages/post/PostPage'
 import { MyProfilePage, UserProfilePage } from './pages/profile/ProfilePage'
 import SearchPage from './pages/search/SearchPage'
@@ -52,6 +53,8 @@ function App() {
         <Route path="/dm/:conversationId" element={<DmChatPage />} />
         {/* 投稿作成は画面下部に「投稿」ボタンを置くため、下部ナビゲーションを表示しない */}
         <Route path="/post" element={<PostPage />} />
+        {/* 投稿の編集（docs/post.md「投稿の編集」）。投稿作成と同じ画面のため、下部ナビゲーションを表示しない */}
+        <Route path="/posts/:postId/edit" element={<PostEditPage />} />
         {/* 詳細設定（docs/settings.md）。見出しに戻るボタンがあるため、下部ナビゲーションを表示しない */}
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/profile" element={<ProfileEditPage />} />

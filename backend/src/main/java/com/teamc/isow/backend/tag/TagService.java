@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
@@ -55,6 +56,19 @@ public class TagService {
      */
     @Transactional(readOnly = true)
     public List<String> validateForPost(List<String> names) {
+        return validateForPost(names, Set.of());
+    }
+
+    /**
+     * validateForPost(names) と同じ確認をする。ただし keepableKeys に含まれるタグは、無効になっていても受け付ける
+     * （投稿の編集で、すでに付いているタグをそのまま残せるようにするため。docs/post.md「投稿の編集」）。
+     *
+     * @param keepableKeys 編集する投稿に今付いているタグの正規化した名前（Tag.getNormalizedName()）。
+     *     <strong>必ず DB から読んだ投稿のタグを渡すこと</strong>（クライアントから送られた値を渡すと、
+     *     無効にしたタグをどの投稿にも付けられてしまう）
+     */
+    @Transactional(readOnly = true)
+    public List<String> validateForPost(List<String> names, Set<String> keepableKeys) {
         Map<String, String> displayNameByKey = new LinkedHashMap<>();
         for (String name : names == null ? List.<String>of() : names) {
             String displayName = TagNameNormalizer.displayName(name);
@@ -72,7 +86,7 @@ public class TagService {
         if (displayNameByKey.size() > MAX_TAGS_PER_POST) {
             throw InputValidationException.of(FIELD, "タグは" + MAX_TAGS_PER_POST + "個まで設定できます");
         }
-        throwIfInactive(tagRepository.findByNormalizedNameIn(displayNameByKey.keySet()));
+        throwIfInactive(tagRepository.findByNormalizedNameIn(displayNameByKey.keySet()), keepableKeys);
         return List.copyOf(displayNameByKey.values());
     }
 
@@ -84,11 +98,20 @@ public class TagService {
      */
     @Transactional
     public List<Tag> findOrCreateForPost(List<String> displayNames) {
+        return findOrCreateForPost(displayNames, Set.of());
+    }
+
+    /**
+     * findOrCreateForPost(displayNames) と同じ。ただし keepableKeys に含まれるタグは、無効になっていても使う
+     * （投稿の編集。keepableKeys は validateForPost(names, keepableKeys) と同じく、DB から読んだ投稿のタグを渡すこと）
+     */
+    @Transactional
+    public List<Tag> findOrCreateForPost(List<String> displayNames, Set<String> keepableKeys) {
         Map<String, Tag> existingByKey = tagRepository.findByNormalizedNameIn(
                         displayNames.stream().map(TagNameNormalizer::key).toList()).stream()
                 .collect(Collectors.toMap(Tag::getNormalizedName, Function.identity()));
         // 確認の後に無効にされた場合に備えて、もう一度確認する
-        throwIfInactive(existingByKey.values());
+        throwIfInactive(existingByKey.values(), keepableKeys);
 
         List<Tag> tags = new ArrayList<>();
         for (String displayName : displayNames) {
@@ -98,10 +121,13 @@ public class TagService {
         return tags;
     }
 
-    /** 無効にされたタグ（不適切なタグなど）は、手入力でも付けられないようにする */
-    private static void throwIfInactive(Iterable<Tag> tags) {
+    /**
+     * 無効にされたタグ（不適切なタグなど）は、手入力でも付けられないようにする。
+     * ただし keepableKeys に含まれるタグ（編集する投稿にすでに付いているタグ）は、そのまま残せる
+     */
+    private static void throwIfInactive(Iterable<Tag> tags, Set<String> keepableKeys) {
         for (Tag tag : tags) {
-            if (!tag.isActive()) {
+            if (!tag.isActive() && !keepableKeys.contains(tag.getNormalizedName())) {
                 throw InputValidationException.of(FIELD, "「" + tag.getName() + "」は使用できないタグです");
             }
         }

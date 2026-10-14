@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -100,9 +101,17 @@ public class Post {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** 最終更新日時（投稿の編集に備える） */
+    /** 最終更新日時（行を書き換えた日時。投稿者の編集以外でも変わりうるため、「編集済み」の表示には使わない） */
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * 投稿者が最後に編集した日時。編集していなければ null。「編集済み」の表示に使う（docs/post.md「投稿の編集」）。
+     * updated_at を使わないのは、タグだけの変更では投稿の行が更新されず @PreUpdate が動かないことと、
+     * 将来、投稿者の編集以外（管理者の操作など）でも updated_at が変わりうるため
+     */
+    @Column(name = "edited_at")
+    private LocalDateTime editedAt;
 
     protected Post() {
         // JPA 用
@@ -146,13 +155,34 @@ public class Post {
         }
     }
 
-    /** タグを置き換える。同じタグを重複して渡しても1つにまとまる */
+    /**
+     * タグを置き換える。同じタグを重複して渡しても1つにまとまる。
+     * 全件を消して入れ直さず、外したタグだけを消して増えたタグだけを足す
+     * （変わらないタグの post_tags の行を、消して入れ直す SQL を出さないため）
+     */
     public void replaceTags(Collection<Tag> tags) {
         if (tags == null || tags.isEmpty()) {
             throw new IllegalArgumentException("タグを1つ以上設定してください");
         }
-        this.tags.clear();
+        this.tags.retainAll(new HashSet<>(tags));
         this.tags.addAll(tags);
+    }
+
+    /**
+     * 投稿者が文字の情報を編集する（docs/post.md「投稿の編集」）。写真は変えない。
+     * 入力値は API 側で入力チェック済みであること。編集日時（edited_at）と最終更新日時を now にする
+     * （タグだけの変更では @PreUpdate が動かないため、ここで明示的に入れる）
+     */
+    public void edit(String title, FashionCategory fashionCategory, String wornItems, String description,
+            String referenceUrl, Collection<Tag> tags, LocalDateTime now) {
+        this.title = title;
+        this.fashionCategory = fashionCategory;
+        this.wornItems = wornItems;
+        this.description = description;
+        this.referenceUrl = referenceUrl;
+        replaceTags(tags);
+        this.editedAt = now;
+        this.updatedAt = now;
     }
 
     @PrePersist
@@ -216,5 +246,9 @@ public class Post {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public LocalDateTime getEditedAt() {
+        return editedAt;
     }
 }

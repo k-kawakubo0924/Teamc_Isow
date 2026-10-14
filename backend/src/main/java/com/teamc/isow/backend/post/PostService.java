@@ -14,11 +14,14 @@ import com.teamc.isow.backend.tag.Tag;
 import com.teamc.isow.backend.tag.TagService;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,7 +35,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 投稿の作成・取得・削除。
+ * 投稿の作成・取得・編集・削除。
  *
  * <p>作成時、画像の保存（ファイル）は DB のトランザクションに含められないため、次の順に進め、途中で失敗しても中途半端な状態を残さない。
  * <ol>
@@ -189,6 +192,61 @@ public class PostService {
     }
 
     /**
+     * 投稿の文字の情報を編集する（docs/post.md「投稿の編集」）。編集できるのは投稿者本人だけ。写真は変えない。
+     * request はアノテーションによる入力チェック済みであること。
+     *
+     * <p>無効にされたファッションの種類・タグは、この投稿にすでに設定されているものに限り、そのまま保存できる
+     * （プロフィールの編集と同じ。docs/admin.md「無効にしたときの利用者側への影響」）。
+     * 「すでに設定されているか」は、クライアントから送られた値ではなく、DB から読んだ投稿の値で判定する。
+     *
+     * <p>同じ新しいタグが別の投稿で同時に作られると一意制約違反になるため、その場合は1回だけやり直す（作成と同じ）
+     *
+     * @throws PostNotFoundException 投稿が存在しない場合
+     * @throws PostEditForbiddenException 他人の投稿の場合（何も変えない）
+     * @throws InputValidationException 選択肢・タグが条件を満たさない場合（何も変えない）
+     */
+    public PostResponse edit(String subject, Long id, PostEditRequest request) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        try {
+            return transactionTemplate.execute(status -> applyEdit(userId, id, request));
+        } catch (DataIntegrityViolationException e) {
+            log.info("投稿の編集で一意制約違反が発生したため、やり直します: {}", e.getMostSpecificCause().getMessage());
+            return transactionTemplate.execute(status -> applyEdit(userId, id, request));
+        }
+    }
+
+    /** トランザクションの中で呼ぶ。投稿者を確かめてから、入力を確認して書き換える */
+    private PostResponse applyEdit(Long userId, Long id, PostEditRequest request) {
+        Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
+        if (!post.getAuthor().getId().equals(userId)) {
+            throw new PostEditForbiddenException(id);
+        }
+
+        Map<String, String> errors = new LinkedHashMap<>();
+        FashionCategory fashionCategory = findSelectableFashionCategory(request.fashionCategoryId(), post.getFashionCategory());
+        if (fashionCategory == null) {
+            errors.put("fashionCategoryId", FASHION_CATEGORY_MESSAGE);
+        }
+        // この投稿に今付いているタグ（DB の値）。無効になっていても、そのまま残せる
+        Set<String> currentTagKeys = post.getTags().stream().map(Tag::getNormalizedName).collect(Collectors.toSet());
+        List<String> tagNames = List.of();
+        try {
+            tagNames = tagService.validateForPost(request.tags(), currentTagKeys);
+        } catch (InputValidationException e) {
+            errors.putAll(e.getErrors());
+        }
+        if (!errors.isEmpty()) {
+            throw new InputValidationException(errors);
+        }
+
+        List<Tag> tags = tagService.findOrCreateForPost(tagNames, currentTagKeys);
+        post.edit(request.title(), fashionCategory, request.wornItems(), request.description(), request.referenceUrl(),
+                tags, LocalDateTime.now());
+        postRepository.flush();
+        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId);
+    }
+
+    /**
      * 投稿を削除する（docs/post.md「投稿の削除」）。削除できるのは投稿者本人だけ。
      *
      * <p>次の順に進める。写真のファイルは DB のようにロールバックできないため、DB の削除が確定してから消す。
@@ -248,5 +306,16 @@ public class PostService {
     /** 選択肢として出しているもの（有効なもの）だけを受け付ける */
     private Optional<FashionCategory> findActiveFashionCategory(Long id) {
         return fashionCategoryRepository.findById(id).filter(FashionCategory::isActive);
+    }
+
+    /**
+     * 編集で選べるファッションの種類。投稿に設定済みのもの（current。DB の値）は無効になっていてもそのまま使い、
+     * それ以外は有効なものだけを受け付ける。選べなければ null
+     */
+    private FashionCategory findSelectableFashionCategory(Long id, FashionCategory current) {
+        if (current.getId().equals(id)) {
+            return current;
+        }
+        return findActiveFashionCategory(id).orElse(null);
     }
 }

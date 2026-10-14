@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -65,6 +67,16 @@ public class PostController {
     @GetMapping("/{id:\\d+}")
     public PostResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         return postService.get(jwt.getSubject(), id);
+    }
+
+    /**
+     * 投稿の文字の情報を編集する（JSON。写真は変えない）。自分の投稿だけ（他人の投稿は 403）。
+     * id は数字のみ（それ以外は URL が一致せず 404）
+     */
+    @PutMapping(value = "/{id:\\d+}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public PostResponse edit(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id,
+            @Valid @RequestBody PostEditRequest request) {
+        return postService.edit(jwt.getSubject(), id, request);
     }
 
     /** 投稿を削除する。自分の投稿だけ（他人の投稿は 403）。id は数字のみ（それ以外は URL が一致せず 404） */

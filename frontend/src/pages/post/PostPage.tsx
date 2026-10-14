@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/client'
 import { fetchMasters, type MastersResponse } from '../../api/masters'
-import { createPost } from '../../api/posts'
+import { createPost, updatePost, type PostResponse } from '../../api/posts'
 import { useAuth } from '../../auth/authContext'
 import {
   INVALID_INPUT_MESSAGE,
@@ -21,6 +21,7 @@ import { ErrorBanner } from '../ErrorBanner'
 import { ImagePicker, type SelectedImage } from './ImagePicker'
 import { PanelHeader } from './PanelHeader'
 import { PostConfirm } from './PostConfirm'
+import { PostPhotoViewer } from './PostPhotoViewer'
 import { TagPanel } from './TagPanel'
 import '../auth.css'
 import './post.css'
@@ -45,12 +46,33 @@ type MastersState =
   | { phase: 'ready'; masters: MastersResponse }
   | { phase: 'error'; message: string }
 
+/** ファッションの種類の選択肢。unavailable は、編集する投稿に設定済みだが今は選択肢にない（無効にされた）もの */
+type FashionOption = { id: number; name: string; unavailable?: boolean }
+
+/** 編集する投稿の今の内容を、入力欄の初期値にする */
+function formFromPost(post: PostResponse): PostForm {
+  return {
+    title: post.title,
+    fashionCategoryId: post.fashionCategory.id,
+    tags: post.tags.map((tag) => tag.name),
+    wornItems: post.wornItems ?? '',
+    description: post.description,
+    referenceUrl: post.referenceUrl ?? '',
+  }
+}
+
 /**
  * 投稿作成（docs/post.md、design/Post Creation Screen.png・Check post content.png）。
  * 入力・確認の各画面と、選択・入力のパネルは、URL を分けず同じページ内で切り替える
  * （移動で入力途中の写真や文字が消えないようにするため）。下書き保存はまだ作っていない。
+ *
+ * editing を渡すと投稿の編集（docs/post.md「投稿の編集」）になる。流れと部品は作成と同じで、違いは次のとおり。
+ * - 入力欄の初期値は投稿の今の内容。写真は表示するだけで変えられない（文字の情報だけを送る）
+ * - 設定済みのファッションの種類が無効にされていても、選択肢に「現在は選べません」と添えて出し、そのまま保存できる
+ *   （タグは名前で送り、設定済みの無効なタグを残せるかはサーバーが DB の値で判定する）
+ * - 保存したら、その投稿の詳細画面へ移る
  */
-function PostPage() {
+function PostPage({ editing }: { editing?: PostResponse } = {}) {
   const navigate = useNavigate()
   const location = useLocation()
   const { token } = useAuth()
@@ -59,7 +81,7 @@ function PostPage() {
 
   const [masters, setMasters] = useState<MastersState>({ phase: 'loading' })
   const [images, setImages] = useState<SelectedImage[]>([])
-  const [form, setForm] = useState<PostForm>(EMPTY_FORM)
+  const [form, setForm] = useState<PostForm>(() => (editing ? formFromPost(editing) : EMPTY_FORM))
   const [panel, setPanel] = useState<Panel | null>(null)
   const [fieldErrors, setFieldErrors] = useState<PostFieldErrors>({})
   const [bannerMessage, setBannerMessage] = useState<string | null>(null)
@@ -168,7 +190,8 @@ function PostPage() {
   /** 入力画面の「確認」。入力チェックを通ったら確認画面へ進む */
   const handleConfirm = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const errors = validatePost(form, images.length)
+    // 編集では写真を変えないため、投稿の写真の枚数で確かめる
+    const errors = validatePost(form, editing ? editing.imageUrls.length : images.length)
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
       setBannerMessage(INVALID_INPUT_MESSAGE)
@@ -195,21 +218,20 @@ function PostPage() {
     if (!token || submitting) return
     setSubmitting(true)
     setBannerMessage(null)
+    const content = {
+      title: form.title.trim(),
+      // validatePost で選択済みを確認している
+      fashionCategoryId: form.fashionCategoryId as number,
+      tags: form.tags,
+      wornItems: form.wornItems.trim(),
+      description: form.description.trim(),
+      referenceUrl: form.referenceUrl.trim(),
+    }
     try {
-      const post = await createPost(
-        {
-          images: images.map((image) => image.file),
-          title: form.title.trim(),
-          // validatePost で選択済みを確認している
-          fashionCategoryId: form.fashionCategoryId as number,
-          tags: form.tags,
-          wornItems: form.wornItems.trim(),
-          description: form.description.trim(),
-          referenceUrl: form.referenceUrl.trim(),
-        },
-        token,
-      )
-      // 投稿した投稿の詳細画面へ移る（docs/post.md「投稿の流れ」）。
+      const post = editing
+        ? await updatePost(editing.id, content, token)
+        : await createPost({ images: images.map((image) => image.file), ...content }, token)
+      // 投稿（編集）した投稿の詳細画面へ移る（docs/post.md「投稿の流れ」「投稿の編集」）。
       // 「戻る」で送信済みの入力画面に戻らないよう、履歴を置き換える
       navigate(`/posts/${post.id}`, { replace: true })
     } catch (err) {
@@ -226,15 +248,17 @@ function PostPage() {
     }
   }
 
-  // 直接 /post を開いた場合は戻る先が無いため、ホームへ移動する
-  const handleBack = () => (location.key === 'default' ? navigate('/') : navigate(-1))
+  // 直接 /post（編集では /posts/{id}/edit）を開いた場合は戻る先が無いため、ホーム（編集では投稿の詳細）へ移動する
+  const handleBack = () =>
+    location.key === 'default' ? navigate(editing ? `/posts/${editing.id}` : '/') : navigate(-1)
+  const pageTitle = editing ? '投稿の編集' : '投稿作成'
 
   // ---- 表示 ----
 
   if (masters.phase !== 'ready') {
     return (
       <main className="post-page">
-        <PageHeader onBack={handleBack} />
+        <PageHeader title={pageTitle} onBack={handleBack} />
         <div className="post-body">
           {masters.phase === 'loading' ? (
             <p className="post-hint">読み込み中...</p>
@@ -251,13 +275,19 @@ function PostPage() {
     )
   }
 
-  const { fashionCategories, tags: officialTags } = masters.masters
+  const { tags: officialTags } = masters.masters
+  // 編集する投稿に設定済みの種類が選択肢にない（無効にされた）場合も、そのまま選べるよう末尾に足す
+  const fashionCategories: FashionOption[] =
+    editing && !masters.masters.fashionCategories.some((c) => c.id === editing.fashionCategory.id)
+      ? [...masters.masters.fashionCategories, { ...editing.fashionCategory, unavailable: true }]
+      : masters.masters.fashionCategories
   const selectedFashion = fashionCategories.find((c) => c.id === form.fashionCategoryId)
 
   if (step === 'confirm') {
     return (
       <PostConfirm
-        images={images}
+        mode={editing ? 'edit' : 'create'}
+        photoUrls={editing ? editing.imageUrls : images.map((image) => image.previewUrl)}
         form={form}
         fashionName={selectedFashion?.name ?? ''}
         bannerMessage={bannerMessage}
@@ -286,7 +316,10 @@ function PostPage() {
                     setPanel(null)
                   }}
                 >
-                  {category.name}
+                  <span>
+                    {category.name}
+                    {category.unavailable && <span className="post-option-note">（現在は選べません）</span>}
+                  </span>
                   {category.id === form.fashionCategoryId && <span aria-hidden="true">✓</span>}
                 </button>
               </li>
@@ -348,18 +381,22 @@ function PostPage() {
 
   return (
     <main className="post-page">
-      <PageHeader onBack={handleBack} />
+      <PageHeader title={pageTitle} onBack={handleBack} />
 
       <form className="post-body" noValidate onSubmit={handleConfirm}>
         {bannerMessage && <ErrorBanner message={bannerMessage} />}
 
-        <ImagePicker
-          images={images}
-          error={fieldErrors.images}
-          onAdd={handleAddImages}
-          onRemove={handleRemoveImage}
-          onMove={handleMoveImage}
-        />
+        {editing ? (
+          <EditPhotos urls={editing.imageUrls} />
+        ) : (
+          <ImagePicker
+            images={images}
+            error={fieldErrors.images}
+            onAdd={handleAddImages}
+            onRemove={handleRemoveImage}
+            onMove={handleMoveImage}
+          />
+        )}
 
         <section className="post-section">
           <label htmlFor={titleId} className="post-label">
@@ -438,14 +475,30 @@ function PostPage() {
   )
 }
 
-function PageHeader({ onBack }: { onBack: () => void }) {
+function PageHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <header className="post-header">
       <button type="button" className="post-header-back" aria-label="前の画面に戻る" onClick={onBack}>
         ‹
       </button>
-      <h1 className="post-title">投稿作成</h1>
+      <h1 className="post-title">{title}</h1>
     </header>
+  )
+}
+
+/**
+ * 編集画面の写真。表示するだけで変えられない（docs/post.md「投稿の編集」）。
+ * 写り込みなどを直したい人のために、削除して投稿し直す方法と、そのときいいねが失われることを書いておく
+ */
+function EditPhotos({ urls }: { urls: string[] }) {
+  return (
+    <section className="post-section">
+      <p className="post-label">写真</p>
+      <PostPhotoViewer urls={urls} />
+      <p className="post-hint post-edit-photo-note">
+        写真は変更できません。写真を変えたいときは、この投稿を削除して投稿し直してください（いいねは引き継がれません）。
+      </p>
+    </section>
   )
 }
 
