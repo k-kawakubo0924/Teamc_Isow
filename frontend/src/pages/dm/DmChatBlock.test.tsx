@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ConversationDetail } from '../../api/conversations'
+import type { ConversationDetail, Message } from '../../api/conversations'
 import DmChatPage from './DmChatPage'
 
 /*
@@ -11,11 +11,12 @@ import DmChatPage from './DmChatPage'
 
 const poll = vi.fn<() => Promise<void>>()
 let detail: ConversationDetail
+let messages: Message[] = []
 vi.mock('./useChat', () => ({
   useChat: () => ({
     detail,
     setDetail: vi.fn(),
-    messages: [],
+    messages,
     append: vi.fn(),
     hasOlder: false,
     loadingOlder: false,
@@ -27,6 +28,10 @@ vi.mock('./useChat', () => ({
 const blockUser = vi.fn<(id: number) => Promise<void>>()
 vi.mock('../../api/blocks', () => ({ blockUser: (id: number) => blockUser(id) }))
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
+vi.mock('../../api/reports', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/reports')>()),
+  reportTarget: vi.fn(),
+}))
 
 function conversation(status: ConversationDetail['status']): ConversationDetail {
   return {
@@ -42,6 +47,9 @@ function conversation(status: ConversationDetail['status']): ConversationDetail 
 
 beforeEach(() => {
   poll.mockResolvedValue(undefined)
+  messages = []
+  // jsdom にはスクロールの位置がないため、一番下までのスクロールは何もしない
+  Element.prototype.scrollTo = () => {}
 })
 
 afterEach(() => {
@@ -94,5 +102,31 @@ describe('チャット画面のメニュー', () => {
     await vi.waitFor(() => expect(poll).toHaveBeenCalled())
     expect(blockUser).toHaveBeenCalledWith(2)
     expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+})
+
+describe('メッセージの通報', () => {
+  function message(id: number, mine: boolean, body: string): Message {
+    return { id, senderId: mine ? 1 : 2, mine, body, imageUrl: null, sentAt: '2026-10-10T12:00:00', readAt: null }
+  }
+
+  it('相手のメッセージを押すと「通報」が出て、そのメッセージを対象にした通報の入力を出す', () => {
+    messages = [message(30, false, '相手のメッセージ'), message(31, true, '自分のメッセージ')]
+    renderChat('ACTIVE')
+
+    fireEvent.click(screen.getByText('相手のメッセージ'))
+    fireEvent.click(screen.getByRole('button', { name: 'このメッセージを通報' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'メッセージを通報' })
+    expect(within(dialog).getByLabelText('嫌がらせ・誹謗中傷')).toBeTruthy()
+  })
+
+  it('自分のメッセージは押しても「通報」を出さない', () => {
+    messages = [message(31, true, '自分のメッセージ')]
+    renderChat('ACTIVE')
+
+    fireEvent.click(screen.getByText('自分のメッセージ'))
+
+    expect(screen.queryByRole('button', { name: 'このメッセージを通報' })).toBeNull()
   })
 })

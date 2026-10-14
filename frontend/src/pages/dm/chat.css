@@ -388,3 +388,30 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* 相手のメッセージを押して通報する（docs/admin.md「通報」）。押せることが分かるよう、見た目は吹き出しのまま */
+.chat-bubble-select {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-report-button {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-error);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 11px;
+  color: var(--color-error);
+  cursor: pointer;
+}

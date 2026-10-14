@@ -19,6 +19,12 @@ public interface ImageStorage {
     String store(String fileName, byte[] content, String contentType);
 
     /**
+     * store() が返した URL の画像の中身を読む（通報の証拠として複製するため。docs/admin.md「通報」）。
+     * この保存先の URL でなければ IllegalArgumentException、読めなければ UncheckedIOException
+     */
+    byte[] read(String url);
+
+    /**
      * store() が返した URL の画像を削除する。存在しない場合は何もしない。
      * 投稿の登録が途中で失敗したときに、保存済みの画像を残さないために使う。
      */

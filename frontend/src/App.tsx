@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RouteGuards'
 import { TabLayout } from './components/BottomNav'
 import AdminAnnouncementsPage from './pages/admin/AdminAnnouncementsPage'
+import AdminReportDetailPage from './pages/admin/AdminReportDetailPage'
+import AdminReportsPage from './pages/admin/AdminReportsPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminMastersPage from './pages/admin/AdminMastersPage'
 import AdminOperationLogsPage from './pages/admin/AdminOperationLogsPage'
@@ -71,6 +73,8 @@ function App() {
           <Route index element={<Navigate to="/admin/masters" replace />} />
           <Route path="masters" element={<AdminMastersPage />} />
           <Route path="announcements" element={<AdminAnnouncementsPage />} />
+          <Route path="reports" element={<AdminReportsPage />} />
+          <Route path="reports/:caseId" element={<AdminReportDetailPage />} />
           <Route path="operation-logs" element={<AdminOperationLogsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>

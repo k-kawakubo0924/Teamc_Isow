@@ -626,3 +626,187 @@
   color: var(--color-error);
   font-size: 14px;
 }
+
+/* 通報（AdminReportsPage.tsx・AdminReportDetailPage.tsx。docs/admin.md「通報」） */
+
+.admin-reports-filters {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-reports-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.admin-reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-reports-table th,
+.admin-reports-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-reports-link {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.admin-reports-empty {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.admin-reports-error {
+  color: var(--color-error);
+  font-size: 14px;
+}
+
+.admin-reports-more {
+  margin-top: 16px;
+  padding: 8px 20px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.admin-report-back {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+/* 措置の機能がまだないことの注意。目立つように枠で囲む */
+.admin-report-notice {
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  background: #fbeeec;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.admin-report-section {
+  margin-bottom: 24px;
+}
+
+.admin-report-heading {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.admin-report-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.admin-report-status {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.admin-report-meta {
+  margin: 0 0 4px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.admin-report-over {
+  color: var(--color-error);
+}
+
+/* 証拠・通報した人の書いた内容は文字のまま出し、改行をそのまま表示する */
+.admin-report-body {
+  margin: 4px 0;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.admin-report-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.admin-report-evidence-image {
+  max-width: 240px;
+  max-height: 240px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.admin-report-messages,
+.admin-report-reports {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-report-message,
+.admin-report-report {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+/* 11件のうち、通報されたメッセージを目立たせる */
+.admin-report-message-reported {
+  border: 2px solid var(--color-error);
+  background: #fbeeec;
+}
+
+.admin-report-message-label {
+  margin: 0 0 4px;
+  color: var(--color-error);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-report-memo {
+  width: 100%;
+  max-width: 640px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.admin-report-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.admin-report-button {
+  padding: 8px 20px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.admin-report-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

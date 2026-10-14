@@ -10,6 +10,7 @@ import './admin.css'
 const MENU = [
   { label: 'マスタ管理', to: '/admin/masters' },
   { label: 'お知らせ', to: '/admin/announcements' },
+  { label: '通報', to: '/admin/reports' },
   { label: '操作ログ', to: '/admin/operation-logs' },
 ] as const
 

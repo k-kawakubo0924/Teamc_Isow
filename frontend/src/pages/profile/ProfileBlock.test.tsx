@@ -39,6 +39,10 @@ vi.mock('../../api/consultations', () => ({
   fetchConsultationStatus: async () => ({ available: true, reason: null, availableAt: null, conversationId: null }),
 }))
 vi.mock('../../api/follows', () => ({ setFollow: vi.fn() }))
+vi.mock('../../api/reports', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/reports')>()),
+  reportTarget: vi.fn(),
+}))
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
 
 function profile(overrides: Partial<ProfileResponse> = {}): ProfileResponse {
@@ -97,14 +101,26 @@ function openBlockConfirm() {
 }
 
 describe('相手のプロフィールの⋮', () => {
-  it('⋮のメニューには「ブロック」だけを置く（通報・非表示はまだない）', async () => {
+  it('⋮のメニューには「通報」と「ブロック」を置く（非表示は作っていない）', async () => {
     fetchProfile.mockResolvedValue(profile())
     renderOther()
     await screen.findByText('@haru_st')
 
     fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['ブロック'])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['通報', 'ブロック'])
+  })
+
+  it('「通報」で、このユーザーを対象にした通報の入力を出す', async () => {
+    fetchProfile.mockResolvedValue(profile())
+    renderOther()
+    await screen.findByText('@haru_st')
+
+    fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '通報' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'ユーザーを通報' })
+    expect(within(dialog).getByLabelText('なりすまし')).toBeTruthy()
   })
 
   it('「ブロック」を押すと画面の中で確かめ、何が起きるか・相手に通知されないことを書く。まだブロックしない', async () => {

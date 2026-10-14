@@ -1,4 +1,4 @@
-import { getJson, postJson, sendWithToken } from './client'
+import { API_BASE_URL, ApiError, getJson, postJson, sendWithToken } from './client'
 
 /*
  * 管理者向けの API（docs/admin.md）。/api/admin/** はサーバー側で管理者だけに許可している。
@@ -129,4 +129,134 @@ export type AdminOperationLogList = {
 /** 管理操作のログ（新しい順） */
 export function listOperationLogs(page: number, token: string): Promise<AdminOperationLogList> {
   return getJson<AdminOperationLogList>(`/api/admin/operation-logs?page=${page}&size=${ADMIN_PAGE_SIZE}`, token)
+}
+
+// ---- 通報（docs/admin.md「通報」。措置の機能はまだなく、状態を記録するだけ） ----
+
+export type AdminReportStatus = 'OPEN' | 'RESOLVED' | 'DISMISSED'
+export type AdminReportTargetType = 'POST' | 'USER' | 'MESSAGE'
+
+/** 一覧の1行（対象ごと）。DM の本文は含まない */
+export type AdminReportListItem = {
+  caseId: number
+  targetType: AdminReportTargetType
+  targetId: number
+  status: AdminReportStatus
+  /** 投稿の題名・「@ユーザー名」・「@ユーザー名 のメッセージ」。証拠を消した後は null */
+  summary: string | null
+  reportCount: number
+  /** 理由ごとの件数（多い順） */
+  reasons: { reason: string; count: number }[]
+  firstReportedAt: string
+  lastReportedAt: string
+  evidencePurged: boolean
+}
+
+export type AdminReportList = {
+  items: AdminReportListItem[]
+  page: number
+  size: number
+  hasNext: boolean
+}
+
+/** 通報した時点の内容のコピー（バックエンドの EvidenceSnapshot）。対象に応じて1つだけが入る */
+export type AdminReportEvidence = {
+  post: {
+    postId: number
+    authorId: number
+    authorUsername: string
+    title: string
+    fashionCategory: string
+    tags: string[]
+    wornItems: string | null
+    description: string
+    referenceUrl: string | null
+    createdAt: string
+    editedAt: string | null
+  } | null
+  user: { userId: number; username: string; displayName: string } | null
+  /** 通報されたメッセージと前後5件ずつ。reported が通報されたメッセージ */
+  messages:
+    | {
+        messageId: number
+        senderId: number
+        senderUsername: string
+        body: string | null
+        hasImage: boolean
+        sentAt: string
+        reported: boolean
+      }[]
+    | null
+}
+
+export type AdminReportDetail = {
+  caseId: number
+  targetType: AdminReportTargetType
+  targetId: number
+  status: AdminReportStatus
+  reportCount: number
+  firstReportedAt: string
+  lastReportedAt: string
+  closedAt: string | null
+  handledByUsername: string | null
+  adminMemo: string | null
+  evidencePurged: boolean
+  evidencePurgedAt: string | null
+  /** 保存期間を過ぎて消した後は null */
+  evidence: AdminReportEvidence | null
+  /** 証拠の写真（中身は fetchEvidenceImage で取得する）。messageId は DM の画像のとき */
+  evidenceFiles: { id: number; messageId: number | null }[]
+  /** 対象の今の状態（EDITED は通報の後に編集された） */
+  currentState: 'EXISTS' | 'EDITED' | 'DELETED'
+  reports: { reporterId: number; reporterUsername: string; reason: string; comment: string | null; reportedAt: string }[]
+}
+
+export type AdminReportStatusResult = {
+  caseId: number
+  status: AdminReportStatus
+  closedAt: string | null
+  handledByUsername: string | null
+  adminMemo: string | null
+}
+
+/** 通報の一覧（対象ごと、新しく通報された順）。status・targetType が空なら絞らない */
+export function listReports(
+  params: { status: string; targetType: string; page: number },
+  token: string,
+): Promise<AdminReportList> {
+  const query = new URLSearchParams({ page: String(params.page), size: String(ADMIN_PAGE_SIZE) })
+  if (params.status) query.set('status', params.status)
+  if (params.targetType) query.set('targetType', params.targetType)
+  return getJson<AdminReportList>(`/api/admin/reports?${query.toString()}`, token)
+}
+
+/** 通報の詳細。DM の通報では、開いたことが操作ログに記録される */
+export function fetchReport(caseId: number, token: string): Promise<AdminReportDetail> {
+  return getJson<AdminReportDetail>(`/api/admin/reports/${caseId}`, token)
+}
+
+/** 通報の状態を記録する（措置は行わない）。すでにその状態などは ApiError（409） */
+export function changeReportStatus(
+  caseId: number,
+  status: AdminReportStatus,
+  memo: string,
+  token: string,
+): Promise<AdminReportStatusResult> {
+  return postJson<AdminReportStatusResult>(`/api/admin/reports/${caseId}/status`, { status, memo }, token)
+}
+
+/**
+ * 証拠の写真の中身（管理者向けの API から、認証つきで取得する）。
+ * 証拠の写真は /uploads/** では配信しない。<img> のタグからは認証のヘッダーを付けられないため、取得した中身を Blob で返し、
+ * 画面で一時的な URL（URL.createObjectURL）にして表示する
+ */
+export async function fetchEvidenceImage(caseId: number, fileId: number, token: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE_URL}/api/admin/reports/${caseId}/evidence-files/${fileId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) {
+    throw new ApiError(res.status, null, '証拠の写真を読み込めませんでした。')
+  }
+  return res.blob()
 }
