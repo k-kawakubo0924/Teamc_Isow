@@ -2,6 +2,7 @@ package com.teamc.isow.backend.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -174,6 +175,97 @@ class AdminAnnouncementApiTest {
         assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM announcements", Integer.class)).isZero();
     }
 
+    // ---- 取り消し ----
+
+    @Test
+    void 取り消すと行は残したまま取り消した日時と管理者が保存され_ログが残る() throws Exception {
+        Long id = publishedId("誤ったお知らせ", "本文");
+
+        asAdmin(post("/api/admin/announcements/" + id + "/withdraw"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.title").value("誤ったお知らせ"))
+                .andExpect(jsonPath("$.withdrawnAt").isNotEmpty())
+                .andExpect(jsonPath("$.withdrawnById").value(admin.getId()))
+                .andExpect(jsonPath("$.withdrawnByUsername").value("admin_api_admin"));
+
+        Map<String, Object> saved = jdbcTemplate.queryForMap("SELECT * FROM announcements WHERE id = ?", id);
+        assertThat(saved.get("withdrawn_at")).isNotNull();
+        assertThat(((Number) saved.get("withdrawn_by_id")).longValue()).isEqualTo(admin.getId());
+        assertThat(saved.get("withdrawn_by_username")).isEqualTo("admin_api_admin");
+        Map<String, Object> log = jdbcTemplate.queryForMap(
+                "SELECT * FROM admin_operation_logs WHERE action = 'ANNOUNCEMENT_WITHDRAWN'");
+        assertThat(log.get("target_type")).isEqualTo("ANNOUNCEMENT");
+        assertThat(((Number) log.get("target_id")).longValue()).isEqualTo(id);
+        assertThat(((Number) log.get("operator_id")).longValue()).isEqualTo(admin.getId());
+        assertThat((String) log.get("detail")).contains("誤ったお知らせ");
+    }
+
+    @Test
+    void 一覧には取り消したものも出し_取り消していないものは取り消しの欄が空() throws Exception {
+        Long withdrawn = publishedId("取り消す", "本文");
+        publishedId("残す", "本文");
+        asAdmin(post("/api/admin/announcements/" + withdrawn + "/withdraw")).andExpect(status().isOk());
+
+        asAdmin(get("/api/admin/announcements"))
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].title").value("残す"))
+                .andExpect(jsonPath("$.items[0].withdrawnAt").value(nullValue()))
+                .andExpect(jsonPath("$.items[0].withdrawnByUsername").value(nullValue()))
+                .andExpect(jsonPath("$.items[1].id").value(withdrawn))
+                .andExpect(jsonPath("$.items[1].withdrawnAt").isNotEmpty())
+                .andExpect(jsonPath("$.items[1].withdrawnByUsername").value("admin_api_admin"));
+    }
+
+    @Test
+    void 取り消し済みのものをもう一度取り消すと409で_ログは増えない() throws Exception {
+        Long id = publishedId("お知らせ", "本文");
+        asAdmin(post("/api/admin/announcements/" + id + "/withdraw")).andExpect(status().isOk());
+        Object firstWithdrawnAt = jdbcTemplate.queryForObject(
+                "SELECT withdrawn_at FROM announcements WHERE id = ?", Object.class, id);
+
+        asAdmin(post("/api/admin/announcements/" + id + "/withdraw"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("このお知らせはすでに取り消されています。"));
+
+        assertThat(jdbcTemplate.queryForObject("SELECT withdrawn_at FROM announcements WHERE id = ?", Object.class, id))
+                .isEqualTo(firstWithdrawnAt);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM admin_operation_logs WHERE action = 'ANNOUNCEMENT_WITHDRAWN'", Integer.class))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void 存在しないお知らせの取り消しは404() throws Exception {
+        asAdmin(post("/api/admin/announcements/999999999/withdraw")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void ログを残せなければ取り消しも元に戻る() throws Exception {
+        Long id = publishedId("お知らせ", "本文");
+        doThrow(new IllegalStateException("ログの保存に失敗（テスト）")).when(logRepository).save(any());
+
+        assertThatThrownBy(() -> asAdmin(post("/api/admin/announcements/" + id + "/withdraw")))
+                .hasRootCauseMessage("ログの保存に失敗（テスト）");
+
+        assertThat(jdbcTemplate.queryForObject("SELECT withdrawn_at FROM announcements WHERE id = ?", Object.class, id))
+                .isNull();
+    }
+
+    @Test
+    void 一般の利用者の取り消しは404_トークンなしは401() throws Exception {
+        Long id = publishedId("お知らせ", "本文");
+
+        mockMvc.perform(post("/api/admin/announcements/" + id + "/withdraw").header("Authorization", bearer(user)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/admin/announcements/" + id + "/withdraw")).andExpect(status().isUnauthorized());
+
+        assertThat(jdbcTemplate.queryForObject("SELECT withdrawn_at FROM announcements WHERE id = ?", Object.class, id))
+                .isNull();
+    }
+
+    // ---- 権限 ----
+
     @Test
     void 一般の利用者は404_トークンなしは401() throws Exception {
         String content = json("権限", "本文");
@@ -194,6 +286,11 @@ class AdminAnnouncementApiTest {
         return asAdmin(post("/api/admin/announcements")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(title, body)));
+    }
+
+    private Long publishedId(String title, String body) throws Exception {
+        String response = publish(title, body).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        return ((Number) JsonPath.read(response, "$.id")).longValue();
     }
 
     private String json(String title, String body) throws Exception {

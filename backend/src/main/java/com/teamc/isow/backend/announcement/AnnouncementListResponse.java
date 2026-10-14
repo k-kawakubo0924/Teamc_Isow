@@ -14,7 +14,7 @@ import java.util.List;
 public record AnnouncementListResponse(List<Item> announcements, int page, int size, boolean hasNext) {
 
     /**
-     * お知らせの1件。管理者側の情報（発行者）は返さない
+     * お知らせの1件。管理者側の情報（発行者・取り消し）は返さない
      *
      * @param body 本文（文字だけ。改行は \n。画面では HTML として扱わずに表示すること）
      * @param read 既読か（開いたもの、または登録より前に発行されたもの）

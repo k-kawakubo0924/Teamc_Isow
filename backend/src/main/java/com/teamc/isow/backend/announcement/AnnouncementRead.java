@@ -39,7 +39,7 @@ public class AnnouncementRead implements Persistable<AnnouncementReadId> {
     private User user;
 
     /**
-     * 読んだお知らせ。アプリではお知らせの行を消さないが、
+     * 読んだお知らせ。アプリではお知らせの行を消さない（取り消しは非表示にするだけ）が、
      * 手作業でお知らせの行を消すときに既読の記録が邪魔をしないよう、DB が自動で削除する（ON DELETE CASCADE）
      */
     @MapsId("announcementId")

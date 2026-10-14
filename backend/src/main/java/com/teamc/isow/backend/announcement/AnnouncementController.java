@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 利用者側のお知らせ（docs/notification.md「お知らせ」）。通知一覧の「お知らせ」タブで使う。
  * ログイン後の画面でのみ使うため認証が必要（SecurityConfig の anyRequest）。
- * 発行は管理者向けの API（/api/admin/announcements）で行う
+ * 発行・取り消しは管理者向けの API（/api/admin/announcements）で行う
  */
 @RestController
 @RequestMapping("/api/announcements")
@@ -26,7 +26,7 @@ public class AnnouncementController {
         this.announcementQueryService = announcementQueryService;
     }
 
-    /** お知らせの一覧（発行日時の新しい順）。本文も含む */
+    /** 取り消していないお知らせの一覧（発行日時の新しい順）。本文も含む */
     @GetMapping
     public AnnouncementListResponse list(
             @AuthenticationPrincipal Jwt jwt,

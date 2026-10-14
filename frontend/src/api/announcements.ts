@@ -18,7 +18,7 @@ export type Announcement = {
 
 /** お知らせの一覧（1ページ分。バックエンドの AnnouncementListResponse） */
 export type AnnouncementListResponse = {
-  /** 発行日時の新しい順 */
+  /** 発行日時の新しい順。取り消したものは含まない */
   announcements: Announcement[]
   page: number
   size: number

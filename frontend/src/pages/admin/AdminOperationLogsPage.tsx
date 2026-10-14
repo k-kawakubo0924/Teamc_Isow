@@ -11,6 +11,7 @@ const ACTION_LABELS: Record<string, string> = {
   MASTER_DEACTIVATED: '無効にした',
   MASTER_ACTIVATED: '有効に戻した',
   ANNOUNCEMENT_PUBLISHED: 'お知らせの発行',
+  ANNOUNCEMENT_WITHDRAWN: 'お知らせの取り消し',
 }
 
 /** 対象の種類（バックエンドの AdminTargetType）の表示名 */

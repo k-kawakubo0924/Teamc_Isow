@@ -16,7 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * 利用者側のお知らせ（docs/notification.md「お知らせ」）。一覧・既読にする・未読件数。
  *
  * <ul>
- *   <li>存在しないお知らせを既読にしようとしたら 404</li>
+ *   <li>取り消したお知らせは、一覧にも未読件数にも出さない。既読にしようとしても、存在しないものと同じ 404</li>
  *   <li>登録より前に発行されたお知らせは一覧に出すが、既読として扱い、未読件数に数えない
  *       （登録した直後にバッジが溜まった状態にならないように）</li>
  *   <li>一覧・未読件数とも、件数に関係なく決まった本数の SQL で取得する</li>
@@ -62,7 +62,7 @@ public class AnnouncementQueryService {
         AnnouncementReadId id = new AnnouncementReadId(user.getId(), announcementId);
         try {
             transactionTemplate.executeWithoutResult(status -> {
-                if (!announcementRepository.existsById(announcementId)) {
+                if (!announcementRepository.existsByIdAndWithdrawnAtIsNull(announcementId)) {
                     throw new AnnouncementNotFoundException(announcementId);
                 }
                 if (!announcementReadRepository.existsById(id)) {

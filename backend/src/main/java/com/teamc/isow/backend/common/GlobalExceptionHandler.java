@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.common;
 
+import com.teamc.isow.backend.admin.AnnouncementAlreadyWithdrawnException;
 import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
@@ -88,11 +89,18 @@ public class GlobalExceptionHandler {
         return new ApiErrorResponse("通知が見つかりません。", Map.of());
     }
 
-    /** お知らせが存在しない */
+    /** お知らせが存在しない、または取り消されている（利用者からは、どちらも同じ応答にする） */
     @ExceptionHandler(AnnouncementNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiErrorResponse handleAnnouncementNotFound(AnnouncementNotFoundException e) {
         return new ApiErrorResponse("お知らせが見つかりません。", Map.of());
+    }
+
+    /** 管理画面で、すでに取り消したお知らせを取り消そうとした（ほかの管理者が先に取り消した場合など） */
+    @ExceptionHandler(AnnouncementAlreadyWithdrawnException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleAnnouncementAlreadyWithdrawn(AnnouncementAlreadyWithdrawnException e) {
+        return new ApiErrorResponse("このお知らせはすでに取り消されています。", Map.of());
     }
 
     @ExceptionHandler(SelfFollowException.class)

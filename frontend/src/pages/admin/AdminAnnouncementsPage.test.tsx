@@ -17,6 +17,9 @@ type Announcement = {
   publishedAt: string
   publisherId: number
   publisherUsername: string
+  withdrawnAt?: string | null
+  withdrawnById?: number | null
+  withdrawnByUsername?: string | null
 }
 
 /** サーバーにあるお知らせ（新しい順） */
@@ -39,6 +42,14 @@ async function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
     const hold = holdNext
     holdNext = null
     await hold
+  }
+  const withdraw = url.pathname.match(/^\/api\/admin\/announcements\/(\d+)\/withdraw$/)
+  if (method === 'POST' && withdraw) {
+    const target = stored.find((a) => a.id === Number(withdraw[1]))
+    if (!target) return json(404, null)
+    if (target.withdrawnAt) return json(409, { message: 'このお知らせはすでに取り消されています。', errors: {} })
+    Object.assign(target, { withdrawnAt: '2026-10-12T10:00:00', withdrawnById: 1, withdrawnByUsername: 'admin' })
+    return json(200, target)
   }
   if (url.pathname !== '/api/admin/announcements') return json(404, null)
   if (method === 'GET') {
@@ -175,7 +186,7 @@ describe('発行済みの一覧', () => {
 })
 
 describe('発行', () => {
-  it('発行する前に画面の中で確かめ、利用者側の表示ができたら取り消せないことを書く', async () => {
+  it('発行する前に画面の中で確かめ、すぐに全員に表示されること・訂正はできず取り消して発行し直すことを書く', async () => {
     renderPage()
     await screen.findByText('メンテナンスのお知らせ')
     fill('新機能のお知らせ', '検索ができるようになりました。')
@@ -188,8 +199,9 @@ describe('発行', () => {
     const dialog = screen.getByRole('alertdialog')
     expect(dialog.textContent).toContain('新機能のお知らせ')
     expect(dialog.textContent).toContain('検索ができるようになりました。')
-    expect(dialog.textContent).toContain('訂正・取り消しはできません')
-    expect(dialog.textContent).toContain('利用者側の表示ができたあとは')
+    expect(dialog.textContent).toContain('訂正はできません')
+    expect(dialog.textContent).toContain('すぐにすべての利用者に表示されます')
+    expect(dialog.textContent).toContain('取り消して')
   })
 
   it('確認で発行すると、その場で一覧の先頭に出て、入力欄は空に戻る', async () => {
@@ -299,5 +311,80 @@ describe('発行', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
     expect(items()).toHaveLength(2)
     expect((screen.getByRole('textbox', { name: '本文' }) as HTMLTextAreaElement).value).toBe('本文')
+  })
+})
+
+describe('取り消し', () => {
+  function withdrawButton(item: HTMLElement) {
+    return within(item).getByRole('button', { name: '取り消す' })
+  }
+
+  it('取り消す前に画面の中で確かめ、最初は「やめる」を選んだ状態にする', async () => {
+    renderPage()
+    await screen.findByText('メンテナンスのお知らせ')
+
+    fireEvent.click(withdrawButton(items()[0]))
+
+    expect(posts()).toHaveLength(0)
+    expect(window.confirm).not.toHaveBeenCalled()
+    const dialog = screen.getByRole('alertdialog')
+    expect(dialog.textContent).toContain('メンテナンスのお知らせ')
+    expect(dialog.textContent).toContain('利用者の画面から消えます')
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'やめる' }))
+  })
+
+  it('「やめる」を押すと、送らずに確認を閉じる', async () => {
+    renderPage()
+    await screen.findByText('メンテナンスのお知らせ')
+
+    fireEvent.click(withdrawButton(items()[0]))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'やめる' }))
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(posts()).toHaveLength(0)
+  })
+
+  it('確認で取り消すと、その場で「取り消し済み」と取り消した日時・管理者を出し、取り消すボタンを消す', async () => {
+    renderPage()
+    await screen.findByText('メンテナンスのお知らせ')
+
+    fireEvent.click(withdrawButton(items()[0]))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '取り消す' }))
+
+    expect(await screen.findByText('お知らせを取り消しました')).toBeTruthy()
+    const item = items()[0]
+    expect(item.textContent).toContain('取り消し済み')
+    expect(item.textContent).toContain('2026/10/12 10:00')
+    expect(item.textContent).toContain('取り消し：admin')
+    expect(item.classList).toContain('admin-announcements-item-withdrawn')
+    expect(within(item).queryByRole('button', { name: '取り消す' })).toBeNull()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(posts()).toEqual([{ method: 'POST', path: '/api/admin/announcements/2/withdraw', query: '', body: undefined }])
+    // 取り消していない方はそのまま
+    expect(withdrawButton(items()[1])).toBeTruthy()
+  })
+
+  it('取り消し済みのものは、読み込んだときから「取り消し済み」と出し、取り消すボタンを出さない', async () => {
+    Object.assign(stored[1], { withdrawnAt: '2026-10-05T08:00:00', withdrawnById: 1, withdrawnByUsername: 'old_admin' })
+    renderPage()
+    await screen.findByText('サービス開始')
+
+    const item = items()[1]
+    expect(item.textContent).toContain('取り消し済み')
+    expect(item.textContent).toContain('2026/10/05 08:00')
+    expect(item.textContent).toContain('取り消し：old_admin')
+    expect(within(item).queryByRole('button', { name: '取り消す' })).toBeNull()
+  })
+
+  it('ほかの管理者が先に取り消していたときは、サーバーの理由を出す', async () => {
+    renderPage()
+    await screen.findByText('メンテナンスのお知らせ')
+    Object.assign(stored[0], { withdrawnAt: '2026-10-12T09:00:00', withdrawnById: 2, withdrawnByUsername: 'other' })
+
+    fireEvent.click(withdrawButton(items()[0]))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '取り消す' }))
+
+    expect(await screen.findByText('このお知らせはすでに取り消されています。')).toBeTruthy()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 })

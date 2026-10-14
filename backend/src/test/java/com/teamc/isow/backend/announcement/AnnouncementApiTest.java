@@ -105,6 +105,22 @@ class AnnouncementApiTest {
                 .andExpect(jsonPath("$.hasNext").value(false));
     }
 
+    @Test
+    void 取り消したお知らせは一覧にも未読件数にも出さない() throws Exception {
+        Long shown = insert("残る", "本文", registeredAt.plusMinutes(1));
+        Long withdrawn = insert("取り消す", "本文", registeredAt.plusMinutes(2));
+        jdbcTemplate.update("UPDATE announcements SET withdrawn_at = ?, withdrawn_by_id = ?, withdrawn_by_username = ? "
+                + "WHERE id = ?", Timestamp.valueOf(LocalDateTime.now()), other.getId(), "ann_api_other", withdrawn);
+
+        getWithToken("/api/announcements")
+                .andExpect(jsonPath("$.announcements[*].id", contains(shown.intValue())));
+        getWithToken("/api/notifications/summary").andExpect(jsonPath("$.unreadAnnouncementCount").value(1));
+        // 取り消したお知らせは既読にもできない（存在しないものと同じ 404）
+        postWithToken("/api/announcements/" + withdrawn + "/read")
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("お知らせが見つかりません。"));
+    }
+
     // ---- 既読 ----
 
     @Test

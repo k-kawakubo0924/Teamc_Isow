@@ -498,6 +498,36 @@
   align-self: center;
 }
 
+/* 取り消し（利用者側に出さなくする）。危ない操作のため赤い枠にする */
+.admin-announcements-withdraw {
+  margin-bottom: 10px;
+  padding: 4px 14px;
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-error);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.admin-announcements-withdraw:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 取り消し済みのお知らせは薄く出す（行は残る） */
+.admin-announcements-item-withdrawn {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.admin-announcements-withdrawn {
+  margin: 0 0 10px;
+  color: var(--color-error);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 /* 操作ログ（AdminOperationLogsPage.tsx） */
 
 .admin-logs-table {

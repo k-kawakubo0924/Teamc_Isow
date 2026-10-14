@@ -42,7 +42,7 @@ export function fetchNotifications(page: number, token: string, signal?: AbortSi
 export type NotificationSummary = {
   /** 未読の通知（「いいね・フォロー」タブ）。メッセージの通知は含まない（DM のバッジで数えるため） */
   unreadCount: number
-  /** 未読のお知らせ（「お知らせ」タブ）。登録より前に発行されたものは含まない */
+  /** 未読のお知らせ（「お知らせ」タブ）。取り消したもの・登録より前に発行されたものは含まない */
   unreadAnnouncementCount: number
 }
 
