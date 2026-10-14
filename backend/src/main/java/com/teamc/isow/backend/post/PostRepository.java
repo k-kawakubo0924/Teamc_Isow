@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.post;
 
+import com.teamc.isow.backend.block.BlockConditions;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -19,22 +20,24 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Slice<Post> findByAuthorIdOrderByCreatedAtDescIdDesc(Long authorId, Pageable pageable);
 
     // ---- ホームの投稿一覧（TimelineService）。ID だけを並び順どおりに取り、中身は別の SQL でまとめて読む ----
+    // 一覧は、見ている人（viewerId）とブロックの間柄にある人の投稿を除く（BlockConditions。docs/profile.md「ブロック」）
 
     /** 新着：投稿日時の新しい順（同じなら ID の大きい順） */
-    @Query("SELECT p.id FROM Post p ORDER BY p.createdAt DESC, p.id DESC")
-    Slice<Long> findLatestIds(Pageable pageable);
+    @Query("SELECT p.id FROM Post p WHERE" + BlockConditions.POST_AUTHOR_VISIBLE + "ORDER BY p.createdAt DESC, p.id DESC")
+    Slice<Long> findLatestIds(@Param("viewerId") Long viewerId, Pageable pageable);
 
     /**
-     * フォロー中：userId のユーザーが（有効に）フォローしている人の投稿を、新しい順（同じなら ID の大きい順）。
+     * フォロー中：viewerId のユーザーが（有効に）フォローしている人の投稿を、新しい順（同じなら ID の大きい順）。
      * 解除から5分以内のフォローは含めない（解除済みのため）
      */
     @Query("""
             SELECT p.id FROM Post p
             WHERE p.author.id IN (
-                SELECT f.followee.id FROM Follow f WHERE f.follower.id = :userId AND f.active = true)
+                SELECT f.followee.id FROM Follow f WHERE f.follower.id = :viewerId AND f.active = true)
+              AND""" + BlockConditions.POST_AUTHOR_VISIBLE + """
             ORDER BY p.createdAt DESC, p.id DESC
             """)
-    Slice<Long> findFollowingIds(@Param("userId") Long userId, Pageable pageable);
+    Slice<Long> findFollowingIds(@Param("viewerId") Long viewerId, Pageable pageable);
 
     /** プロフィールの投稿一覧：指定したユーザーの投稿を新しい順（同じなら ID の大きい順） */
     @Query("SELECT p.id FROM Post p WHERE p.author.id = :authorId ORDER BY p.createdAt DESC, p.id DESC")
@@ -49,16 +52,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
      * <p>ページごとに並べ直すと、次のページで同じ投稿が出たり、出ない投稿ができたりするため、
      * 画面を開いたときに決めた seed で並び順を固定する（ID × seed を素数で割った余りの順。seed ごとに並び順が変わる）。
      * PostgreSQL と H2（テスト）の両方で動くよう、DB 固有の乱数関数は使わない。
-     * seed は 1 以上 {@link #SHUFFLE_MODULUS} 未満であること
+     * seed は 1 以上 {@link #SHUFFLE_MODULUS} 未満であること。見ている人（viewerId）とブロックの間柄にある人の投稿は除く
      */
     @Query("""
             SELECT p.id FROM Post p
             WHERE p.author.id IN (
                 SELECT f.followee.id FROM Follow f WHERE f.follower.id = :userId AND f.active = true)
+              AND""" + BlockConditions.POST_AUTHOR_VISIBLE + """
             ORDER BY MOD(p.id * :seed, 2147483647), p.id
             """)
-    Slice<Long> findIdsByFollowedAuthorsShuffled(
-            @Param("userId") Long userId, @Param("seed") long seed, Pageable pageable);
+    Slice<Long> findIdsByFollowedAuthorsShuffled(@Param("userId") Long userId, @Param("viewerId") Long viewerId,
+            @Param("seed") long seed, Pageable pageable);
 
     /** findIdsByFollowedAuthorsShuffled で割る素数（2^31 - 1。クエリの中の値と同じ） */
     long SHUFFLE_MODULUS = 2_147_483_647L;
@@ -70,10 +74,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
             SELECT p.id FROM Post p
             LEFT JOIN PostLike l ON l.post = p
+            WHERE""" + BlockConditions.POST_AUTHOR_VISIBLE + """
             GROUP BY p.id, p.createdAt
             ORDER BY COUNT(l) DESC, p.createdAt DESC, p.id DESC
             """)
-    Slice<Long> findRecommendedIds(Pageable pageable);
+    Slice<Long> findRecommendedIds(@Param("viewerId") Long viewerId, Pageable pageable);
 
     /**
      * 投稿の検索（docs/search.md。SearchService）：条件をすべて満たす投稿を、いいね数の多い順 → 新しい順 → ID の大きい順。
@@ -81,11 +86,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
      *
      * @param pattern 題名・投稿説明・タグ名の部分一致（小文字にした LIKE のパターン。SearchPatterns.contains で作る）
      * @param ageGroup 投稿者の年代（AgeGroup の定数名）
+     * @param viewerId 検索する人。この人とブロックの間柄にある人の投稿は除く（件数も同じ）
      */
     @Query(value = """
             SELECT p.id FROM Post p
             LEFT JOIN PostLike l ON l.post = p
-            WHERE (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
+            WHERE""" + BlockConditions.POST_AUTHOR_VISIBLE + """
+              AND (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
               AND (:ageGroup IS NULL OR p.author.ageGroup = :ageGroup)
               AND (:pattern IS NULL
                    OR LOWER(p.title) LIKE :pattern ESCAPE '\\'
@@ -96,14 +103,15 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             """,
             countQuery = """
             SELECT COUNT(p) FROM Post p
-            WHERE (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
+            WHERE""" + BlockConditions.POST_AUTHOR_VISIBLE + """
+              AND (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
               AND (:ageGroup IS NULL OR p.author.ageGroup = :ageGroup)
               AND (:pattern IS NULL
                    OR LOWER(p.title) LIKE :pattern ESCAPE '\\'
                    OR LOWER(p.description) LIKE :pattern ESCAPE '\\'
                    OR EXISTS (SELECT t.id FROM p.tags t WHERE t.normalizedName LIKE :pattern ESCAPE '\\'))
             """)
-    Page<Long> searchIds(@Param("pattern") String pattern, @Param("categoryId") Long categoryId,
+    Page<Long> searchIds(@Param("viewerId") Long viewerId, @Param("pattern") String pattern, @Param("categoryId") Long categoryId,
             @Param("ageGroup") String ageGroup, Pageable pageable);
 
     /**

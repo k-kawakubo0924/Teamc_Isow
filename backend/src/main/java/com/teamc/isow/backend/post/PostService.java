@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.post;
 
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.block.UserVisibility;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
 import com.teamc.isow.backend.common.InputValidationException;
 import com.teamc.isow.backend.image.ImageUploadService;
@@ -61,6 +62,7 @@ public class PostService {
     private final ImageUploadService imageUploadService;
     private final AuthService authService;
     private final ReactionSummaryService reactionSummaryService;
+    private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
 
     public PostService(
@@ -71,6 +73,7 @@ public class PostService {
             ImageUploadService imageUploadService,
             AuthService authService,
             ReactionSummaryService reactionSummaryService,
+            UserVisibility userVisibility,
             PlatformTransactionManager transactionManager) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
@@ -79,6 +82,7 @@ public class PostService {
         this.imageUploadService = imageUploadService;
         this.authService = authService;
         this.reactionSummaryService = reactionSummaryService;
+        this.userVisibility = userVisibility;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -179,8 +183,8 @@ public class PostService {
      * 投稿1件の詳細（docs/post.md「投稿の詳細画面」）。ログインしていれば誰の投稿でも取得できる
      * （公開範囲は docs/post.md で未確定のため全体公開として扱う）。
      *
-     * <p>写真の枚数・タグの数に関係なく、決まった本数（7本）の SQL で取得する：ログイン確認1、
-     * 投稿・投稿者・ファッションの種類1、写真1、タグ1、いいね・お気に入り3
+     * <p>写真の枚数・タグの数に関係なく、決まった本数（8本）の SQL で取得する：ログイン確認1、
+     * 投稿・投稿者・ファッションの種類1、ブロックの確認1、写真1、タグ1、いいね・お気に入り3
      *
      * @throws PostNotFoundException 投稿が存在しない場合
      */
@@ -188,6 +192,8 @@ public class PostService {
     public PostResponse get(String subject, Long id) {
         Long userId = authService.requireCurrentUser(subject).getId();
         Post post = postRepository.findDetailById(id).orElseThrow(() -> new PostNotFoundException(id));
+        // 投稿者とブロックの間柄にある投稿は、存在しない投稿と同じ 404（docs/profile.md「ブロック」）
+        userVisibility.requireVisiblePost(userId, id, post.getAuthor().getId());
         return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId);
     }
 
@@ -202,6 +208,7 @@ public class PostService {
      * <p>同じ新しいタグが別の投稿で同時に作られると一意制約違反になるため、その場合は1回だけやり直す（作成と同じ）
      *
      * @throws PostNotFoundException 投稿が存在しない場合
+     * @throws PostNotFoundException ブロックの間柄にある人の投稿の場合（存在しない投稿と同じ。何も変えない）
      * @throws PostEditForbiddenException 他人の投稿の場合（何も変えない）
      * @throws InputValidationException 選択肢・タグが条件を満たさない場合（何も変えない）
      */
@@ -218,6 +225,9 @@ public class PostService {
     /** トランザクションの中で呼ぶ。投稿者を確かめてから、入力を確認して書き換える */
     private PostResponse applyEdit(Long userId, Long id, PostEditRequest request) {
         Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
+        // 先に見えるかを確かめる。ブロックの間柄にある人の投稿は、存在しない投稿と同じ 404（403 にすると投稿が残っていることが分かる。
+        // docs/profile.md「ブロック」）。見えるが他人の投稿なら 403
+        userVisibility.requireVisiblePost(userId, id, post.getAuthor().getId());
         if (!post.getAuthor().getId().equals(userId)) {
             throw new PostEditForbiddenException(id);
         }
@@ -259,6 +269,7 @@ public class PostService {
      * </ol>
      *
      * @throws PostNotFoundException 投稿が存在しない場合（すでに削除された場合を含む）
+     * @throws PostNotFoundException ブロックの間柄にある人の投稿の場合も同じ（何も削除しない）
      * @throws PostDeleteForbiddenException 他人の投稿の場合（何も削除しない）
      */
     public void delete(String subject, Long id) {
@@ -267,6 +278,8 @@ public class PostService {
         try {
             imageUrls = transactionTemplate.execute(status -> {
                 Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
+                // 編集と同じく、ブロックの間柄にある人の投稿は 404、見えるが他人の投稿なら 403
+                userVisibility.requireVisiblePost(userId, id, post.getAuthor().getId());
                 if (!post.getAuthor().getId().equals(userId)) {
                     throw new PostDeleteForbiddenException(id);
                 }

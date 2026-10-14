@@ -3,6 +3,7 @@ package com.teamc.isow.backend.common;
 import com.teamc.isow.backend.admin.AnnouncementAlreadyWithdrawnException;
 import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
+import com.teamc.isow.backend.block.SelfBlockException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
 import com.teamc.isow.backend.dm.ConsultationUnavailableException;
@@ -109,6 +110,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiErrorResponse handleAnnouncementAlreadyWithdrawn(AnnouncementAlreadyWithdrawnException e) {
         return new ApiErrorResponse("このお知らせはすでに取り消されています。", Map.of());
+    }
+
+    @ExceptionHandler(SelfBlockException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleSelfBlock(SelfBlockException e) {
+        return new ApiErrorResponse("自分自身はブロックできません。", Map.of());
     }
 
     @ExceptionHandler(SelfFollowException.class)

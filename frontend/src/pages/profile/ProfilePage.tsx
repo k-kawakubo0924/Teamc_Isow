@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import { fetchConsultationStatus, type ConsultationStatus } from '../../api/consultations'
@@ -20,6 +20,7 @@ import { formatHeight } from '../../utils/height'
 import { PROFILE_COLUMNS, loadColumns, saveColumns, type Columns } from '../home/columnSetting'
 import { ColumnsSwitcher, EmptyMessage, PostGrid, type FetchPostPage } from '../home/PostGrid'
 import { goBack } from '../settings/goBack'
+import { BlockedProfile, ProfileBlockMenu } from './ProfileBlock'
 import './profile.css'
 
 type MyTab = 'posts' | 'favorites'
@@ -61,6 +62,8 @@ function ProfileView({ userId }: { userId: number | null }) {
   const [masters, setMasters] = useState<MastersResponse | null>(null)
   const [loadError, setLoadError] = useState<{ notFound: boolean; message: string } | null>(null)
   const [columns, setColumns] = useState<Columns>(() => loadColumns(PROFILE_COLUMNS))
+  // ブロックを解除したときに増やし、プロフィールを読み直すきっかけにする
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!token) return
@@ -82,7 +85,7 @@ function ProfileView({ userId }: { userId: number | null }) {
     return () => {
       cancelled = true
     }
-  }, [token, userId])
+  }, [token, userId, reloadKey])
 
   const handleChangeColumns = (next: Columns) => {
     setColumns(next)
@@ -115,10 +118,35 @@ function ProfileView({ userId }: { userId: number | null }) {
   if (userId !== null && profile.me) {
     return <Navigate to="/profile" replace />
   }
+  // 自分がブロックしている相手（docs/profile.md「ブロック」）。プロフィールの代わりに、ブロック中であることと解除のボタンを出す
+  if (profile.blockedByMe) {
+    return (
+      <main className="profile-page">
+        <ProfileHeader isMe={false} />
+        <BlockedProfile
+          profile={profile}
+          onUnblocked={() => {
+            setProfile(null)
+            setReloadKey((key) => key + 1)
+          }}
+        />
+      </main>
+    )
+  }
 
   return (
     <main className="profile-page">
-      <ProfileHeader isMe={profile.me} />
+      <ProfileHeader
+        isMe={profile.me}
+        menu={
+          profile.me ? undefined : (
+            <ProfileBlockMenu
+              profile={profile}
+              onBlocked={() => setProfile((prev) => (prev ? { ...prev, blockedByMe: true, followingByMe: false } : prev))}
+            />
+          )
+        }
+      />
       <ProfileSummary profile={profile} masters={masters} />
       {!profile.me && (
         <ProfileActions
@@ -137,8 +165,10 @@ function ProfileView({ userId }: { userId: number | null }) {
   )
 }
 
-/** 自分のプロフィールは右上に三点リーダー（詳細設定へ）、相手のプロフィールは左上に戻るボタン */
-function ProfileHeader({ isMe }: { isMe: boolean }) {
+/**
+ * 自分のプロフィールは右上に三点リーダー（詳細設定へ）、相手のプロフィールは左上に戻るボタンと、右上に menu（ブロックの⋮）
+ */
+function ProfileHeader({ isMe, menu }: { isMe: boolean; menu?: ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
   return (
@@ -152,10 +182,12 @@ function ProfileHeader({ isMe }: { isMe: boolean }) {
           </svg>
         </Link>
       ) : (
-        // 通報・ブロック・非表示は未実装のため、相手のプロフィールの三点リーダーは出さない
-        <button type="button" className="profile-header-button" aria-label="戻る" onClick={() => goBack(navigate, location, '/')}>
-          ‹
-        </button>
+        <>
+          <button type="button" className="profile-header-button" aria-label="戻る" onClick={() => goBack(navigate, location, '/')}>
+            ‹
+          </button>
+          {menu}
+        </>
       )}
     </header>
   )

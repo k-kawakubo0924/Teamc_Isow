@@ -23,6 +23,7 @@ import SearchPage from './pages/search/SearchPage'
 import SearchResultsPage from './pages/search/SearchResultsPage'
 import ProfileEditPage from './pages/settings/ProfileEditPage'
 import SettingsPage from './pages/settings/SettingsPage'
+import BlockListPage from './pages/settings/BlockListPage'
 import SignUpPage from './pages/SignUpPage'
 
 // 画面とURLの対応。ログインが必要な画面は RequireAuth の中に追加する
@@ -58,6 +59,8 @@ function App() {
         {/* 詳細設定（docs/settings.md）。見出しに戻るボタンがあるため、下部ナビゲーションを表示しない */}
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/profile" element={<ProfileEditPage />} />
+        {/* ブロック中のアカウント（docs/profile.md「ブロック」）。詳細設定と同じく、下部ナビゲーションを表示しない */}
+        <Route path="/settings/blocks" element={<BlockListPage />} />
 
         {/*
           管理画面（docs/admin.md）。PC 向けの別の枠で、下部ナビゲーションを表示しない。

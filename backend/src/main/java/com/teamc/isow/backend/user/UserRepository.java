@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.user;
 
+import com.teamc.isow.backend.block.BlockConditions;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -35,13 +36,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByIdForUpdate(@Param("id") Long id);
 
     /**
-     * ユーザーの検索（docs/search.md。SearchService）：ユーザー名・表示名の部分一致。viewerId のユーザー（自分）は含めない。
+     * ユーザーの検索（docs/search.md。SearchService）：ユーザー名・表示名の部分一致。viewerId のユーザー（自分）と、
+     * viewerId とブロックの間柄にあるユーザーは含めない（BlockConditions。件数も同じ）。
      * ユーザー名か表示名の完全一致 → 前方一致 → 部分一致 → ユーザー名の順に並べる。
      * 値は SearchPatterns で作る（pattern は contains（null なら絞り込まない）、exact は exact、prefix は startsWith）
      */
     @Query(value = """
             SELECT u FROM User u
             WHERE u.id <> :viewerId
+              AND""" + BlockConditions.USER_VISIBLE + """
               AND (:pattern IS NULL
                    OR LOWER(u.username) LIKE :pattern ESCAPE '\\'
                    OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
@@ -54,6 +57,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             countQuery = """
             SELECT COUNT(u) FROM User u
             WHERE u.id <> :viewerId
+              AND""" + BlockConditions.USER_VISIBLE + """
               AND (:pattern IS NULL
                    OR LOWER(u.username) LIKE :pattern ESCAPE '\\'
                    OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
