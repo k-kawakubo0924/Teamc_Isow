@@ -1,6 +1,9 @@
 package com.teamc.isow.backend.config;
 
 import com.teamc.isow.backend.image.LocalImageWebConfig;
+import com.teamc.isow.backend.moderation.SuspendedUserFilter;
+import com.teamc.isow.backend.user.UserRepository;
+import java.time.Clock;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -11,10 +14,12 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 認証・認可の設定。
@@ -28,9 +33,16 @@ public class SecurityConfig {
     private String allowedOrigin;
 
     private final AdminAuthorizationManager adminAuthorizationManager;
+    private final UserRepository userRepository;
+    private final Clock clock;
+    private final JsonMapper jsonMapper;
 
-    public SecurityConfig(AdminAuthorizationManager adminAuthorizationManager) {
+    public SecurityConfig(AdminAuthorizationManager adminAuthorizationManager, UserRepository userRepository, Clock clock,
+            JsonMapper jsonMapper) {
         this.adminAuthorizationManager = adminAuthorizationManager;
+        this.userRepository = userRepository;
+        this.clock = clock;
+        this.jsonMapper = jsonMapper;
     }
 
     @Bean
@@ -55,6 +67,8 @@ public class SecurityConfig {
             )
             // Authorization: Bearer のトークンを JwtConfig の JwtDecoder で検証する（署名・有効期限）
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+            // 利用停止中のユーザーは、トークンを確かめた直後に、すべての API を 403 で止める（docs/admin.md「6. 措置」）
+            .addFilterAfter(new SuspendedUserFilter(userRepository, clock, jsonMapper), BearerTokenAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 // 未認証のリクエストは 403 ではなく 401 を返す（ログイン画面への誘導に使う）
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))

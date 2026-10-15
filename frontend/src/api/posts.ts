@@ -38,6 +38,13 @@ export type PostResponse = {
   createdAt: string
   /** 投稿者が最後に編集した日時。編集していなければ null（詳細画面の「編集済み」の表示に使う） */
   editedAt: string | null
+  /**
+   * 運営が非公開にしているか（docs/admin.md「6. 措置」）。非公開の投稿を見られるのは投稿者本人だけなので、
+   * true になるのは自分の投稿のときだけ
+   */
+  hidden: boolean
+  /** 非公開にした理由（通報の理由の定数名）。投稿者本人にだけ返り、それ以外は null */
+  hiddenReason: string | null
 }
 
 /** ホームの投稿一覧のタブ */

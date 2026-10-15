@@ -1,6 +1,6 @@
 package com.teamc.isow.backend.follow;
 
-import com.teamc.isow.backend.block.BlockConditions;
+import com.teamc.isow.backend.block.VisibilityConditions;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -44,23 +44,23 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
 
     /**
      * フォロー数（有効なフォローのみ）。見ている人（viewerId）とブロックの間柄にある相手は数えない
-     * （フォロー中一覧と件数を合わせるため。BlockConditions。docs/profile.md「ブロック」）
+     * （フォロー中一覧と件数を合わせるため。VisibilityConditions。docs/profile.md「ブロック」）
      */
     @Query("""
             SELECT COUNT(f) FROM Follow f JOIN f.followee u
             WHERE f.follower.id = :followerId AND f.active = true
-              AND""" + BlockConditions.USER_VISIBLE)
-    long countVisibleFollowings(@Param("followerId") Long followerId, @Param("viewerId") Long viewerId);
+              AND""" + VisibilityConditions.USER_VISIBLE)
+    long countVisibleFollowings(@Param("followerId") Long followerId, @Param("viewerId") Long viewerId, @Param("now") LocalDateTime now);
 
     /** フォロワー数（有効なフォローのみ）。見ている人（viewerId）とブロックの間柄にある相手は数えない */
     @Query("""
             SELECT COUNT(f) FROM Follow f JOIN f.follower u
             WHERE f.followee.id = :followeeId AND f.active = true
-              AND""" + BlockConditions.USER_VISIBLE)
-    long countVisibleFollowers(@Param("followeeId") Long followeeId, @Param("viewerId") Long viewerId);
+              AND""" + VisibilityConditions.USER_VISIBLE)
+    long countVisibleFollowers(@Param("followeeId") Long followeeId, @Param("viewerId") Long viewerId, @Param("now") LocalDateTime now);
 
     // ---- 一覧。並び順は pageable で指定する ----
-    // 見ている人（viewerId）とブロックの間柄にある相手は除く（BlockConditions。件数の SQL と同じ条件）。
+    // 見ている人（viewerId）とブロックの間柄にある相手・利用停止中の相手は除く（VisibilityConditions。件数の SQL と同じ条件）。
     // pattern は相手のユーザー名・表示名の絞り込み（小文字にした LIKE のパターン。FollowService.searchPattern で作る）。
     // 絞り込まない場合は "%"（すべてに一致する）を渡す
 
@@ -69,8 +69,8 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
             SELECT f FROM Follow f JOIN FETCH f.followee u
             WHERE f.follower.id = :followerId AND f.active = true
               AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
-              AND""" + BlockConditions.USER_VISIBLE)
-    Slice<Follow> findActiveFollowings(@Param("followerId") Long followerId, @Param("viewerId") Long viewerId,
+              AND""" + VisibilityConditions.USER_VISIBLE)
+    Slice<Follow> findActiveFollowings(@Param("followerId") Long followerId, @Param("viewerId") Long viewerId, @Param("now") LocalDateTime now,
             @Param("pattern") String pattern, Pageable pageable);
 
     /** フォロー中一覧（有効なフォローと、since より後に解除したもの）。本人が自分の一覧を見る場合に使う */
@@ -78,9 +78,9 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
             SELECT f FROM Follow f JOIN FETCH f.followee u
             WHERE f.follower.id = :followerId AND (f.active = true OR f.unfollowedAt > :since)
               AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
-              AND""" + BlockConditions.USER_VISIBLE)
+              AND""" + VisibilityConditions.USER_VISIBLE)
     Slice<Follow> findFollowingsIncludingUnfollowedSince(@Param("followerId") Long followerId,
-            @Param("viewerId") Long viewerId, @Param("since") LocalDateTime since, @Param("pattern") String pattern,
+            @Param("viewerId") Long viewerId, @Param("now") LocalDateTime now, @Param("since") LocalDateTime since, @Param("pattern") String pattern,
             Pageable pageable);
 
     /** フォロワー一覧（有効なフォローのみ） */
@@ -88,8 +88,8 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
             SELECT f FROM Follow f JOIN FETCH f.follower u
             WHERE f.followee.id = :followeeId AND f.active = true
               AND (LOWER(u.username) LIKE :pattern ESCAPE '\\' OR LOWER(u.displayName) LIKE :pattern ESCAPE '\\')
-              AND""" + BlockConditions.USER_VISIBLE)
-    Slice<Follow> findActiveFollowers(@Param("followeeId") Long followeeId, @Param("viewerId") Long viewerId,
+              AND""" + VisibilityConditions.USER_VISIBLE)
+    Slice<Follow> findActiveFollowers(@Param("followeeId") Long followeeId, @Param("viewerId") Long viewerId, @Param("now") LocalDateTime now,
             @Param("pattern") String pattern, Pageable pageable);
 
     /** 指定したユーザーのうち、followerId のユーザーが有効にフォローしているユーザーの ID（1回の SQL で調べる） */

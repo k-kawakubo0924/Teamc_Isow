@@ -1,7 +1,10 @@
 package com.teamc.isow.backend.auth;
 
+import com.teamc.isow.backend.moderation.AccountSuspendedException;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -15,14 +18,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
+    private final Clock clock;
 
     /** 存在しないメールアドレスでも照合処理を走らせるためのダミーのハッシュ（応答時間の差で登録有無を推測させない） */
     private final String dummyPasswordHash;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenService jwtTokenService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenService jwtTokenService,
+            Clock clock) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
+        this.clock = clock;
         this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
     }
 
@@ -55,6 +61,10 @@ public class AuthService {
         if (user.isEmpty() || !matches) {
             throw new InvalidCredentialsException();
         }
+        // 利用停止中は、パスワードが正しいときだけ伝える（他人が利用停止中かどうかを探れないように。docs/admin.md「6. 措置」）
+        if (user.get().isSuspendedAt(LocalDateTime.now(clock))) {
+            throw new AccountSuspendedException(user.get());
+        }
         return jwtTokenService.issue(user.get());
     }
 
@@ -71,9 +81,14 @@ public class AuthService {
      * ユーザーが存在しない場合は UnknownTokenUserException（未認証として 401 になる）。
      */
     public User requireCurrentUser(String subject) {
-        return parseUserId(subject)
+        User user = parseUserId(subject)
                 .flatMap(userRepository::findById)
                 .orElseThrow(UnknownTokenUserException::new);
+        // 利用停止中は SuspendedUserFilter で止めているが、念のためここでも確かめる（二重の守り）
+        if (user.isSuspendedAt(LocalDateTime.now(clock))) {
+            throw new AccountSuspendedException(user);
+        }
+        return user;
     }
 
     private static Optional<Long> parseUserId(String subject) {

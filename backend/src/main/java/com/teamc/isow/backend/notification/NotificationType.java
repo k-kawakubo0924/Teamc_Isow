@@ -22,7 +22,11 @@ public enum NotificationType {
     /** 相談が拒否された（関連：拒否した人・会話） */
     CONSULTATION_REJECTED(false, true),
     /** メッセージが届いた（関連：送った人・会話）。会話ごとに1件にまとめる（Notification.messageArrived） */
-    MESSAGE_RECEIVED(false, true);
+    MESSAGE_RECEIVED(false, true),
+    /** 運営が投稿を非公開にした（関連：投稿。「誰が」はない。docs/admin.md「6. 措置」） */
+    POST_HIDDEN(true, false),
+    /** 運営が投稿の非公開を解除した（関連：投稿。「誰が」はない） */
+    POST_UNHIDDEN(true, false);
 
     /** 関連する投稿を必ず持つか（持たない種類では null） */
     private final boolean withPost;

@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.reaction;
 
-import com.teamc.isow.backend.block.BlockConditions;
+import com.teamc.isow.backend.block.VisibilityConditions;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
@@ -22,11 +23,11 @@ public interface PostFavoriteRepository extends JpaRepository<PostFavorite, Long
 
     /**
      * 自分のお気に入り一覧：お気に入りにした投稿の ID を、お気に入りにした新しい順（同じなら ID の大きい順）。
-     * ブロックの間柄にある人の投稿は除く（ブロックした時点で消しているが、一覧でも BlockConditions で除く）
+     * ブロックの間柄にある人の投稿は除く（ブロックした時点で消しているが、一覧でも VisibilityConditions で除く。非公開の投稿・利用停止中の人の投稿も除く）
      */
     @Query("SELECT f.post.id FROM PostFavorite f JOIN f.post p WHERE f.user.id = :viewerId AND"
-            + BlockConditions.POST_AUTHOR_VISIBLE + "ORDER BY f.createdAt DESC, f.id DESC")
-    Slice<Long> findPostIdsByUserId(@Param("viewerId") Long viewerId, Pageable pageable);
+            + VisibilityConditions.POST_VISIBLE + "ORDER BY f.createdAt DESC, f.id DESC")
+    Slice<Long> findPostIdsByUserId(@Param("viewerId") Long viewerId, @Param("now") LocalDateTime now, Pageable pageable);
 
     /** 指定した投稿のうち、ユーザーがお気に入りにしている投稿の ID（1回の SQL で調べる） */
     @Query("SELECT f.post.id FROM PostFavorite f WHERE f.user.id = :userId AND f.post.id IN :postIds")

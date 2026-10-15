@@ -16,6 +16,10 @@ const ACTION_LABELS: Record<string, string> = {
   REPORT_DISMISSED: '通報を却下した',
   REPORT_REOPENED: '通報を未対応に戻した',
   REPORT_DM_VIEWED: '通報された DM を表示した',
+  POST_HIDDEN: '投稿を非公開にした',
+  POST_UNHIDDEN: '投稿を公開に戻した',
+  USER_SUSPENDED: '利用停止にした',
+  USER_UNSUSPENDED: '利用停止を解除した',
 }
 
 /** 対象の種類（バックエンドの AdminTargetType）の表示名 */
@@ -27,6 +31,7 @@ const TARGET_LABELS: Record<string, string> = {
   TAG: 'タグ',
   ANNOUNCEMENT: 'お知らせ',
   REPORT: '通報',
+  POST: '投稿',
 }
 
 /**

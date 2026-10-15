@@ -3,13 +3,19 @@ import { Link, useParams } from 'react-router'
 import {
   changeReportStatus,
   fetchEvidenceImage,
+  fetchModerationPost,
+  fetchModerationUser,
   fetchReport,
   type AdminReportDetail,
   type AdminReportStatus,
+  type ModerationPostState,
+  type ModerationUserState,
 } from '../../api/admin'
+import { ApiError } from '../../api/client'
 import { reportReasonLabel } from '../../api/reports'
 import { useAuth } from '../../auth/authContext'
 import { formatAdminDateTime } from './adminFormat'
+import { PostModerationPanel, UserModerationPanel } from './ModerationPanels'
 import { REPORT_CURRENT_STATE_LABELS, REPORT_STATUS_LABELS, REPORT_TARGET_LABELS } from './reportLabels'
 
 /** メモの文字数の上限（バックエンドの ReportCase.MAX_MEMO_LENGTH） */
@@ -18,7 +24,8 @@ const MAX_MEMO_LENGTH = 1000
 /**
  * 通報の詳細（/admin/reports/{id}。docs/admin.md「通報」）。
  * 通報した時点の内容（証拠）・対象の今の状態・通報した人と理由を出し、状態（対応済み・却下・未対応）を記録する。
- * **措置（非公開化・削除・利用停止）の機能はまだない**ため、そのことを画面の上に明記する（「対応済み」にしても何も起きない）
+ * 「対応済み」にするだけでは措置は行われないため、そのことを画面の上に明記する。
+ * 措置（投稿の非公開化・利用停止。docs/admin.md「6. 措置」）は下の「措置」から行い、措置にこの通報を結びつける
  */
 function AdminReportDetailPage() {
   const { caseId } = useParams()
@@ -26,6 +33,8 @@ function AdminReportDetailPage() {
   const id = caseId !== undefined && /^\d+$/.test(caseId) ? Number(caseId) : null
   const [detail, setDetail] = useState<AdminReportDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** 措置とあわせて通報を対応済みにしたら増やし、詳細を読み直す */
+  const [version, setVersion] = useState(0)
 
   useEffect(() => {
     if (id === null || !token) return
@@ -40,7 +49,7 @@ function AdminReportDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [id, token])
+  }, [id, token, version])
 
   return (
     <>
@@ -49,8 +58,8 @@ function AdminReportDetailPage() {
       </p>
       <h1 className="admin-page-title">通報の詳細</h1>
       <p className="admin-report-notice" role="note">
-        措置（投稿の非公開化・削除、ユーザーの利用停止）の機能はまだありません。「対応済み」にしても、投稿やユーザーには何も起きません。
-        この画面では、確かめた結果の状態を記録するだけです。措置が必要な場合は、別途対応してください。
+        「対応済み」にしても、投稿やユーザーには何も起きません。「状態の記録」は、確かめた結果の状態を記録するだけです。
+        投稿の非公開化・ユーザーの利用停止は、下の「措置」から行ってください（投稿の削除はまだできません）。
       </p>
       {id === null && <p className="admin-reports-error">通報が見つかりません。</p>}
       {error && (
@@ -61,7 +70,14 @@ function AdminReportDetailPage() {
       {detail === null ? (
         !error && id !== null && <p className="admin-reports-empty">読み込み中…</p>
       ) : (
-        token !== null && <ReportDetail detail={detail} token={token} onChange={setDetail} />
+        token !== null && (
+          <ReportDetail
+            detail={detail}
+            token={token}
+            onChange={setDetail}
+            onReload={() => setVersion((v) => v + 1)}
+          />
+        )
       )}
     </>
   )
@@ -71,10 +87,12 @@ function ReportDetail({
   detail,
   token,
   onChange,
+  onReload,
 }: {
   detail: AdminReportDetail
   token: string
   onChange: (detail: AdminReportDetail) => void
+  onReload: () => void
 }) {
   return (
     <div className="admin-report">
@@ -121,6 +139,7 @@ function ReportDetail({
         </ul>
       </section>
 
+      <ModerationSection detail={detail} token={token} onReload={onReload} />
       <StatusForm detail={detail} token={token} onChange={onChange} />
     </div>
   )
@@ -232,6 +251,87 @@ function EvidenceImage({ caseId, fileId, token }: { caseId: number; fileId: numb
   if (failed) return <p className="admin-report-meta">写真を読み込めませんでした。</p>
   if (!url) return <p className="admin-report-meta">写真を読み込み中…</p>
   return <img className="admin-report-evidence-image" src={url} alt="証拠の写真" />
+}
+
+/**
+ * 措置（docs/admin.md「6. 措置」）。投稿の通報なら投稿の非公開化（投稿が残っている場合）と投稿者の利用停止、
+ * ユーザー・DM の通報なら通報された人の利用停止を出す。措置にはこの通報を結びつけ、選べば同時に対応済みにする
+ */
+function ModerationSection({
+  detail,
+  token,
+  onReload,
+}: {
+  detail: AdminReportDetail
+  token: string
+  onReload: () => void
+}) {
+  const withPost = detail.targetType === 'POST' && detail.currentState !== 'DELETED'
+  const [post, setPost] = useState<ModerationPostState | null>(null)
+  const [user, setUser] = useState<ModerationUserState | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const fail = (err: unknown) => {
+      if (cancelled) return
+      setError(
+        err instanceof ApiError && err.status === 404
+          ? '対象が見つかりません（削除・退会した可能性があります）。'
+          : err instanceof Error
+            ? err.message
+            : '読み込めませんでした。',
+      )
+    }
+    if (withPost) {
+      fetchModerationPost(detail.targetId, token)
+        .then((res) => {
+          if (!cancelled) setPost(res)
+        })
+        .catch(fail)
+    }
+    fetchModerationUser(detail.targetUserId, token)
+      .then((res) => {
+        if (!cancelled) setUser(res)
+      })
+      .catch(fail)
+    return () => {
+      cancelled = true
+    }
+  }, [withPost, detail.targetId, detail.targetUserId, token])
+
+  // 対応を終えた通報にも措置を結びつけられるが、「対応済みにする」を選べるのは未対応のときだけ
+  const canResolve = detail.status === 'OPEN'
+
+  return (
+    <section className="admin-report-section admin-report-moderation">
+      <h2 className="admin-report-heading">措置</h2>
+      {error && <p className="admin-reports-error">{error}</p>}
+      {post && (
+        <PostModerationPanel
+          state={post}
+          reportCaseId={detail.caseId}
+          canResolve={canResolve}
+          onChange={(next) => {
+            setPost(next)
+            // 措置とあわせて通報を対応済みにしたかもしれないため、詳細を読み直す
+            onReload()
+          }}
+        />
+      )}
+      {user && (
+        <UserModerationPanel
+          state={user}
+          reportCaseId={detail.caseId}
+          canResolve={canResolve}
+          onChange={(next) => {
+            setUser(next)
+            onReload()
+          }}
+        />
+      )}
+    </section>
+  )
 }
 
 /** 状態の記録（措置は行わない）。メモは管理者にだけ見せ、操作ログには書かない */

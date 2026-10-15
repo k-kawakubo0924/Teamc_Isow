@@ -193,6 +193,8 @@ export type AdminReportDetail = {
   caseId: number
   targetType: AdminReportTargetType
   targetId: number
+  /** 通報された人（投稿者・ユーザー本人・メッセージを送った人）。措置で利用停止にする相手 */
+  targetUserId: number
   status: AdminReportStatus
   reportCount: number
   firstReportedAt: string
@@ -235,7 +237,7 @@ export function fetchReport(caseId: number, token: string): Promise<AdminReportD
   return getJson<AdminReportDetail>(`/api/admin/reports/${caseId}`, token)
 }
 
-/** 通報の状態を記録する（措置は行わない）。すでにその状態などは ApiError（409） */
+/** 通報の状態を記録する（措置は行わない。措置は下の措置の API）。すでにその状態などは ApiError（409） */
 export function changeReportStatus(
   caseId: number,
   status: AdminReportStatus,
@@ -259,4 +261,142 @@ export async function fetchEvidenceImage(caseId: number, fileId: number, token: 
     throw new ApiError(res.status, null, '証拠の写真を読み込めませんでした。')
   }
   return res.blob()
+}
+
+// ---- 措置（docs/admin.md「6. 措置」） ----
+
+/** 措置の種類（バックエンドの ModerationActionType） */
+export type ModerationActionType = 'HIDE_POST' | 'UNHIDE_POST' | 'SUSPEND_USER' | 'UNSUSPEND_USER'
+
+/** 措置の履歴の1行（新しい順）。memo は管理者のメモ（管理者にだけ見せ、操作ログには書かない） */
+export type ModerationHistoryItem = {
+  id: number
+  action: ModerationActionType
+  reason: string | null
+  reasonLabel: string | null
+  suspendedUntil: string | null
+  reportCaseId: number | null
+  adminUsername: string
+  memo: string | null
+  createdAt: string
+}
+
+/** 投稿のいまの状態と措置の履歴 */
+export type ModerationPostState = {
+  postId: number
+  title: string
+  authorId: number
+  authorUsername: string
+  createdAt: string
+  hidden: boolean
+  hiddenAt: string | null
+  hiddenReason: string | null
+  hiddenReasonLabel: string | null
+  history: ModerationHistoryItem[]
+}
+
+/** ユーザーのいまの状態と措置の履歴。期限を過ぎた利用停止は suspended が false */
+export type ModerationUserState = {
+  userId: number
+  username: string
+  /** 管理者は利用停止にできない */
+  admin: boolean
+  suspended: boolean
+  suspendedAt: string | null
+  /** 期限。無期限なら null */
+  suspendedUntil: string | null
+  suspensionReason: string | null
+  suspensionReasonLabel: string | null
+  history: ModerationHistoryItem[]
+}
+
+/**
+ * 通報から措置するとき、reportCaseId にその通報を渡す（同じ対象の通報であること）。
+ * resolveReport が true なら、同時に通報を「対応済み」にする
+ */
+export type HidePostRequest = { reason: string; memo: string; reportCaseId: number | null; resolveReport: boolean }
+
+/** days は 1・3・7・30。無期限なら null */
+export type SuspendUserRequest = {
+  reason: string
+  days: number | null
+  memo: string
+  reportCaseId: number | null
+  resolveReport: boolean
+}
+
+export type HiddenPostList = {
+  items: {
+    postId: number
+    title: string
+    authorUsername: string
+    hiddenAt: string
+    hiddenReason: string
+    hiddenReasonLabel: string
+  }[]
+  page: number
+  size: number
+  hasNext: boolean
+}
+
+export type SuspendedUserList = {
+  items: {
+    userId: number
+    username: string
+    suspendedAt: string
+    suspendedUntil: string | null
+    suspensionReason: string
+    suspensionReasonLabel: string
+  }[]
+  page: number
+  size: number
+  hasNext: boolean
+}
+
+/** 投稿の状態。存在しない投稿は ApiError（404） */
+export function fetchModerationPost(postId: number, token: string): Promise<ModerationPostState> {
+  return getJson<ModerationPostState>(`/api/admin/moderation/posts/${postId}`, token)
+}
+
+/** 投稿を非公開にする。すでに非公開なら ApiError（409） */
+export function hidePost(postId: number, request: HidePostRequest, token: string): Promise<ModerationPostState> {
+  return postJson<ModerationPostState>(`/api/admin/moderation/posts/${postId}/hide`, request, token)
+}
+
+/** 非公開にした投稿を公開に戻す。非公開でなければ ApiError（409） */
+export function unhidePost(postId: number, memo: string, token: string): Promise<ModerationPostState> {
+  return postJson<ModerationPostState>(`/api/admin/moderation/posts/${postId}/unhide`, { memo }, token)
+}
+
+/** ユーザーの状態（ID から）。存在しないユーザーは ApiError（404） */
+export function fetchModerationUser(userId: number, token: string): Promise<ModerationUserState> {
+  return getJson<ModerationUserState>(`/api/admin/moderation/users/${userId}`, token)
+}
+
+/** ユーザーの状態（ユーザー名から。先頭の @ は付けても付けなくてもよい） */
+export function findModerationUser(username: string, token: string): Promise<ModerationUserState> {
+  return getJson<ModerationUserState>(
+    `/api/admin/moderation/users?${new URLSearchParams({ username }).toString()}`,
+    token,
+  )
+}
+
+/** 利用停止にする。管理者・すでに利用停止中なら ApiError（409） */
+export function suspendUser(userId: number, request: SuspendUserRequest, token: string): Promise<ModerationUserState> {
+  return postJson<ModerationUserState>(`/api/admin/moderation/users/${userId}/suspend`, request, token)
+}
+
+/** 利用停止を解除する。利用停止中でなければ ApiError（409） */
+export function unsuspendUser(userId: number, memo: string, token: string): Promise<ModerationUserState> {
+  return postJson<ModerationUserState>(`/api/admin/moderation/users/${userId}/unsuspend`, { memo }, token)
+}
+
+/** 非公開にしている投稿（非公開にした日時の新しい順） */
+export function listHiddenPosts(page: number, token: string): Promise<HiddenPostList> {
+  return getJson<HiddenPostList>(`/api/admin/moderation/hidden-posts?page=${page}&size=${ADMIN_PAGE_SIZE}`, token)
+}
+
+/** いま利用停止中のユーザー（期限を過ぎたものは含まない） */
+export function listSuspendedUsers(page: number, token: string): Promise<SuspendedUserList> {
+  return getJson<SuspendedUserList>(`/api/admin/moderation/suspended-users?page=${page}&size=${ADMIN_PAGE_SIZE}`, token)
 }

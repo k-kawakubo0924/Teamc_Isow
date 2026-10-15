@@ -30,6 +30,8 @@ vi.mock('./api/admin', async (importOriginal) => ({
   listMasters: () => new Promise(() => {}),
   listAnnouncements: () => new Promise(() => {}),
   listOperationLogs: () => new Promise(() => {}),
+  listHiddenPosts: () => new Promise(() => {}),
+  listSuspendedUsers: () => new Promise(() => {}),
 }))
 vi.mock('./components/BottomNav', async () => {
   const { Outlet } = await import('react-router')
@@ -63,6 +65,7 @@ vi.mock('./pages/settings/ProfileEditPage', () => ({ default: stub('プロフィ
 vi.mock('./pages/LoginPage', () => ({ default: stub('ログイン') }))
 vi.mock('./pages/SignUpPage', () => ({ default: stub('新規会員登録') }))
 vi.mock('./pages/HealthCheckPage', () => ({ default: stub('ヘルスチェック') }))
+vi.mock('./pages/SuspendedPage', () => ({ default: stub('利用停止') }))
 
 beforeEach(() => {
   auth.isLoggedIn = true
@@ -115,6 +118,8 @@ describe('既存の利用者アプリの画面（ページが見つからない�
     ['/login', 'ログイン'],
     ['/register', '新規会員登録'],
     ['/health', 'ヘルスチェック'],
+    // 利用停止の画面（docs/admin.md「6. 措置」）。利用停止になるとログアウトするため、未ログインで開く
+    ['/suspended', '利用停止'],
   ])('未ログインで %s を開くと %s の画面が開く', (path, page) => {
     auth.isLoggedIn = false
     renderAt(path)
@@ -169,6 +174,7 @@ describe('管理画面（/admin）', () => {
     expect(screen.getByRole('link', { name: 'マスタ管理' }).getAttribute('href')).toBe('/admin/masters')
     expect(screen.getByRole('link', { name: 'お知らせ' }).getAttribute('href')).toBe('/admin/announcements')
     expect(screen.getByRole('link', { name: '操作ログ' }).getAttribute('href')).toBe('/admin/operation-logs')
+    expect(screen.getByRole('link', { name: '措置' }).getAttribute('href')).toBe('/admin/moderation')
     expect(nav.closest('.admin-layout')).not.toBeNull()
     // /admin を開いたら、最初の項目（マスタ管理）を開く
     expect(await screen.findByRole('heading', { name: 'マスタ管理' })).toBeTruthy()
@@ -183,6 +189,7 @@ describe('管理画面（/admin）', () => {
   it.each([
     ['/admin/announcements', 'お知らせ'],
     ['/admin/operation-logs', '操作ログ'],
+    ['/admin/moderation', '措置'],
   ])('管理者が %s を開くと %s の画面が枠の中に出る', async (path, heading) => {
     adminMe.mockResolvedValue({ id: 1, username: 'admin' })
     renderAt(path)

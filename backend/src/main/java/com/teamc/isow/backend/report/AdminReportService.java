@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.json.JsonMapper;
@@ -127,6 +128,7 @@ public class AdminReportService {
                         r.getReason(), r.getComment(), r.getReportedAt()))
                 .toList();
         return new AdminReportResponses.Detail(reportCase.getId(), reportCase.getTargetType(), reportCase.getTargetId(),
+                reportCase.getTargetUserId(),
                 reportCase.getStatus(), reportCase.getReportCount(), reportCase.getFirstReportedAt(),
                 reportCase.getLastReportedAt(), reportCase.getClosedAt(), reportCase.getHandledByUsername(),
                 reportCase.getAdminMemo(), reportCase.isEvidencePurged(), reportCase.getEvidencePurgedAt(), evidence,
@@ -168,6 +170,22 @@ public class AdminReportService {
         operationLogger.recordByAdmin(admin, action, AdminTargetType.REPORT, caseId, "状態：" + newStatus.getLabel());
         return new AdminReportResponses.StatusResult(reportCase.getId(), reportCase.getStatus(), reportCase.getClosedAt(),
                 reportCase.getHandledByUsername(), reportCase.getAdminMemo());
+    }
+
+    /**
+     * 措置（docs/admin.md「6. 措置」）とあわせて、結びつけた通報を「対応済み」にする。措置と同じトランザクションの中で呼ぶ。
+     * 管理者であることは呼ぶ側（AdminModerationService）で確かめていること。未対応でなければ 409。
+     * メモは変えない（措置のメモは措置の履歴に残す）
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void resolveWithModeration(User admin, ReportCase reportCase) {
+        if (reportCase.getStatus() != ReportStatus.OPEN) {
+            throw new AdminReportConflictException("この通報はすでに「" + reportCase.getStatus().getLabel() + "」です。");
+        }
+        reportCase.changeStatus(ReportStatus.RESOLVED, admin, reportCase.getAdminMemo(), LocalDateTime.now(clock));
+        caseRepository.flush();
+        operationLogger.recordByAdmin(admin, AdminAction.REPORT_RESOLVED, AdminTargetType.REPORT, reportCase.getId(),
+                "状態：" + ReportStatus.RESOLVED.getLabel() + "（措置とあわせて）");
     }
 
     /**

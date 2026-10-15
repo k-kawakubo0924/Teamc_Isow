@@ -102,6 +102,21 @@ public class User {
     @ColumnDefault("'USER'")
     private String role = Role.USER.name();
 
+    /**
+     * 利用停止にした日時（docs/admin.md「6. 措置」）。利用停止にしていなければ null。
+     * 利用停止中かどうかは isSuspendedAt(now) で判定する（期限を過ぎていれば、この列が残っていても停止中ではない）
+     */
+    @Column(name = "suspended_at")
+    private LocalDateTime suspendedAt;
+
+    /** 利用停止の期限。無期限なら null（suspended_at が null のときは意味を持たない） */
+    @Column(name = "suspended_until")
+    private LocalDateTime suspendedUntil;
+
+    /** 利用停止の理由（ReportReason の定数名）。本人の利用停止の画面に出す */
+    @Column(name = "suspension_reason", length = 30)
+    private String suspensionReason;
+
     /** 登録日時 */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -130,6 +145,40 @@ public class User {
      */
     public boolean isAdmin() {
         return Role.ADMIN.name().equals(role);
+    }
+
+    /**
+     * now の時点で利用停止中か（docs/admin.md「6. 措置」）。期限つきは期限を過ぎたら停止中ではない（列はそのまま残る）。
+     * 一覧・件数の SQL では、同じ判定を VisibilityConditions の条件で行う（変えるときは両方を直すこと）
+     */
+    public boolean isSuspendedAt(LocalDateTime now) {
+        return suspendedAt != null && (suspendedUntil == null || suspendedUntil.isAfter(now));
+    }
+
+    /** 利用停止にする（until が null なら無期限）。reason は ReportReason の定数名 */
+    public void suspend(LocalDateTime now, LocalDateTime until, String reason) {
+        this.suspendedAt = now;
+        this.suspendedUntil = until;
+        this.suspensionReason = reason;
+    }
+
+    /** 利用停止を解除する */
+    public void unsuspend() {
+        this.suspendedAt = null;
+        this.suspendedUntil = null;
+        this.suspensionReason = null;
+    }
+
+    public LocalDateTime getSuspendedAt() {
+        return suspendedAt;
+    }
+
+    public LocalDateTime getSuspendedUntil() {
+        return suspendedUntil;
+    }
+
+    public String getSuspensionReason() {
+        return suspensionReason;
     }
 
     /**

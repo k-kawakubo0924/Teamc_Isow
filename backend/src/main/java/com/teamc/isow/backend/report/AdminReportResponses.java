@@ -30,13 +30,14 @@ public final class AdminReportResponses {
     /**
      * 詳細
      *
+     * @param targetUserId 通報された人（投稿者・ユーザー本人・メッセージを送った人）。措置で利用停止にする相手
      * @param evidence 通報した時点の内容のコピー。保存期間を過ぎて消した後は null
      * @param evidenceFiles 証拠の写真（中身は evidence-files/{id} から管理者だけが取得できる）
      * @param currentState 対象の今の状態（EXISTS・EDITED（通報の後に編集された）・DELETED）
      * @param reports 通報した人と理由（古い順）。通報した人は管理者にだけ見せる
      */
-    public record Detail(Long caseId, ReportTargetType targetType, Long targetId, ReportStatus status, int reportCount,
-            LocalDateTime firstReportedAt, LocalDateTime lastReportedAt, LocalDateTime closedAt,
+    public record Detail(Long caseId, ReportTargetType targetType, Long targetId, Long targetUserId, ReportStatus status,
+            int reportCount, LocalDateTime firstReportedAt, LocalDateTime lastReportedAt, LocalDateTime closedAt,
             String handledByUsername, String adminMemo, boolean evidencePurged, LocalDateTime evidencePurgedAt,
             EvidenceSnapshot evidence, List<EvidenceFile> evidenceFiles, CurrentState currentState,
             List<ReportItem> reports) {

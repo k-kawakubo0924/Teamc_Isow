@@ -3,13 +3,24 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localho
 
 /**
  * バックエンドのエラー応答（ApiErrorResponse）。errors は項目名 → その欄の下に出す警告文。
- * reason は DM・相談のエラー（DmErrorResponse）だけにある、理由の定数名（LIMIT_REACHED など）
+ * reason は DM・相談のエラー（DmErrorResponse）と利用停止（ACCOUNT_SUSPENDED）にある、理由の定数名（LIMIT_REACHED など）
  */
 export type ApiErrorBody = {
   message: string
   errors: Record<string, string>
   reason?: string
 }
+
+/** 利用停止の理由と期限（バックエンドの SuspendedErrorResponse。docs/admin.md「6. 措置」） */
+export type SuspensionInfo = {
+  /** 期限。無期限なら null */
+  suspendedUntil: string | null
+  /** 理由の表示名（「嫌がらせ・誹謗中傷」など） */
+  reasonLabel: string | null
+}
+
+/** 利用停止中のユーザーへの応答の reason（ログイン・すべての API で同じ） */
+const ACCOUNT_SUSPENDED = 'ACCOUNT_SUSPENDED'
 
 /** API呼び出しの失敗。status が 0 の場合はサーバーに接続できなかったことを表す */
 export class ApiError extends Error {
@@ -83,6 +94,7 @@ export function postForm<T>(path: string, form: FormData, token: string): Promis
 }
 
 let unauthorizedHandler: (() => void) | null = null
+let suspendedHandler: ((info: SuspensionInfo) => void) | null = null
 
 /**
  * トークン付きのリクエストが 401 になったとき（期限切れ・退会など）に呼ぶ処理を登録する。
@@ -90,6 +102,15 @@ let unauthorizedHandler: (() => void) | null = null
  */
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   unauthorizedHandler = handler
+}
+
+/**
+ * API が「利用停止中」（403・reason が ACCOUNT_SUSPENDED）を返したときに呼ぶ処理を登録する（docs/admin.md「6. 措置」）。
+ * ログインの API も含め、どの API でも呼ぶ。AuthProvider がログアウトと利用停止の画面への切り替えを登録するので、
+ * 各画面で利用停止を処理する必要はない
+ */
+export function setSuspendedHandler(handler: ((info: SuspensionInfo) => void) | null): void {
+  suspendedHandler = handler
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
@@ -114,21 +135,37 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     unauthorizedHandler?.()
   }
 
-  const errorBody = await readErrorBody(res)
+  const json = await readJson(res)
+  if (res.status === 403 && isSuspended(json)) {
+    suspendedHandler?.({
+      suspendedUntil: typeof json.suspendedUntil === 'string' ? json.suspendedUntil : null,
+      reasonLabel: typeof json.suspensionReasonLabel === 'string' ? json.suspensionReasonLabel : null,
+    })
+  }
+
+  const errorBody = toErrorBody(json)
   throw new ApiError(res.status, errorBody, errorBody?.message ?? UNEXPECTED_ERROR_MESSAGE)
 }
 
-/** エラー応答が ApiErrorBody の形でない場合（500 など）は null を返す */
-async function readErrorBody(res: Response): Promise<ApiErrorBody | null> {
+/** エラー応答の本文。本文が空、または JSON でない場合は null */
+async function readJson(res: Response): Promise<unknown> {
   try {
-    const json: unknown = await res.json()
-    if (typeof json === 'object' && json !== null && 'message' in json && typeof json.message === 'string') {
-      const errors = 'errors' in json && typeof json.errors === 'object' && json.errors !== null ? json.errors : {}
-      const reason = 'reason' in json && typeof json.reason === 'string' ? json.reason : undefined
-      return { message: json.message, errors: errors as Record<string, string>, reason }
-    }
+    return await res.json()
   } catch {
-    // 本文が空、または JSON でない
+    return null
+  }
+}
+
+function isSuspended(json: unknown): json is Record<string, unknown> {
+  return typeof json === 'object' && json !== null && 'reason' in json && json.reason === ACCOUNT_SUSPENDED
+}
+
+/** エラー応答が ApiErrorBody の形でない場合（500 など）は null を返す */
+function toErrorBody(json: unknown): ApiErrorBody | null {
+  if (typeof json === 'object' && json !== null && 'message' in json && typeof json.message === 'string') {
+    const errors = 'errors' in json && typeof json.errors === 'object' && json.errors !== null ? json.errors : {}
+    const reason = 'reason' in json && typeof json.reason === 'string' ? json.reason : undefined
+    return { message: json.message, errors: errors as Record<string, string>, reason }
   }
   return null
 }

@@ -30,5 +30,13 @@ public enum AdminAction {
     /** 通報を「未対応」に戻した */
     REPORT_REOPENED,
     /** 通報された DM のメッセージ（と前後）を見た。データは変えないが、DM を見たことは記録する（docs/admin.md「方針」） */
-    REPORT_DM_VIEWED
+    REPORT_DM_VIEWED,
+    /** 投稿を非公開にした（docs/admin.md「6. 措置」） */
+    POST_HIDDEN,
+    /** 非公開にした投稿を公開に戻した */
+    POST_UNHIDDEN,
+    /** ユーザーを利用停止にした */
+    USER_SUSPENDED,
+    /** ユーザーの利用停止を解除した */
+    USER_UNSUSPENDED
 }

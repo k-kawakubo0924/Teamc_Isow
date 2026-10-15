@@ -193,7 +193,7 @@ public class PostService {
         Long userId = authService.requireCurrentUser(subject).getId();
         Post post = postRepository.findDetailById(id).orElseThrow(() -> new PostNotFoundException(id));
         // 投稿者とブロックの間柄にある投稿は、存在しない投稿と同じ 404（docs/profile.md「ブロック」）
-        userVisibility.requireVisiblePost(userId, id, post.getAuthor().getId());
+        userVisibility.requireVisiblePost(userId, post);
         return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId);
     }
 
@@ -227,7 +227,7 @@ public class PostService {
         Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
         // 先に見えるかを確かめる。ブロックの間柄にある人の投稿は、存在しない投稿と同じ 404（403 にすると投稿が残っていることが分かる。
         // docs/profile.md「ブロック」）。見えるが他人の投稿なら 403
-        userVisibility.requireVisiblePost(userId, id, post.getAuthor().getId());
+        userVisibility.requireVisiblePost(userId, post);
         if (!post.getAuthor().getId().equals(userId)) {
             throw new PostEditForbiddenException(id);
         }
@@ -279,7 +279,7 @@ public class PostService {
             imageUrls = transactionTemplate.execute(status -> {
                 Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
                 // 編集と同じく、ブロックの間柄にある人の投稿は 404、見えるが他人の投稿なら 403
-                userVisibility.requireVisiblePost(userId, id, post.getAuthor().getId());
+                userVisibility.requireVisiblePost(userId, post);
                 if (!post.getAuthor().getId().equals(userId)) {
                     throw new PostDeleteForbiddenException(id);
                 }

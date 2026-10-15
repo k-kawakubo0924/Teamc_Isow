@@ -16,6 +16,8 @@ import java.util.List;
  * @param favoritedByMe ログイン中のユーザーがお気に入りにしているか（本人にだけ返す）
  * @param ownedByMe ログイン中のユーザーの投稿か（画面で編集・削除のメニューを出すかの判断だけに使う。できるかはサーバーで確かめる）
  * @param editedAt 投稿者が最後に編集した日時。編集していなければ null（画面の「編集済み」の表示に使う）
+ * @param hidden 管理者が非公開にしているか（docs/admin.md「6. 措置」）。非公開の投稿を受け取るのは投稿者本人だけ
+ * @param hiddenReason 非公開にした理由（ReportReason の定数名）。投稿者本人にだけ返し、それ以外は null
  */
 public record PostResponse(
         Long id,
@@ -32,7 +34,9 @@ public record PostResponse(
         boolean favoritedByMe,
         boolean ownedByMe,
         LocalDateTime createdAt,
-        LocalDateTime editedAt) {
+        LocalDateTime editedAt,
+        boolean hidden,
+        String hiddenReason) {
 
     /**
      * 遅延読み込みの項目を使うため、トランザクションの中で呼ぶこと。
@@ -60,7 +64,9 @@ public record PostResponse(
                 reactions.favoritedByMe(),
                 post.getAuthor().getId().equals(viewerId),
                 post.getCreatedAt(),
-                post.getEditedAt());
+                post.getEditedAt(),
+                post.isHidden(),
+                post.getAuthor().getId().equals(viewerId) ? post.getHiddenReason() : null);
     }
 
     public record FashionCategoryResponse(Long id, String name) {

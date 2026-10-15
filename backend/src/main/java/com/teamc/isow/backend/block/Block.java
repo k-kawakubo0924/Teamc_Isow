@@ -21,7 +21,7 @@ import org.hibernate.annotations.OnDeleteAction;
 /**
  * ブロック（docs/profile.md「ブロック」）。「blocker が blocked をブロックした」を1行で持つ。
  *
- * <p>効果は両方向：どちらの向きの行があっても、2人はお互いの投稿・プロフィールが見えなくなる（BlockConditions・UserVisibility）。
+ * <p>効果は両方向：どちらの向きの行があっても、2人はお互いの投稿・プロフィールが見えなくなる（VisibilityConditions・UserVisibility）。
  * 解除できるのは、ブロックした本人（blocker）だけ。解除は行を削除する
  */
 @Entity

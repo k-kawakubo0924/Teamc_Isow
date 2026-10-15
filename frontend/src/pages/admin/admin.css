@@ -810,3 +810,176 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* 措置（AdminModerationPage.tsx・ModerationPanels.tsx。docs/admin.md「6. 措置」） */
+
+.admin-moderation-notice {
+  max-width: 720px;
+  margin: 0 0 20px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f4f4f4;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.admin-moderation-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+
+.admin-moderation-search-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-moderation-label {
+  display: block;
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+
+.admin-moderation-search-form .admin-moderation-label {
+  margin: 0;
+}
+
+.admin-moderation-input,
+.admin-moderation-select,
+.admin-moderation-memo {
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.admin-moderation-memo {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  box-sizing: border-box;
+}
+
+.admin-moderation-panel {
+  max-width: 720px;
+  margin: 16px 0 24px;
+  padding: 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+}
+
+.admin-moderation-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.admin-moderation-meta,
+.admin-moderation-hint {
+  margin: 0 0 8px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.admin-moderation-state {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.admin-moderation-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.admin-moderation-error,
+.admin-moderation-over {
+  margin: 8px 0 0;
+  color: var(--color-error);
+  font-size: 13px;
+}
+
+.admin-moderation-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.admin-moderation-button,
+.admin-moderation-cancel {
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.admin-moderation-button:disabled,
+.admin-moderation-cancel:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.admin-moderation-confirm {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fbeeec;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.admin-moderation-confirm-title {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.admin-moderation-confirm-text p {
+  margin: 0;
+}
+
+.admin-moderation-confirm .admin-moderation-button {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+.admin-moderation-history {
+  margin: 16px 0 0;
+  padding: 12px 0 0 20px;
+  border-top: 1px solid var(--color-border-strong);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.admin-moderation-history-date {
+  color: var(--color-text-muted);
+}
+
+.admin-moderation-history-memo {
+  margin: 0;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+}
+
+.admin-moderation-heading {
+  margin: 28px 0 8px;
+  font-size: 15px;
+}
+
+.admin-moderation-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { blockUser } from '../../api/blocks'
 import { ApiError } from '../../api/client'
 import { deletePost, fetchPost, type PostResponse } from '../../api/posts'
+import { reportReasonLabel } from '../../api/reports'
 import { useAuth } from '../../auth/authContext'
 import { BlockConfirmDialog } from '../../components/block/BlockConfirmDialog'
 import { blockConfirmText } from '../../components/block/blockText'
@@ -333,6 +334,19 @@ function PostDetailContent({
   const height = formatHeight(author.heightCm)
   return (
     <article className="post-detail-body">
+      {/*
+        運営が非公開にした投稿（docs/admin.md「6. 措置」）。見られるのは投稿者本人だけなので、本人に理由を伝える。
+        ほかの人からは、存在しない投稿と同じに見える
+      */}
+      {post.hidden && (
+        <div className="post-detail-hidden" role="status">
+          <p className="post-detail-hidden-title">この投稿は運営により非公開になっています</p>
+          <p className="post-detail-hidden-text">
+            {post.hiddenReason && `理由：${reportReasonLabel(post.hiddenReason)}。`}
+            ほかの人には表示されません。
+          </p>
+        </div>
+      )}
       {/* 写真の切り替えは投稿の確認画面と共通 */}
       <PostPhotoViewer urls={post.imageUrls} />
 

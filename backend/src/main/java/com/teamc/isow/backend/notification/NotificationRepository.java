@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.notification;
 
+import com.teamc.isow.backend.block.VisibilityConditions;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -34,19 +35,23 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * 自分の通知を、通知日時の新しい順（同じなら ID の大きい順）に返す。関連するユーザーも一緒に読み込む
      * （1件ごとに SQL を発行しないため）。全件数を数えず、次のページの有無だけを判定する（Slice）
      */
+    // した人（actor）が見えない通知（ブロック・利用停止。VisibilityConditions）は、一覧にも件数にも出さない。
+    // 運営からの通知は「誰が」がない（actor が null）ため、そのまま出す
     @Query(value = """
-            SELECT n FROM Notification n JOIN FETCH n.actor
-            WHERE n.recipient.id = :recipientId
-            ORDER BY n.notifiedAt DESC, n.id DESC
-            """)
-    Slice<Notification> findPageByRecipientId(@Param("recipientId") Long recipientId, Pageable pageable);
+            SELECT n FROM Notification n LEFT JOIN FETCH n.actor u
+            WHERE n.recipient.id = :viewerId
+              AND (u IS NULL OR""" + VisibilityConditions.USER_VISIBLE + ")"
+            + " ORDER BY n.notifiedAt DESC, n.id DESC")
+    Slice<Notification> findPageByRecipientId(@Param("viewerId") Long recipientId, @Param("now") LocalDateTime now,
+            Pageable pageable);
 
     /** 未読の通知の件数。excludedType の種類は数えない（NotificationType の定数名） */
     @Query("""
-            SELECT COUNT(n) FROM Notification n
-            WHERE n.recipient.id = :recipientId AND n.readAt IS NULL AND n.type <> :excludedType
-            """)
-    long countUnreadExcludingType(@Param("recipientId") Long recipientId, @Param("excludedType") String excludedType);
+            SELECT COUNT(n) FROM Notification n LEFT JOIN n.actor u
+            WHERE n.recipient.id = :viewerId AND n.readAt IS NULL AND n.type <> :excludedType
+              AND (u IS NULL OR""" + VisibilityConditions.USER_VISIBLE + ")")
+    long countUnreadExcludingType(@Param("viewerId") Long recipientId, @Param("excludedType") String excludedType,
+            @Param("now") LocalDateTime now);
 
     /** 既読にする。すでに既読なら最初に既読にした日時のまま（自分の通知が見つかった件数を返す） */
     @Modifying

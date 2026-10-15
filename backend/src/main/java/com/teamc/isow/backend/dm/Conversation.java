@@ -205,6 +205,20 @@ public class Conversation {
         this.endedBy = blocker;
     }
 
+    /**
+     * 運営の措置（利用停止）で会話を終了する（申請中・進行中 → 終了。docs/admin.md「6. 措置」）。
+     * 終了した人は記録しない（null。どちらの参加者が終えたのでもないため）。申請中を「拒否」にしない理由は endByBlock と同じ。
+     * 利用停止を解除しても、終了した会話は戻さない（戻すと、その間に相手が受けた相談と合わせて、受付の上限を超えることがあるため）
+     */
+    public void endBySystem() {
+        if (!getStatus().isOngoing()) {
+            throw new IllegalStateException("会話の状態が " + getStatus() + " のため、この操作はできません");
+        }
+        changeStatus(ConversationStatus.ENDED);
+        this.endedAt = LocalDateTime.now();
+        this.endedBy = null;
+    }
+
     /** status と ongoing を必ず一緒に変える */
     private void changeStatus(ConversationStatus newStatus) {
         this.status = newStatus.name();

@@ -7,6 +7,7 @@ import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserNotFoundException;
 import com.teamc.isow.backend.user.UserRepository;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -48,6 +49,7 @@ public class FollowService {
     private final FollowRepository followRepository;
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final Clock clock;
     private final ApplicationEventPublisher events;
     private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
@@ -58,10 +60,12 @@ public class FollowService {
             AuthService authService,
             ApplicationEventPublisher events,
             UserVisibility userVisibility,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            Clock clock) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.authService = authService;
+        this.clock = clock;
         this.events = events;
         this.userVisibility = userVisibility;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
@@ -83,7 +87,7 @@ public class FollowService {
                 throw e;
             }
         }
-        return new FollowResponse(true, followRepository.countVisibleFollowers(followeeId, followerId));
+        return new FollowResponse(true, followRepository.countVisibleFollowers(followeeId, followerId, LocalDateTime.now(clock)));
     }
 
     /** フォローを解除する。フォローしていなくても成功として扱う。存在しないユーザーは 404 */
@@ -93,7 +97,7 @@ public class FollowService {
             requireVisibleUser(followerId, followeeId);
             followRepository.unfollow(followerId, followeeId, LocalDateTime.now());
         });
-        return new FollowResponse(false, followRepository.countVisibleFollowers(followeeId, followerId));
+        return new FollowResponse(false, followRepository.countVisibleFollowers(followeeId, followerId, LocalDateTime.now(clock)));
     }
 
     /**
@@ -108,14 +112,15 @@ public class FollowService {
             String subject, Long userId, String query, FollowSort sort, int page, int size) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
         requireVisibleUser(viewerId, userId);
+        LocalDateTime now = LocalDateTime.now(clock);
         Pageable pageable = pageable(sort, page, size);
         String pattern = searchPattern(query);
         Slice<Follow> follows = viewerId.equals(userId)
                 ? followRepository.findFollowingsIncludingUnfollowedSince(
-                        userId, viewerId, LocalDateTime.now().minus(UNDO_PERIOD), pattern, pageable)
-                : followRepository.findActiveFollowings(userId, viewerId, pattern, pageable);
+                        userId, viewerId, now, now.minus(UNDO_PERIOD), pattern, pageable)
+                : followRepository.findActiveFollowings(userId, viewerId, now, pattern, pageable);
         return toResponse(viewerId, follows, Follow::getFollowee,
-                followRepository.countVisibleFollowings(userId, viewerId), sort);
+                followRepository.countVisibleFollowings(userId, viewerId, now), sort);
     }
 
     /** userId のユーザーのフォロワー一覧（有効なフォローのみ）。query は listFollowings と同じ */
@@ -124,10 +129,11 @@ public class FollowService {
             String subject, Long userId, String query, FollowSort sort, int page, int size) {
         Long viewerId = authService.requireCurrentUser(subject).getId();
         requireVisibleUser(viewerId, userId);
+        LocalDateTime now = LocalDateTime.now(clock);
         Slice<Follow> follows = followRepository.findActiveFollowers(
-                userId, viewerId, searchPattern(query), pageable(sort, page, size));
+                userId, viewerId, now, searchPattern(query), pageable(sort, page, size));
         return toResponse(viewerId, follows, Follow::getFollower,
-                followRepository.countVisibleFollowers(userId, viewerId), sort);
+                followRepository.countVisibleFollowers(userId, viewerId, now), sort);
     }
 
     /** 検索欄の文字から、部分一致の LIKE のパターンを作る（SearchPatterns.contains と同じ） */

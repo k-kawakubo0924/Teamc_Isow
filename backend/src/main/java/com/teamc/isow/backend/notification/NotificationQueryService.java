@@ -6,6 +6,7 @@ import com.teamc.isow.backend.post.PostCardService;
 import com.teamc.isow.backend.post.PostRepository;
 import com.teamc.isow.backend.post.PostThumbnail;
 import com.teamc.isow.backend.user.User;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -28,13 +29,16 @@ public class NotificationQueryService {
     private final NotificationRepository notificationRepository;
     private final PostRepository postRepository;
     private final AuthService authService;
+    private final Clock clock;
     private final AnnouncementQueryService announcementQueryService;
 
     public NotificationQueryService(NotificationRepository notificationRepository, PostRepository postRepository,
-            AuthService authService, AnnouncementQueryService announcementQueryService) {
+            AuthService authService, AnnouncementQueryService announcementQueryService,
+            Clock clock) {
         this.notificationRepository = notificationRepository;
         this.postRepository = postRepository;
         this.authService = authService;
+        this.clock = clock;
         this.announcementQueryService = announcementQueryService;
     }
 
@@ -43,7 +47,7 @@ public class NotificationQueryService {
     public NotificationListResponse list(String subject, int page, int size) {
         Long userId = authService.requireCurrentUser(subject).getId();
         Pageable pageable = PostCardService.pageRequest(page, size);
-        Slice<Notification> notifications = notificationRepository.findPageByRecipientId(userId, pageable);
+        Slice<Notification> notifications = notificationRepository.findPageByRecipientId(userId, LocalDateTime.now(clock), pageable);
 
         // 関連する投稿は ID だけを使う（投稿の行は読まない）。サムネイルはページ分をまとめて読む
         List<Long> postIds = notifications.getContent().stream()
@@ -72,7 +76,8 @@ public class NotificationQueryService {
     public NotificationSummaryResponse summary(String subject) {
         User user = authService.requireCurrentUser(subject);
         return new NotificationSummaryResponse(
-                notificationRepository.countUnreadExcludingType(user.getId(), NotificationType.MESSAGE_RECEIVED.name()),
+                notificationRepository.countUnreadExcludingType(user.getId(), NotificationType.MESSAGE_RECEIVED.name(),
+                        LocalDateTime.now(clock)),
                 announcementQueryService.countUnread(user));
     }
 
@@ -116,7 +121,8 @@ public class NotificationQueryService {
         return new NotificationListResponse.Item(
                 notification.getId(),
                 notification.getType(),
-                new NotificationListResponse.Actor(
+                // 運営からの通知（投稿の非公開化など）は「誰が」がない
+                notification.getActor() == null ? null : new NotificationListResponse.Actor(
                         notification.getActor().getId(),
                         notification.getActor().getUsername(),
                         notification.getActor().getProfileImageUrl()),

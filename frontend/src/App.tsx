@@ -6,6 +6,7 @@ import AdminReportDetailPage from './pages/admin/AdminReportDetailPage'
 import AdminReportsPage from './pages/admin/AdminReportsPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminMastersPage from './pages/admin/AdminMastersPage'
+import AdminModerationPage from './pages/admin/AdminModerationPage'
 import AdminOperationLogsPage from './pages/admin/AdminOperationLogsPage'
 import DmChatPage from './pages/dm/DmChatPage'
 import DmListPage from './pages/dm/DmListPage'
@@ -27,6 +28,7 @@ import ProfileEditPage from './pages/settings/ProfileEditPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import BlockListPage from './pages/settings/BlockListPage'
 import SignUpPage from './pages/SignUpPage'
+import SuspendedPage from './pages/SuspendedPage'
 
 // 画面とURLの対応。ログインが必要な画面は RequireAuth の中に追加する
 function App() {
@@ -75,6 +77,7 @@ function App() {
           <Route path="announcements" element={<AdminAnnouncementsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="reports/:caseId" element={<AdminReportDetailPage />} />
+          <Route path="moderation" element={<AdminModerationPage />} />
           <Route path="operation-logs" element={<AdminOperationLogsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
@@ -90,6 +93,12 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<SignUpPage />} />
       </Route>
+
+      {/*
+        利用停止の画面（docs/admin.md「6. 措置」）。利用停止になるとログアウトするため、ログインの有無で振り分けない。
+        利用停止の情報がなければ、画面の中でログイン画面へ移る
+      */}
+      <Route path="/suspended" element={<SuspendedPage />} />
 
       <Route path="/health" element={<HealthCheckPage />} />
     </Routes>
