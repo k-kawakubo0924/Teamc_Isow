@@ -2,6 +2,7 @@ package com.teamc.isow.backend.config;
 
 import com.teamc.isow.backend.image.LocalImageWebConfig;
 import com.teamc.isow.backend.moderation.SuspendedUserFilter;
+import com.teamc.isow.backend.moderation.SuspensionAppealTokens;
 import com.teamc.isow.backend.user.UserRepository;
 import java.time.Clock;
 import java.util.List;
@@ -23,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 認証・認可の設定。
- * 疎通確認・新規会員登録・ログイン・保存した画像の表示のみ認証なしで許可し、それ以外は JWT（Authorization: Bearer）による認証を必須とする。
+ * 疎通確認・新規会員登録・ログイン・保存した画像の表示・利用停止中の申し立てのみ認証なしで許可し、それ以外は JWT（Authorization: Bearer）による認証を必須とする。
  * 管理者向けの API（/api/admin/**）は、さらに管理者であることを必須とし、管理者でなければ 404 を返す。
  */
 @Configuration
@@ -36,13 +37,15 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final Clock clock;
     private final JsonMapper jsonMapper;
+    private final SuspensionAppealTokens appealTokens;
 
     public SecurityConfig(AdminAuthorizationManager adminAuthorizationManager, UserRepository userRepository, Clock clock,
-            JsonMapper jsonMapper) {
+            JsonMapper jsonMapper, SuspensionAppealTokens appealTokens) {
         this.adminAuthorizationManager = adminAuthorizationManager;
         this.userRepository = userRepository;
         this.clock = clock;
         this.jsonMapper = jsonMapper;
+        this.appealTokens = appealTokens;
     }
 
     @Bean
@@ -55,6 +58,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                // 利用停止中の申し立て（docs/settings.md「お問い合わせ」）。トークンの代わりに、申し立て用の鍵を本文で受け取り、
+                // ContactService で確かめる（利用停止中はログインのトークンが出ないため）
+                .requestMatchers(HttpMethod.POST, "/api/contacts/appeal").permitAll()
                 // 保存した画像（ローカル保存時）。<img> タグからの読み込みには認証ヘッダーを付けられないため許可する
                 // （ファイル名は推測できない乱数。クラウドストレージの公開 URL と同じ扱い）
                 .requestMatchers(HttpMethod.GET, LocalImageWebConfig.URL_PATH + "**").permitAll()
@@ -65,10 +71,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").access(adminAuthorizationManager)
                 .anyRequest().authenticated()
             )
-            // Authorization: Bearer のトークンを JwtConfig の JwtDecoder で検証する（署名・有効期限）
+            // Authorization: Bearer のトークンを JwtConfig の JwtDecoder で検証する（署名・有効期限・用途を限ったトークンを断る）
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
             // 利用停止中のユーザーは、トークンを確かめた直後に、すべての API を 403 で止める（docs/admin.md「6. 措置」）
-            .addFilterAfter(new SuspendedUserFilter(userRepository, clock, jsonMapper), BearerTokenAuthenticationFilter.class)
+            .addFilterAfter(new SuspendedUserFilter(userRepository, clock, jsonMapper, appealTokens),
+                    BearerTokenAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 // 未認証のリクエストは 403 ではなく 401 を返す（ログイン画面への誘導に使う）
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))

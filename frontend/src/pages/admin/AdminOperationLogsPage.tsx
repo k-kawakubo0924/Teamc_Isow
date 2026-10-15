@@ -20,6 +20,9 @@ const ACTION_LABELS: Record<string, string> = {
   POST_UNHIDDEN: '投稿を公開に戻した',
   USER_SUSPENDED: '利用停止にした',
   USER_UNSUSPENDED: '利用停止を解除した',
+  CONTACT_RESOLVED: 'お問い合わせを対応済みにした',
+  CONTACT_DISMISSED: 'お問い合わせを対応不要にした',
+  CONTACT_REOPENED: 'お問い合わせを未対応に戻した',
 }
 
 /** 対象の種類（バックエンドの AdminTargetType）の表示名 */
@@ -32,6 +35,7 @@ const TARGET_LABELS: Record<string, string> = {
   ANNOUNCEMENT: 'お知らせ',
   REPORT: '通報',
   POST: '投稿',
+  CONTACT: 'お問い合わせ',
 }
 
 /**

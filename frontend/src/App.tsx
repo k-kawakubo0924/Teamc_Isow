@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router'
 import { GuestOnly, RequireAuth } from './auth/RouteGuards'
 import { TabLayout } from './components/BottomNav'
 import AdminAnnouncementsPage from './pages/admin/AdminAnnouncementsPage'
+import AdminContactDetailPage from './pages/admin/AdminContactDetailPage'
+import AdminContactsPage from './pages/admin/AdminContactsPage'
 import AdminReportDetailPage from './pages/admin/AdminReportDetailPage'
 import AdminReportsPage from './pages/admin/AdminReportsPage'
 import AdminLayout from './pages/admin/AdminLayout'
@@ -27,6 +29,7 @@ import SearchResultsPage from './pages/search/SearchResultsPage'
 import ProfileEditPage from './pages/settings/ProfileEditPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import BlockListPage from './pages/settings/BlockListPage'
+import ContactPage from './pages/settings/ContactPage'
 import SignUpPage from './pages/SignUpPage'
 import SuspendedPage from './pages/SuspendedPage'
 
@@ -65,6 +68,8 @@ function App() {
         <Route path="/settings/profile" element={<ProfileEditPage />} />
         {/* ブロック中のアカウント（docs/profile.md「ブロック」）。詳細設定と同じく、下部ナビゲーションを表示しない */}
         <Route path="/settings/blocks" element={<BlockListPage />} />
+        {/* お問い合わせ（docs/settings.md「お問い合わせ」）。詳細設定と同じく、下部ナビゲーションを表示しない */}
+        <Route path="/settings/contact" element={<ContactPage />} />
 
         {/*
           管理画面（docs/admin.md）。PC 向けの別の枠で、下部ナビゲーションを表示しない。
@@ -77,6 +82,8 @@ function App() {
           <Route path="announcements" element={<AdminAnnouncementsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="reports/:caseId" element={<AdminReportDetailPage />} />
+          <Route path="contacts" element={<AdminContactsPage />} />
+          <Route path="contacts/:contactId" element={<AdminContactDetailPage />} />
           <Route path="moderation" element={<AdminModerationPage />} />
           <Route path="operation-logs" element={<AdminOperationLogsPage />} />
           <Route path="*" element={<NotFoundPage />} />

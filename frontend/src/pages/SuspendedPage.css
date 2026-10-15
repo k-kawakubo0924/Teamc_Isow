@@ -56,10 +56,22 @@
   line-height: 1.7;
 }
 
+/* 申し立ての入口（docs/settings.md「お問い合わせ」） */
 .suspended-contact {
   margin: 24px 0 32px;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-accent);
+  font-family: inherit;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.suspended-appeal {
+  width: 100%;
+  margin: 24px 0 32px;
 }
 
 .suspended-back {

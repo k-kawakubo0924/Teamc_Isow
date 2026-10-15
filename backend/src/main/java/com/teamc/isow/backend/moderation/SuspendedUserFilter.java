@@ -28,6 +28,8 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>トークンは失効させない（失効の仕組みはない）。リクエストのたびに DB を読むため、利用停止にした直後から、
  *       すでに持っているトークンでも使えなくなる。期限を過ぎれば、その時点から使える</li>
  *   <li>ログインしていないリクエスト（ログイン・新規会員登録など）はそのまま通す。ログインの利用停止は AuthService で確かめる</li>
+ *   <li>例外として通す API はない。利用停止中の申し立て（/api/contacts/appeal）はトークンを付けずに、申し立て用の鍵を本文で送る
+ *       （docs/settings.md「お問い合わせ」）。403 の応答で、その鍵を渡す</li>
  * </ul>
  * Spring の部品（@Component）にしない（すると、Spring Security の外でも二重に動くため）。SecurityConfig で組み込む
  */
@@ -36,11 +38,14 @@ public class SuspendedUserFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
     private final Clock clock;
     private final JsonMapper jsonMapper;
+    private final SuspensionAppealTokens appealTokens;
 
-    public SuspendedUserFilter(UserRepository userRepository, Clock clock, JsonMapper jsonMapper) {
+    public SuspendedUserFilter(UserRepository userRepository, Clock clock, JsonMapper jsonMapper,
+            SuspensionAppealTokens appealTokens) {
         this.userRepository = userRepository;
         this.clock = clock;
         this.jsonMapper = jsonMapper;
+        this.appealTokens = appealTokens;
     }
 
     @Override
@@ -51,7 +56,9 @@ public class SuspendedUserFilter extends OncePerRequestFilter {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-            response.getWriter().write(jsonMapper.writeValueAsString(SuspendedErrorResponse.of(suspended.get())));
+            // 有効なトークンを持つ本人なので、申し立て用の鍵も渡す（docs/settings.md「お問い合わせ」）
+            response.getWriter().write(jsonMapper.writeValueAsString(
+                    SuspendedErrorResponse.of(suspended.get(), appealTokens.issue(suspended.get()))));
             return;
         }
         chain.doFilter(request, response);

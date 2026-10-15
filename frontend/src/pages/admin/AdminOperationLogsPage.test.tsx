@@ -157,6 +157,23 @@ describe('操作ログの一覧', () => {
     expect(cells(bodyRows()[3])[3]).toBe('投稿（ID: 10）')
   })
 
+  it('お問い合わせの状態の記録も日本語で出す（docs/admin.md「7. お問い合わせ」）', async () => {
+    stored = [
+      log(3, 'CONTACT_REOPENED', 'CONTACT'),
+      log(2, 'CONTACT_DISMISSED', 'CONTACT'),
+      log(1, 'CONTACT_RESOLVED', 'CONTACT'),
+    ]
+    renderPage()
+    await screen.findByText('名前：項目3')
+
+    expect(bodyRows().map((row) => cells(row)[2])).toEqual([
+      'お問い合わせを未対応に戻した',
+      'お問い合わせを対応不要にした',
+      'お問い合わせを対応済みにした',
+    ])
+    expect(cells(bodyRows()[2])[3]).toBe('お問い合わせ（ID: 10）')
+  })
+
   it('システムの操作は、システムが行ったと分かるように出す', async () => {
     renderPage()
     await screen.findByText('題名：メンテナンスのお知らせ')

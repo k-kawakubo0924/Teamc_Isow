@@ -400,3 +400,80 @@ export function listHiddenPosts(page: number, token: string): Promise<HiddenPost
 export function listSuspendedUsers(page: number, token: string): Promise<SuspendedUserList> {
   return getJson<SuspendedUserList>(`/api/admin/moderation/suspended-users?page=${page}&size=${ADMIN_PAGE_SIZE}`, token)
 }
+
+// ---- お問い合わせ（docs/admin.md「7. お問い合わせ」） ----
+
+export type AdminContactStatus = 'OPEN' | 'RESOLVED' | 'DISMISSED'
+/** 受付の経路。SUSPENDED_APPEAL は利用停止中の申し立て */
+export type AdminContactChannel = 'NORMAL' | 'SUSPENDED_APPEAL'
+
+/** 一覧の1行。内容・メールアドレスは含まない（詳細でだけ出す） */
+export type AdminContactListItem = {
+  id: number
+  channel: AdminContactChannel
+  category: string
+  status: AdminContactStatus
+  userId: number
+  /** 送った人の今のユーザー名。退会していれば null */
+  username: string | null
+  createdAt: string
+  closedAt: string | null
+}
+
+export type AdminContactList = {
+  items: AdminContactListItem[]
+  page: number
+  size: number
+  hasNext: boolean
+}
+
+export type AdminContactDetail = {
+  id: number
+  channel: AdminContactChannel
+  category: string
+  status: AdminContactStatus
+  userId: number
+  username: string | null
+  /** 別の連絡先（入力されたときだけ。登録済みのアドレスと同じ・未入力なら null） */
+  email: string | null
+  body: string
+  createdAt: string
+  closedAt: string | null
+  handledByUsername: string | null
+  adminMemo: string | null
+}
+
+export type AdminContactStatusResult = {
+  id: number
+  status: AdminContactStatus
+  closedAt: string | null
+  handledByUsername: string | null
+  adminMemo: string | null
+}
+
+/** お問い合わせの一覧（新しい順）。空の絞り込みは送らない */
+export function listContacts(
+  params: { status: string; category: string; channel: string; page: number },
+  token: string,
+): Promise<AdminContactList> {
+  const query = new URLSearchParams({ page: String(params.page), size: String(ADMIN_PAGE_SIZE) })
+  if (params.status) query.set('status', params.status)
+  if (params.category) query.set('category', params.category)
+  if (params.channel) query.set('channel', params.channel)
+  return getJson<AdminContactList>(`/api/admin/contacts?${query.toString()}`, token)
+}
+
+/** お問い合わせの詳細。開いたことは操作ログに残らない（docs/admin.md「7. お問い合わせ」） */
+export function fetchContact(id: number, token: string): Promise<AdminContactDetail> {
+  return getJson<AdminContactDetail>(`/api/admin/contacts/${id}`, token)
+}
+
+/** お問い合わせの状態を記録する。すでにその状態なら ApiError（409） */
+export function changeContactStatus(
+  id: number,
+  status: AdminContactStatus,
+  memo: string,
+  token: string,
+): Promise<AdminContactStatusResult> {
+  return postJson<AdminContactStatusResult>(`/api/admin/contacts/${id}/status`, { status, memo }, token)
+}

@@ -22,22 +22,26 @@ const SUSPENDED = {
   suspendedUntil: '2026-10-22T10:00:00',
   suspensionReason: 'HARASSMENT',
   suspensionReasonLabel: '嫌がらせ・誹謗中傷',
+  appealToken: 'appeal-token',
 }
 
 let response: { status: number; body: unknown }
+/** 申し立て（POST /api/contacts/appeal）への応答 */
+let appealResponse: { status: number; body: unknown }
+const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
+  const res = url.endsWith('/api/contacts/appeal') ? appealResponse : response
+  return new Response(JSON.stringify(res.body), {
+    status: res.status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+})
 
 beforeEach(() => {
   localStorage.clear()
   response = { status: 403, body: SUSPENDED }
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () =>
-      new Response(JSON.stringify(response.body), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    ),
-  )
+  appealResponse = { status: 201, body: { status: 'ACCEPTED' } }
+  fetchMock.mockClear()
+  vi.stubGlobal('fetch', fetchMock)
 })
 
 afterEach(() => {
@@ -91,7 +95,7 @@ function logIn() {
 }
 
 describe('利用停止', () => {
-  it('ログイン中に API が利用停止を返したら、ログアウトして、理由と期限と問い合わせ先を出す', async () => {
+  it('ログイン中に API が利用停止を返したら、ログアウトして、理由と期限と申し立ての入口を出す', async () => {
     logIn()
     const { container } = renderApp('/')
 
@@ -99,8 +103,11 @@ describe('利用停止', () => {
     expect(screen.getByTestId('where').textContent).toBe('/suspended')
     expect(container.textContent).toContain('嫌がらせ・誹謗中傷')
     expect(container.textContent).toContain('2026/10/22 10:00 まで')
-    expect(container.textContent).toContain('お問い合わせ（準備中）')
+    expect(container.textContent).not.toContain('準備中')
+    expect(screen.getByRole('button', { name: '利用停止について問い合わせる' })).toBeTruthy()
     expect(getSession()).toBeNull()
+    // 申し立て用の鍵は保存しない（メモリにだけ持つ）
+    expect(JSON.stringify({ ...localStorage })).not.toContain('appeal-token')
   })
 
   it('期限がなければ「無期限」と出す', async () => {
@@ -141,6 +148,61 @@ describe('利用停止', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
     expect(screen.getByTestId('where').textContent).toBe('/')
     expect(getSession()).not.toBeNull()
+  })
+
+  it('申し立ては、トークンを付けずに申し立て用の鍵を送る。種類は「アカウントについて」を最初から選び、返信しないことを伝える', async () => {
+    const { container } = renderApp('/login')
+    await screen.findByRole('heading', { name: 'アカウントが利用停止になっています' })
+
+    fireEvent.click(screen.getByRole('button', { name: '利用停止について問い合わせる' }))
+
+    expect(container.textContent).toContain('現在、個別の返信は行っていません')
+    expect(container.textContent).toContain('見直しの結果は、ログインできるかどうかでお知らせします')
+    const category = screen.getByLabelText(/お問い合わせの種類/) as HTMLSelectElement
+    expect(category.value).toBe('ACCOUNT')
+    fireEvent.change(screen.getByLabelText(/お問い合わせ内容/), { target: { value: '見直しをお願いします' } })
+    fireEvent.click(screen.getByRole('button', { name: '送信' }))
+
+    expect(await screen.findByText('お問い合わせを受け付けました。')).toBeTruthy()
+    const call = fetchMock.mock.calls.find(([url]) => url.endsWith('/api/contacts/appeal'))
+    expect(call).toBeTruthy()
+    const init = call![1]!
+    expect(new Headers(init.headers).has('Authorization')).toBe(false)
+    expect(JSON.parse(init.body as string)).toEqual({
+      appealToken: 'appeal-token',
+      email: '',
+      category: 'ACCOUNT',
+      body: '見直しをお願いします',
+    })
+  })
+
+  it('鍵の期限切れ・利用停止の状態が変わったときは、サーバーの文言を出し、利用停止の画面のままにする', async () => {
+    appealResponse = {
+      status: 409,
+      body: { message: '利用停止の状態が変わったため、送信できませんでした。もう一度ログインしてください。', errors: {} },
+    }
+    renderApp('/login')
+    await screen.findByRole('heading', { name: 'アカウントが利用停止になっています' })
+    fireEvent.click(screen.getByRole('button', { name: '利用停止について問い合わせる' }))
+    fireEvent.change(screen.getByLabelText(/お問い合わせ内容/), { target: { value: '見直しをお願いします' } })
+
+    fireEvent.click(screen.getByRole('button', { name: '送信' }))
+
+    expect(
+      await screen.findByText('利用停止の状態が変わったため、送信できませんでした。もう一度ログインしてください。'),
+    ).toBeTruthy()
+    expect(screen.getByTestId('where').textContent).toBe('/suspended')
+  })
+
+  it('鍵がない応答（古いサーバーなど）では、フォームを出さずにログインし直すよう伝える', async () => {
+    response = { status: 403, body: { ...SUSPENDED, appealToken: null } }
+    const { container } = renderApp('/login')
+    await screen.findByRole('heading', { name: 'アカウントが利用停止になっています' })
+
+    fireEvent.click(screen.getByRole('button', { name: '利用停止について問い合わせる' }))
+
+    expect(container.textContent).toContain('もう一度ログインしてから')
+    expect(screen.queryByRole('button', { name: '送信' })).toBeNull()
   })
 
   it('利用停止の情報がないまま /suspended を開いたら、ログイン画面へ移る', async () => {

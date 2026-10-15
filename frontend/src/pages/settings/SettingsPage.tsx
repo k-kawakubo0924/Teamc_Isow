@@ -96,6 +96,17 @@ function SettingsPage() {
           }
           onClick={() => navigate('/settings/blocks')}
         />
+        {/* お問い合わせ（docs/settings.md「お問い合わせ」）。画面画像にはない項目 */}
+        <MenuItem
+          label="お問い合わせ"
+          icon={
+            <svg {...ICON_PROPS}>
+              <path d="M5 5.5h14v10H10l-4 3.5v-3.5H5z" />
+              <path d="M9 9.5h6M9 12h4" />
+            </svg>
+          }
+          onClick={() => navigate('/settings/contact')}
+        />
       </ul>
 
       <ul className="settings-menu">

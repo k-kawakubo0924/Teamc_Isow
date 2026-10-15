@@ -1,16 +1,21 @@
+import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
+import { sendAppeal } from '../api/contacts'
 import { useAuth } from '../auth/authContext'
+import { ContactForm } from '../components/contact/ContactForm'
 import './SuspendedPage.css'
 
 /**
  * 利用停止の画面（docs/admin.md「6. 措置」）。API が利用停止を返したら、どの画面からでもここへ移る（RouteGuards）。
  * 理由と期限を出す。期限を過ぎれば、もう一度ログインすれば使える。
- * お問い合わせの窓口はまだないため「お問い合わせ（準備中）」とだけ出す。
+ * 「利用停止について問い合わせる」から申し立てられる（docs/settings.md「お問い合わせ」）。利用停止中はログインのトークンが
+ * 出ないため、利用停止の応答で受け取った申し立て用の鍵（メモリにだけ持つ）で送る。
  * 利用停止の情報がない（再読み込みした・直接開いた）ときは、ログイン画面へ移る
  */
 function SuspendedPage() {
   const { suspension, clearSuspension } = useAuth()
   const navigate = useNavigate()
+  const [appealing, setAppealing] = useState(false)
 
   if (!suspension) return <Navigate to="/login" replace />
 
@@ -18,6 +23,8 @@ function SuspendedPage() {
     clearSuspension?.()
     navigate('/login', { replace: true })
   }
+
+  const appealToken = suspension.appealToken
 
   return (
     <main className="suspended-page">
@@ -36,7 +43,30 @@ function SuspendedPage() {
       {suspension.suspendedUntil !== null && (
         <p className="suspended-note">期間が過ぎると、もう一度ログインすれば使えるようになります。</p>
       )}
-      <p className="suspended-contact">お問い合わせ（準備中）</p>
+
+      {appealing ? (
+        <section className="suspended-appeal" aria-label="利用停止についてのお問い合わせ">
+          {appealToken === null ? (
+            <p className="suspended-note" role="alert">
+              受付の期限が切れました。もう一度ログインしてから送ってください。
+            </p>
+          ) : (
+            <ContactForm
+              initialCategory="ACCOUNT"
+              emailHint="連絡先を残したい場合に入力してください。"
+              notes={['現在、個別の返信は行っていません。', '見直しの結果は、ログインできるかどうかでお知らせします。']}
+              onSubmit={async (request) => {
+                await sendAppeal({ ...request, appealToken })
+              }}
+            />
+          )}
+        </section>
+      ) : (
+        <button type="button" className="suspended-contact" onClick={() => setAppealing(true)}>
+          利用停止について問い合わせる
+        </button>
+      )}
+
       <button type="button" className="suspended-back" onClick={handleBack}>
         ログイン画面に戻る
       </button>

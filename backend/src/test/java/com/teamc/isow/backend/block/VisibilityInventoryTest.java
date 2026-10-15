@@ -129,6 +129,10 @@ class VisibilityInventoryTest {
         // ---- 通報（docs/admin.md「通報」） ----
         target("POST /api/reports");
 
+        // ---- お問い合わせ（docs/settings.md「お問い合わせ」） ----
+        own("POST /api/contacts", "運営に宛てて送るだけで、他人のデータを返さない");
+        own("POST /api/contacts/appeal", "利用停止中の本人が運営に宛てて送るだけ。トークンではなく申し立て用の鍵で本人を確かめる");
+
         // ---- 検索 ----
         checked("GET /api/search/posts", "/api/search/posts?q=BLKPOST");
         checked("GET /api/search/users", "/api/search/users?q=blkuser");
@@ -335,9 +339,13 @@ class VisibilityInventoryTest {
         assertThat(notBlocked).as("利用停止中のユーザーが使えてしまう API").isEmpty();
     }
 
-    /** ログインしていなくても使える API（利用停止の確かめから除く。ログインの利用停止は ModerationVisibilityTest で確かめる） */
+    /**
+     * ログインしていなくても使える API（利用停止の確かめから除く。ログインの利用停止は ModerationVisibilityTest で確かめる）。
+     * 申し立て（/api/contacts/appeal）は利用停止中の人のための API で、トークンではなく申し立て用の鍵を本文で受け取る
+     * （ContactApiTest で確かめる）
+     */
     private static final Set<String> PUBLIC_APIS = Set.of(
-            "POST /api/auth/register", "POST /api/auth/login", "GET /api/health");
+            "POST /api/auth/register", "POST /api/auth/login", "GET /api/health", "POST /api/contacts/appeal");
 
     private void hide(Post post) {
         jdbcTemplate.update("UPDATE posts SET hidden_at = ?, hidden_reason = 'SPAM' WHERE id = ?",
