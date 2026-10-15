@@ -42,6 +42,7 @@ function conversation(status: ConversationDetail['status']): ConversationDetail 
     requestedAt: '2026-10-10T10:00:00',
     respondedAt: '2026-10-10T11:00:00',
     endedAt: status === 'ENDED' ? '2026-10-11T10:00:00' : null,
+    endedByInactivity: false,
   }
 }
 

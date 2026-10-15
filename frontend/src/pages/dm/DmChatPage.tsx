@@ -569,7 +569,10 @@ function disabledReason(detail: ConversationDetail): string | null {
         ? '相手が承認すると、メッセージを送れるようになります'
         : 'リクエストを承認すると、メッセージを送れるようになります'
     case 'ENDED':
-      return 'この会話は終了しました（閲覧のみ）'
+      // 自動終了だけは理由を出す（相手が終えたように見えないように）。ほかの理由（ブロック・利用停止など）はサーバーも返さない
+      return detail.endedByInactivity
+        ? '30日間やり取りがなかったため、自動で終了しました（閲覧のみ）'
+        : 'この会話は終了しました（閲覧のみ）'
     case 'REJECTED':
       return 'このリクエストは承認されませんでした'
   }

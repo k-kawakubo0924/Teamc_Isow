@@ -2,6 +2,7 @@ package com.teamc.isow.backend.dm;
 
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -131,4 +132,23 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
               AND c.requestedBy.id <> :userId AND c.status = :status
             """)
     long countReceived(@Param("userId") Long userId, @Param("status") String status);
+
+    /**
+     * 30日やり取りがない相談の ID（docs/dm.md「30日やり取りがない相談の自動終了」）。判定は Conversation.isInactiveAsOf と同じ
+     * （変えるときは両方を直すこと）。
+     *
+     * <p><b>cutoff はアプリの今の時刻から計算して渡す。DB の現在時刻（CURRENT_TIMESTAMP など）に置き換えないこと</b>
+     * （このアプリは日時を日本時間で保存し、DB は UTC として扱うため、9時間ずれる。docs/admin.md「時刻の扱い」）
+     *
+     * @param cutoff 今の時刻の30日前。最後のやり取りがこれ以前なら対象
+     */
+    @Query("""
+            SELECT c.id FROM Conversation c
+            WHERE (c.status = :requested AND c.requestedAt <= :cutoff)
+               OR (c.status = :active AND c.respondedAt <= :cutoff
+                   AND (c.lastMessageAt IS NULL OR c.lastMessageAt <= :cutoff))
+            ORDER BY c.id
+            """)
+    List<Long> findInactiveIds(@Param("cutoff") LocalDateTime cutoff, @Param("requested") String requested,
+            @Param("active") String active);
 }

@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
  * @param requestedAt 申し込んだ日時
  * @param respondedAt 承認または拒否した日時。申請中は null
  * @param endedAt 終了した日時。終了していなければ null
+ * @param endedByInactivity 30日やり取りがなかったため自動で終了したか。<b>終了の理由そのもの（ブロック・利用停止など）は返さない</b>
+ *     （相手に伝わると、ブロックで隠した意味がなくなるため。ConversationEndReason）
  */
 public record ConversationDetailResponse(
         Long conversationId,
@@ -20,5 +22,6 @@ public record ConversationDetailResponse(
         ConversationListResponse.Partner partner,
         LocalDateTime requestedAt,
         LocalDateTime respondedAt,
-        LocalDateTime endedAt) {
+        LocalDateTime endedAt,
+        boolean endedByInactivity) {
 }

@@ -100,7 +100,8 @@ public class ConversationListService {
                 partner(conversation, me),
                 conversation.getRequestedAt(),
                 conversation.getRespondedAt(),
-                conversation.getEndedAt());
+                conversation.getEndedAt(),
+                conversation.isEndedByInactivity());
     }
 
     /**

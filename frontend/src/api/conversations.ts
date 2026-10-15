@@ -99,6 +99,11 @@ export type ConversationDetail = {
   requestedAt: string
   respondedAt: string | null
   endedAt: string | null
+  /**
+   * 30日やり取りがなかったため自動で終了したか（docs/dm.md「30日やり取りがない相談の自動終了」）。
+   * サーバーは終了の理由そのもの（ブロック・利用停止など）を返さない。相手に伝わらないようにするため
+   */
+  endedByInactivity: boolean
 }
 
 /** 当事者でなければ 404（存在しない会話と同じ） */

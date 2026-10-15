@@ -94,11 +94,18 @@ public class Conversation {
 
     /**
      * 会話を終了した人（user1 か user2 のどちらか）。終了日時と同時に記録する。終了していなければ null。
-     * 通知機能で「誰が終了したか」を使う想定。一か月連絡がない会話の自動終了（未実装）では、終了した人がいないため null のままにする
+     * 通知機能で「誰が終了したか」を使う想定。利用停止・30日やり取りがない相談の自動終了では、終了した人がいないため null
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ended_by_id")
     private User endedBy;
+
+    /**
+     * 終了した理由（ConversationEndReason の定数名）。終了日時と同時に記録する。この列ができる前に終了した会話は null。
+     * <b>API には理由を返さず、「自動終了かどうか」だけを返す</b>（ConversationEndReason）
+     */
+    @Column(name = "end_reason", length = 20)
+    private String endReason;
 
     protected Conversation() {
         // JPA 用
@@ -156,6 +163,7 @@ public class Conversation {
         changeStatus(ConversationStatus.ENDED);
         this.endedAt = LocalDateTime.now();
         this.endedBy = endedBy;
+        this.endReason = ConversationEndReason.USER.name();
     }
 
     /** メッセージを保存したときに呼び、最終メッセージ日時を進める */
@@ -203,6 +211,7 @@ public class Conversation {
         changeStatus(ConversationStatus.ENDED);
         this.endedAt = LocalDateTime.now();
         this.endedBy = blocker;
+        this.endReason = ConversationEndReason.BLOCK.name();
     }
 
     /**
@@ -217,6 +226,39 @@ public class Conversation {
         changeStatus(ConversationStatus.ENDED);
         this.endedAt = LocalDateTime.now();
         this.endedBy = null;
+        this.endReason = ConversationEndReason.SUSPENSION.name();
+    }
+
+    /**
+     * 30日やり取りがない相談を自動で終了する（申請中・進行中 → 終了。docs/dm.md「30日やり取りがない相談の自動終了」）。
+     * 終了した人は記録しない（null。利用停止と同じく、どちらの当事者が終えたのでもないため）。申請中を「拒否」にしない理由は
+     * endByBlock と同じ。通知は作らない
+     *
+     * @param now 今の時刻（アプリの Clock から読んだもの。テストで差し替えられるよう引数で受け取る）
+     */
+    public void endByInactivity(LocalDateTime now) {
+        if (!getStatus().isOngoing()) {
+            throw new IllegalStateException("会話の状態が " + getStatus() + " のため、この操作はできません");
+        }
+        changeStatus(ConversationStatus.ENDED);
+        this.endedAt = now;
+        this.endedBy = null;
+        this.endReason = ConversationEndReason.INACTIVITY.name();
+    }
+
+    /**
+     * cutoff（今の時刻から30日前）までに最後のやり取りがあり、それ以後やり取りがないか。
+     * 進行中は「最終メッセージ日時と承認日時の遅いほう」、申請中は申込日時を最後のやり取りとする
+     * （申し込みの一言も最初のメッセージとして保存されるため、承認日時も見ないと、承認の直後に終わることがある）。
+     * ConversationRepository.findInactiveIds の SQL と同じ判定（変えるときは両方を直すこと）
+     */
+    public boolean isInactiveAsOf(LocalDateTime cutoff) {
+        return switch (getStatus()) {
+            case REQUESTED -> !requestedAt.isAfter(cutoff);
+            case ACTIVE -> respondedAt != null && !respondedAt.isAfter(cutoff)
+                    && (lastMessageAt == null || !lastMessageAt.isAfter(cutoff));
+            case ENDED, REJECTED -> false;
+        };
     }
 
     /** status と ongoing を必ず一緒に変える */
@@ -265,6 +307,11 @@ public class Conversation {
 
     public LocalDateTime getEndedAt() {
         return endedAt;
+    }
+
+    /** 30日やり取りがなかったため自動で終了したか（API に返すのはこれだけ。理由そのものは返さない） */
+    public boolean isEndedByInactivity() {
+        return ConversationEndReason.INACTIVITY.name().equals(endReason);
     }
 
     public User getEndedBy() {
