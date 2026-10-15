@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ConversationDetail, Message } from '../../api/conversations'
+import { ApiError } from '../../api/client'
+import type { ConversationDetail, ConversationSetting, Message } from '../../api/conversations'
 import DmChatPage from './DmChatPage'
 
 /*
@@ -12,10 +13,11 @@ import DmChatPage from './DmChatPage'
 const poll = vi.fn<() => Promise<void>>()
 let detail: ConversationDetail
 let messages: Message[] = []
+const setDetail = vi.fn()
 vi.mock('./useChat', () => ({
   useChat: () => ({
     detail,
-    setDetail: vi.fn(),
+    setDetail,
     messages,
     append: vi.fn(),
     hasOlder: false,
@@ -28,6 +30,13 @@ vi.mock('./useChat', () => ({
 const blockUser = vi.fn<(id: number) => Promise<void>>()
 vi.mock('../../api/blocks', () => ({ blockUser: (id: number) => blockUser(id) }))
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
+const pinConversation = vi.fn<(id: number) => Promise<ConversationSetting>>()
+const unpinConversation = vi.fn<(id: number) => Promise<ConversationSetting>>()
+vi.mock('../../api/conversations', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/conversations')>()),
+  pinConversation: (id: number) => pinConversation(id),
+  unpinConversation: (id: number) => unpinConversation(id),
+}))
 vi.mock('../../api/reports', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/reports')>()),
   reportTarget: vi.fn(),
@@ -43,6 +52,8 @@ function conversation(status: ConversationDetail['status']): ConversationDetail 
     respondedAt: '2026-10-10T11:00:00',
     endedAt: status === 'ENDED' ? '2026-10-11T10:00:00' : null,
     endedByInactivity: false,
+    pinned: false,
+    muted: false,
   }
 }
 
@@ -57,10 +68,17 @@ afterEach(() => {
   cleanup()
   poll.mockReset()
   blockUser.mockReset()
+  setDetail.mockReset()
+  pinConversation.mockReset()
+  unpinConversation.mockReset()
 })
 
 function renderChat(status: ConversationDetail['status']) {
-  detail = conversation(status)
+  return renderChatWith(conversation(status))
+}
+
+function renderChatWith(conversationDetail: ConversationDetail) {
+  detail = conversationDetail
   return render(
     <MemoryRouter initialEntries={['/dm/10']}>
       <Routes>
@@ -71,20 +89,68 @@ function renderChat(status: ConversationDetail['status']) {
 }
 
 describe('チャット画面のメニュー', () => {
-  it('進行中の会話では「会話を終了する」と「ブロック」がある', () => {
+  it('進行中の会話では「ピン留めする」「会話を終了する」「ブロック」がある', () => {
     renderChat('ACTIVE')
 
     fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['会話を終了する', 'ブロック'])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'ピン留めする',
+      '会話を終了する',
+      'ブロック',
+    ])
   })
 
-  it('終了した会話でも「ブロック」はできる（「会話を終了する」は出さない）', () => {
+  it('終了した会話でも「ピン留めする」と「ブロック」はできる（「会話を終了する」は出さない）', () => {
     renderChat('ENDED')
 
     fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['ブロック'])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['ピン留めする', 'ブロック'])
+  })
+
+  it('申請中の会話ではピン留めを出さない', () => {
+    renderChat('REQUESTED')
+
+    fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
+
+    expect(screen.queryByRole('menuitem', { name: /ピン留め/ })).toBeNull()
+  })
+
+  it('「ピン留めする」で確認なしにピン留めし、会話の設定を更新する', async () => {
+    pinConversation.mockResolvedValue({ conversationId: 10, pinned: true, muted: false })
+    renderChat('ACTIVE')
+
+    fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ピン留めする' }))
+
+    await vi.waitFor(() => expect(setDetail).toHaveBeenCalled())
+    expect(pinConversation).toHaveBeenCalledWith(10)
+    const update = setDetail.mock.calls[0][0] as (prev: ConversationDetail) => ConversationDetail
+    expect(update(conversation('ACTIVE'))).toMatchObject({ pinned: true, muted: false })
+  })
+
+  it('ピン留め中なら「ピン留めを外す」を出す', async () => {
+    unpinConversation.mockResolvedValue({ conversationId: 10, pinned: false, muted: false })
+    detail = { ...conversation('ACTIVE'), pinned: true }
+    renderChatWith(detail)
+
+    fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ピン留めを外す' }))
+
+    await vi.waitFor(() => expect(unpinConversation).toHaveBeenCalledWith(10))
+  })
+
+  it('上限（10件）で断られたら、サーバーの文言を出す', async () => {
+    pinConversation.mockRejectedValue(
+      new ApiError(409, { message: 'ピン留めできるのは10件までです。', errors: {}, reason: 'PIN_LIMIT_REACHED' }, 'ピン留めできるのは10件までです。'),
+    )
+    renderChat('ACTIVE')
+
+    fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ピン留めする' }))
+
+    expect((await screen.findByRole('alert')).textContent).toBe('ピン留めできるのは10件までです。')
   })
 
   it('「ブロック」で確かめてからブロックし、会話の状態を取り直す', async () => {

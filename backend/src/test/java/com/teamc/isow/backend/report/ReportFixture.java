@@ -80,6 +80,7 @@ final class ReportFixture {
         jdbcTemplate.update("DELETE FROM report_cases");
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM messages");
+        jdbcTemplate.update("DELETE FROM conversation_user_settings");
         jdbcTemplate.update("DELETE FROM conversations");
         jdbcTemplate.update("DELETE FROM likes");
         jdbcTemplate.update("DELETE FROM favorites");

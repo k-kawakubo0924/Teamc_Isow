@@ -27,6 +27,8 @@ public record ConversationListResponse(List<Item> conversations, int page, int s
      * @param requestedAt 申し込んだ日時（メッセージのない申請に「3分前」などを表示するため）
      * @param latestUnread 相手から届いた未読メッセージのうち最新のもの（ホームの新着メッセージ。自分が送ったものは含まない）。
      *     unread=true を指定したときだけ入れ、それ以外は null
+     * @param pinned 自分がピン留めしているか（相手の設定は返さない。docs/dm.md「ピン留め」）
+     * @param muted 自分が通知をオフにしているか（相手の設定は返さない。docs/dm.md「通知オフ」）
      */
     public record Item(
             Long conversationId,
@@ -38,7 +40,9 @@ public record ConversationListResponse(List<Item> conversations, int page, int s
             LocalDateTime lastMessageAt,
             long unreadCount,
             LocalDateTime requestedAt,
-            UnreadMessage latestUnread) {
+            UnreadMessage latestUnread,
+            boolean pinned,
+            boolean muted) {
     }
 
     /**

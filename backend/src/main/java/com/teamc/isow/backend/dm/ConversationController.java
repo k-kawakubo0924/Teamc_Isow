@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,21 +28,25 @@ public class ConversationController {
     private final ConversationService conversationService;
     private final ConversationListService conversationListService;
     private final MessageService messageService;
+    private final ConversationSettingService settingService;
 
     public ConversationController(
             ConversationService conversationService,
             ConversationListService conversationListService,
-            MessageService messageService) {
+            MessageService messageService,
+            ConversationSettingService settingService) {
         this.conversationService = conversationService;
         this.conversationListService = conversationListService;
         this.messageService = messageService;
+        this.settingService = settingService;
     }
 
     /**
      * DM一覧。status は requested（申請中）・active（進行中）・ended（終了）・chats（進行中と終了）・
      * received（受け取った申請）・sent（送った申請）。指定しなければ申請中・進行中・終了のすべて（拒否は含めない）。
      * q を指定すると、相手のユーザー名・表示名の一部で絞り込む（画面上部の検索欄）。
-     * unread=true なら、相手から届いた未読メッセージがある会話だけ（ホームの新着メッセージ）
+     * unread=true なら、相手から届いた未読メッセージがある会話だけ（ホームの新着メッセージ）。
+     * pinned=true なら、自分がピン留めした会話だけ（ピン留めした相談の一覧。docs/dm.md「ピン留め」）
      */
     @GetMapping
     public ConversationListResponse list(
@@ -49,6 +54,7 @@ public class ConversationController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "false") boolean unread,
+            @RequestParam(defaultValue = "false") boolean pinned,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         ConversationFilter filter = ConversationFilter.fromParam(status)
@@ -57,7 +63,19 @@ public class ConversationController {
         if (q != null && q.length() > MAX_QUERY_LENGTH) {
             throw InputValidationException.of("q", "検索する文字は" + MAX_QUERY_LENGTH + "文字以内で入力してください");
         }
-        return conversationListService.list(jwt.getSubject(), filter, q, unread, page, size);
+        return conversationListService.list(jwt.getSubject(), filter, q, unread, pinned, page, size);
+    }
+
+    /** 相談をピン留めする（自分の設定。相手には分からない）。申請中・拒否・上限（10件）は 409 */
+    @PostMapping("/{conversationId:\\d+}/pin")
+    public ConversationSettingResponse pin(@AuthenticationPrincipal Jwt jwt, @PathVariable Long conversationId) {
+        return settingService.pin(jwt.getSubject(), conversationId);
+    }
+
+    /** ピン留めを外す（していなくても成功する） */
+    @DeleteMapping("/{conversationId:\\d+}/pin")
+    public ConversationSettingResponse unpin(@AuthenticationPrincipal Jwt jwt, @PathVariable Long conversationId) {
+        return settingService.unpin(jwt.getSubject(), conversationId);
     }
 
     /** DM の件数（下部ナビの DM のバッジと、DM一覧の「メッセージリクエスト」「送信したリクエスト」の件数） */

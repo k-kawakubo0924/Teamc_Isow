@@ -69,6 +69,7 @@ class NotificationQueryCountTest {
     @AfterEach
     void tearDown() {
         jdbcTemplate.update("DELETE FROM notifications");
+        jdbcTemplate.update("DELETE FROM conversation_user_settings");
         jdbcTemplate.update("DELETE FROM conversations");
         jdbcTemplate.update("DELETE FROM post_tags");
         jdbcTemplate.update("DELETE FROM post_images");

@@ -36,6 +36,8 @@ function ended(endedByInactivity: boolean): ConversationDetail {
     respondedAt: '2026-09-01T11:00:00',
     endedAt: '2026-10-11T10:15:00',
     endedByInactivity,
+    pinned: false,
+    muted: false,
   }
 }
 

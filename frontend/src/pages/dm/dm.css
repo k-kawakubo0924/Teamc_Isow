@@ -18,6 +18,42 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/*
+ * 見出しの左上のマーク（ピン留めした相談の一覧を開く。design/DMlist.png）。
+ * バッジはピン留めの件数で、未読ではない。設計画像では未読と同じ色だが、見間違えないよう、
+ * 塗りつぶさない控えめな見た目にする（未読のバッジ .dm-count-badge は「対応が必要」の合図のため。docs/dm.md「DM一覧の見出し」）
+ */
+.dm-pin-link {
+  position: absolute;
+  left: 16px;
+  display: inline-flex;
+  color: var(--color-text);
+}
+
+.dm-pin-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* 行の印（ピン留め中・通知オフ）。自分の設定で、相手には分からない */
+.dm-row-mark {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+
 .dm-logo {
   margin: 0;
   font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;

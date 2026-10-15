@@ -89,6 +89,7 @@ class NotificationApiTest {
     void tearDown() {
         // 通知はユーザー・会話・投稿を参照しているため先に消す
         jdbcTemplate.update("DELETE FROM notifications");
+        jdbcTemplate.update("DELETE FROM conversation_user_settings");
         jdbcTemplate.update("DELETE FROM conversations");
         jdbcTemplate.update("DELETE FROM post_tags");
         jdbcTemplate.update("DELETE FROM post_images");

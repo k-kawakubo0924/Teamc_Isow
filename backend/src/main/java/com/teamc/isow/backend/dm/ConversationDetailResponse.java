@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
  * @param endedAt 終了した日時。終了していなければ null
  * @param endedByInactivity 30日やり取りがなかったため自動で終了したか。<b>終了の理由そのもの（ブロック・利用停止など）は返さない</b>
  *     （相手に伝わると、ブロックで隠した意味がなくなるため。ConversationEndReason）
+ * @param pinned 自分がピン留めしているか（相手の設定は返さない）
+ * @param muted 自分が通知をオフにしているか（相手の設定は返さない）
  */
 public record ConversationDetailResponse(
         Long conversationId,
@@ -23,5 +25,7 @@ public record ConversationDetailResponse(
         LocalDateTime requestedAt,
         LocalDateTime respondedAt,
         LocalDateTime endedAt,
-        boolean endedByInactivity) {
+        boolean endedByInactivity,
+        boolean pinned,
+        boolean muted) {
 }

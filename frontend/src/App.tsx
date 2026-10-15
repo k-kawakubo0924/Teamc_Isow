@@ -13,6 +13,7 @@ import AdminOperationLogsPage from './pages/admin/AdminOperationLogsPage'
 import DmChatPage from './pages/dm/DmChatPage'
 import DmListPage from './pages/dm/DmListPage'
 import DmRequestsPage from './pages/dm/DmRequestsPage'
+import DmPinnedPage from './pages/dm/DmPinnedPage'
 import DmSentPage from './pages/dm/DmSentPage'
 import { FollowListPage } from './pages/follow/FollowListPage'
 import HealthCheckPage from './pages/HealthCheckPage'
@@ -56,6 +57,8 @@ function App() {
           <Route path="/dm" element={<DmListPage />} />
           <Route path="/dm/requests" element={<DmRequestsPage />} />
           <Route path="/dm/sent" element={<DmSentPage />} />
+          {/* ピン留めした相談の一覧（docs/dm.md「ピン留め」）。DM一覧の見出しの左上のマークから開く */}
+          <Route path="/dm/pinned" element={<DmPinnedPage />} />
         </Route>
         {/* チャット画面は画面下部に入力欄を置くため、下部ナビゲーションを表示しない */}
         <Route path="/dm/:conversationId" element={<DmChatPage />} />

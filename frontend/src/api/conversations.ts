@@ -36,6 +36,10 @@ export type ConversationListItem = {
   requestedAt: string
   /** 相手から届いた未読メッセージのうち最新のもの（自分が送ったものは含まない）。unreadOnly を指定したときだけ入る */
   latestUnread: UnreadMessage | null
+  /** 自分がピン留めしているか（相手の設定は返らない。docs/dm.md「ピン留め」） */
+  pinned: boolean
+  /** 自分が通知をオフにしているか（相手の設定は返らない。docs/dm.md「通知オフ」） */
+  muted: boolean
 }
 
 /** 相手から届いた未読メッセージ（バックエンドの ConversationListResponse.UnreadMessage） */
@@ -64,7 +68,7 @@ export function fetchConversations(
   page: number,
   token: string,
   signal?: AbortSignal,
-  options: { unreadOnly?: boolean; size?: number } = {},
+  options: { unreadOnly?: boolean; pinnedOnly?: boolean; size?: number } = {},
 ): Promise<ConversationListResponse> {
   const params = new URLSearchParams({
     status: filter,
@@ -73,6 +77,7 @@ export function fetchConversations(
   })
   if (query.trim() !== '') params.set('q', query.trim())
   if (options.unreadOnly) params.set('unread', 'true')
+  if (options.pinnedOnly) params.set('pinned', 'true')
   return getJson<ConversationListResponse>(`/api/conversations?${params}`, token, signal)
 }
 
@@ -84,6 +89,8 @@ export type ConversationSummary = {
   receivedRequestCount: number
   /** 自分が送った申請（送信したリクエスト）の件数 */
   sentRequestCount: number
+  /** 自分がピン留めしている相談の数（DM一覧の見出しのマークのバッジ。未読ではない） */
+  pinnedCount: number
 }
 
 export function fetchConversationSummary(token: string, signal?: AbortSignal): Promise<ConversationSummary> {
@@ -104,6 +111,30 @@ export type ConversationDetail = {
    * サーバーは終了の理由そのもの（ブロック・利用停止など）を返さない。相手に伝わらないようにするため
    */
   endedByInactivity: boolean
+  /** 自分がピン留めしているか */
+  pinned: boolean
+  /** 自分が通知をオフにしているか */
+  muted: boolean
+}
+
+/** 自分の、相談ごとの設定（バックエンドの ConversationSettingResponse）。相手の設定は返らない */
+export type ConversationSetting = {
+  conversationId: number
+  pinned: boolean
+  muted: boolean
+}
+
+/**
+ * 相談をピン留めする（docs/dm.md「ピン留め」）。相手には分からない。
+ * 失敗時は ApiError（409: 申請中・拒否の会話（INVALID_STATUS）・上限10件（PIN_LIMIT_REACHED））を投げる
+ */
+export function pinConversation(id: number, token: string): Promise<ConversationSetting> {
+  return sendWithToken<ConversationSetting>('POST', `/api/conversations/${id}/pin`, token)
+}
+
+/** ピン留めを外す（していなくても成功する） */
+export function unpinConversation(id: number, token: string): Promise<ConversationSetting> {
+  return sendWithToken<ConversationSetting>('DELETE', `/api/conversations/${id}/pin`, token)
 }
 
 /** 当事者でなければ 404（存在しない会話と同じ） */
