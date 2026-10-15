@@ -12,6 +12,7 @@ const MENU = [
   { label: 'お知らせ', to: '/admin/announcements' },
   { label: '通報', to: '/admin/reports' },
   { label: '措置', to: '/admin/moderation' },
+  { label: 'お問い合わせ', to: '/admin/contacts' },
   { label: '操作ログ', to: '/admin/operation-logs' },
 ] as const
 

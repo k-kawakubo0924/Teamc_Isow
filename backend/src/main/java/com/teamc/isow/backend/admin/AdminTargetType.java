@@ -21,5 +21,7 @@ public enum AdminTargetType {
     /** 通報（report_cases。対象ごとにまとめた通報。docs/admin.md「通報」） */
     REPORT,
     /** 投稿（措置。docs/admin.md「6. 措置」） */
-    POST
+    POST,
+    /** お問い合わせ（contact_inquiries。docs/admin.md「7. お問い合わせ」） */
+    CONTACT
 }

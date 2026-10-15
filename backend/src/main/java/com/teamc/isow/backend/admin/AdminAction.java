@@ -38,5 +38,11 @@ public enum AdminAction {
     /** ユーザーを利用停止にした */
     USER_SUSPENDED,
     /** ユーザーの利用停止を解除した */
-    USER_UNSUSPENDED
+    USER_UNSUSPENDED,
+    /** お問い合わせを「対応済み」にした（docs/admin.md「7. お問い合わせ」） */
+    CONTACT_RESOLVED,
+    /** お問い合わせを「対応不要」にした */
+    CONTACT_DISMISSED,
+    /** お問い合わせを「未対応」に戻した */
+    CONTACT_REOPENED
 }

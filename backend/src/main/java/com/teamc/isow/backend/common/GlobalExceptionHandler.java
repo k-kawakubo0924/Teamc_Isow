@@ -4,6 +4,10 @@ import com.teamc.isow.backend.admin.AnnouncementAlreadyWithdrawnException;
 import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.block.SelfBlockException;
+import com.teamc.isow.backend.contact.AdminContactConflictException;
+import com.teamc.isow.backend.contact.AppealTokenInvalidException;
+import com.teamc.isow.backend.contact.ContactLimitExceededException;
+import com.teamc.isow.backend.contact.SuspensionChangedException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
 import com.teamc.isow.backend.dm.ConsultationUnavailableException;
@@ -17,6 +21,7 @@ import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.moderation.AccountSuspendedException;
 import com.teamc.isow.backend.moderation.ModerationConflictException;
 import com.teamc.isow.backend.moderation.SuspendedErrorResponse;
+import com.teamc.isow.backend.moderation.SuspensionAppealTokens;
 import com.teamc.isow.backend.notification.NotificationNotFoundException;
 import com.teamc.isow.backend.post.PostDeleteForbiddenException;
 import com.teamc.isow.backend.post.PostEditForbiddenException;
@@ -46,6 +51,12 @@ public class GlobalExceptionHandler {
 
     /** 未入力を表すチェック。1項目に複数のエラーがある場合は、これを優先して返す */
     private static final Set<String> REQUIRED_CODES = Set.of("NotBlank", "NotEmpty", "NotNull");
+
+    private final SuspensionAppealTokens appealTokens;
+
+    public GlobalExceptionHandler(SuspensionAppealTokens appealTokens) {
+        this.appealTokens = appealTokens;
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -139,6 +150,37 @@ public class GlobalExceptionHandler {
         return new ApiErrorResponse(e.getMessage(), Map.of());
     }
 
+    /** 1人1日のお問い合わせの上限を超えた（docs/settings.md「お問い合わせ」） */
+    @ExceptionHandler(ContactLimitExceededException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ApiErrorResponse handleContactLimitExceeded(ContactLimitExceededException e) {
+        return new ApiErrorResponse("お問い合わせの上限に達しました。時間をおいて再度お試しください。", Map.of());
+    }
+
+    /**
+     * 申し立て用の鍵が正しくない・期限切れ。トークンなし・不正なトークンの 401 と違い、画面に出す文言を返す
+     * （申し立てはトークンを付けずに送るため、画面はログアウトの処理をしない）
+     */
+    @ExceptionHandler(AppealTokenInvalidException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiErrorResponse handleAppealTokenInvalid(AppealTokenInvalidException e) {
+        return new ApiErrorResponse("受付の期限が切れました。もう一度ログインしてから送ってください。", Map.of());
+    }
+
+    /** 申し立て用の鍵を受け取った後に、利用停止が解除された・別の利用停止になった */
+    @ExceptionHandler(SuspensionChangedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleSuspensionChanged(SuspensionChangedException e) {
+        return new ApiErrorResponse("利用停止の状態が変わったため、送信できませんでした。もう一度ログインしてください。", Map.of());
+    }
+
+    /** 管理画面で、お問い合わせの状態を変えられない（すでにその状態）。理由は例外の message */
+    @ExceptionHandler(AdminContactConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleAdminContactConflict(AdminContactConflictException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
     /** 措置ができない（すでに非公開など）。理由は例外の message */
     @ExceptionHandler(ModerationConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
@@ -218,7 +260,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccountSuspendedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public SuspendedErrorResponse handleAccountSuspended(AccountSuspendedException e) {
-        return SuspendedErrorResponse.of(e.getUser());
+        // ログイン（パスワードが正しい）・有効なトークンの本人なので、申し立て用の鍵も渡す（docs/settings.md「お問い合わせ」）
+        return SuspendedErrorResponse.of(e.getUser(), appealTokens.issue(e.getUser()));
     }
 
     /** トークンなし・不正なトークンと同じく、本文なしの 401 を返す */

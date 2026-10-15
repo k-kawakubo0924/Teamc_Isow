@@ -17,6 +17,11 @@ export type SuspensionInfo = {
   suspendedUntil: string | null
   /** 理由の表示名（「嫌がらせ・誹謗中傷」など） */
   reasonLabel: string | null
+  /**
+   * 申し立て用の鍵（docs/settings.md「お問い合わせ」）。利用停止の画面から申し立てるときに送る。
+   * 保存せず、メモリにだけ持つ（再読み込みで消えたら、もう一度ログインすれば受け取れる）
+   */
+  appealToken: string | null
 }
 
 /** 利用停止中のユーザーへの応答の reason（ログイン・すべての API で同じ） */
@@ -140,6 +145,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     suspendedHandler?.({
       suspendedUntil: typeof json.suspendedUntil === 'string' ? json.suspendedUntil : null,
       reasonLabel: typeof json.suspensionReasonLabel === 'string' ? json.suspensionReasonLabel : null,
+      appealToken: typeof json.appealToken === 'string' ? json.appealToken : null,
     })
   }
 
