@@ -79,6 +79,20 @@ public class NotificationService {
         notificationRepository.save(Notification.liked(post, userRepository.getReferenceById(event.likerId())));
     }
 
+    /** 運営が投稿を非公開にした（投稿者に届く。「誰が」はない） */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onPostHidden(NotificationEvents.PostHidden event) {
+        run(event, () -> newTransaction.executeWithoutResult(status -> postRepository.findById(event.postId())
+                .ifPresent(post -> notificationRepository.save(Notification.postHidden(post)))));
+    }
+
+    /** 運営が投稿の非公開を解除した（投稿者に届く。「誰が」はない） */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onPostUnhidden(NotificationEvents.PostUnhidden event) {
+        run(event, () -> newTransaction.executeWithoutResult(status -> postRepository.findById(event.postId())
+                .ifPresent(post -> notificationRepository.save(Notification.postUnhidden(post)))));
+    }
+
     /** フォローされた */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onFollowed(NotificationEvents.Followed event) {

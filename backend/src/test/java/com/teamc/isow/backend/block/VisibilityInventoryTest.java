@@ -27,6 +27,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -46,7 +50,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-class BlockVisibilityTest {
+class VisibilityInventoryTest {
 
     /** 登録の種類 */
     private enum Kind {
@@ -228,7 +232,7 @@ class BlockVisibilityTest {
         stale.removeAll(actual);
 
         assertThat(missing)
-                .as("登録していない API があります。BlockVisibilityTest.REGISTRY に登録し、ブロックした相手が漏れないかを確かめてください")
+                .as("登録していない API があります。VisibilityInventoryTest.REGISTRY に登録し、ブロックした相手が漏れないかを確かめてください")
                 .isEmpty();
         assertThat(stale).as("もう存在しない API が登録に残っています").isEmpty();
         // 理由を書かずに確かめないものを作らない
@@ -257,6 +261,92 @@ class BlockVisibilityTest {
             leaks.addAll(findLeaks(registered.getKey(), f.b, path, "blkuser_aaa", "BLKPOSTAAA"));
         }
         assertThat(leaks).as("ブロックした相手が応答に含まれている API").isEmpty();
+    }
+
+    // ---- 3. 措置（docs/admin.md「6. 措置」）：非公開にした投稿・利用停止中のユーザーも、同じ登録で漏れを確かめる ----
+
+    @Test
+    void 非公開にした投稿は_投稿者以外のどのGETのAPIにも出ず_投稿者の自分の一覧には出る() throws Exception {
+        prepareRelations();
+        Post hidden = f.createPost(f.c, "BLKHIDDENPOST");
+        f.like(f.a, hidden);
+        f.favorite(f.a, hidden);
+        // 確かめる意味があるか：非公開にする前は、A の一覧・検索に出ている
+        assertThat(body(f.a, "/api/search/posts?q=BLKHIDDEN")).contains("BLKHIDDENPOST");
+        assertThat(body(f.a, "/api/users/me/favorites")).contains("BLKHIDDENPOST");
+
+        hide(hidden);
+
+        List<String> leaks = new ArrayList<>();
+        for (Map.Entry<String, Entry> registered : REGISTRY.entrySet()) {
+            if (registered.getValue().kind() == Kind.CHECKED) {
+                String path = registered.getValue().pathOrReason();
+                leaks.addAll(findLeaks(registered.getKey(), f.a, path, "BLKHIDDENPOST"));
+                leaks.addAll(findLeaks(registered.getKey(), f.b, path, "BLKHIDDENPOST"));
+            }
+        }
+        assertThat(leaks).as("非公開にした投稿が、投稿者以外への応答に含まれている API").isEmpty();
+        // 投稿者本人は、自分の一覧で見られる
+        assertThat(body(f.c, "/api/posts/me")).contains("BLKHIDDENPOST");
+        assertThat(body(f.c, "/api/users/{c}/posts")).contains("BLKHIDDENPOST");
+    }
+
+    @Test
+    void 利用停止中のユーザーは_ほかの人へのどのGETのAPIにも名前と投稿が出ない() throws Exception {
+        prepareRelations();
+        assertThat(body(f.c, "/api/users/{c}/followers")).contains("blkuser_bbb");
+        assertThat(body(f.a, "/api/notifications")).contains("blkuser_bbb");
+
+        suspend(f.b);
+
+        List<String> leaks = new ArrayList<>();
+        for (Map.Entry<String, Entry> registered : REGISTRY.entrySet()) {
+            if (registered.getValue().kind() == Kind.CHECKED) {
+                String path = registered.getValue().pathOrReason();
+                leaks.addAll(findLeaks(registered.getKey(), f.a, path, "blkuser_bbb", "BLKPOSTBBB"));
+                leaks.addAll(findLeaks(registered.getKey(), f.c, path, "blkuser_bbb", "BLKPOSTBBB"));
+            }
+        }
+        assertThat(leaks).as("利用停止中のユーザーが、ほかの人への応答に含まれている API").isEmpty();
+    }
+
+    @Test
+    void 利用停止中のユーザーのトークンでは_登録したすべてのAPIが403になる() throws Exception {
+        suspend(f.b);
+
+        List<String> notBlocked = new ArrayList<>();
+        Set<String> keys = new TreeSet<>();
+        REGISTRY.keySet().forEach(key -> keys.add(key.replaceAll("#.*$", "")));
+        for (String key : keys) {
+            if (PUBLIC_APIS.contains(key)) {
+                continue;
+            }
+            String method = key.substring(0, key.indexOf(' '));
+            String path = key.substring(key.indexOf(' ') + 1).replaceAll("\\{\\w+}", "1");
+            MockHttpServletRequestBuilder request = MockMvcRequestBuilders.request(HttpMethod.valueOf(method), path)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}");
+            var response = mockMvc.perform(request.header("Authorization", f.bearer(f.b))).andReturn().getResponse();
+            String body = response.getContentAsString(StandardCharsets.UTF_8);
+            if (response.getStatus() != 403 || !body.contains("ACCOUNT_SUSPENDED")) {
+                notBlocked.add(key + "（" + response.getStatus() + "）");
+            }
+        }
+        assertThat(notBlocked).as("利用停止中のユーザーが使えてしまう API").isEmpty();
+    }
+
+    /** ログインしていなくても使える API（利用停止の確かめから除く。ログインの利用停止は ModerationVisibilityTest で確かめる） */
+    private static final Set<String> PUBLIC_APIS = Set.of(
+            "POST /api/auth/register", "POST /api/auth/login", "GET /api/health");
+
+    private void hide(Post post) {
+        jdbcTemplate.update("UPDATE posts SET hidden_at = ?, hidden_reason = 'SPAM' WHERE id = ?",
+                java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()), post.getId());
+    }
+
+    private void suspend(User user) {
+        jdbcTemplate.update("UPDATE users SET suspended_at = ?, suspended_until = NULL, suspension_reason = 'SPAM' "
+                + "WHERE id = ?", java.sql.Timestamp.valueOf(java.time.LocalDateTime.now()), user.getId());
     }
 
     /**

@@ -1,13 +1,20 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AdminReportDetail, AdminReportList } from '../../api/admin'
+import type {
+  AdminReportDetail,
+  AdminReportList,
+  HidePostRequest,
+  ModerationPostState,
+  ModerationUserState,
+  SuspendUserRequest,
+} from '../../api/admin'
 import AdminReportDetailPage from './AdminReportDetailPage'
 import AdminReportsPage from './AdminReportsPage'
 
 /*
  * 管理画面の通報（docs/admin.md「通報」）の確認。
- * 一覧は対象ごとに1行。詳細は証拠・通報した人・状態の記録。措置の機能はまだないことを詳細に明記する。
+ * 一覧は対象ごとに1行。詳細は証拠・通報した人・状態の記録・措置（docs/admin.md「6. 措置」）。
  * 証拠の写真は /uploads ではなく、管理者向けの API から認証つきで読み込む
  */
 
@@ -15,12 +22,20 @@ const listReports = vi.fn<(params: { status: string; targetType: string; page: n
 const fetchReport = vi.fn<(id: number) => Promise<AdminReportDetail>>()
 const changeReportStatus = vi.fn<(id: number, status: string, memo: string) => Promise<unknown>>()
 const fetchEvidenceImage = vi.fn<(caseId: number, fileId: number) => Promise<Blob>>()
+const fetchModerationPost = vi.fn<(id: number) => Promise<ModerationPostState>>()
+const fetchModerationUser = vi.fn<(id: number) => Promise<ModerationUserState>>()
+const hidePost = vi.fn<(id: number, request: HidePostRequest) => Promise<ModerationPostState>>()
+const suspendUser = vi.fn<(id: number, request: SuspendUserRequest) => Promise<ModerationUserState>>()
 vi.mock('../../api/admin', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/admin')>()),
   listReports: (params: { status: string; targetType: string; page: number }) => listReports(params),
   fetchReport: (id: number) => fetchReport(id),
   changeReportStatus: (id: number, status: string, memo: string) => changeReportStatus(id, status, memo),
   fetchEvidenceImage: (caseId: number, fileId: number) => fetchEvidenceImage(caseId, fileId),
+  fetchModerationPost: (id: number) => fetchModerationPost(id),
+  fetchModerationUser: (id: number) => fetchModerationUser(id),
+  hidePost: (id: number, request: HidePostRequest) => hidePost(id, request),
+  suspendUser: (id: number, request: SuspendUserRequest) => suspendUser(id, request),
 }))
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'token', isLoggedIn: true }) }))
 
@@ -64,6 +79,7 @@ function postDetail(overrides: Partial<AdminReportDetail> = {}): AdminReportDeta
     caseId: 7,
     targetType: 'POST',
     targetId: 70,
+    targetUserId: 2,
     status: 'OPEN',
     reportCount: 1,
     firstReportedAt: '2026-10-10T09:00:00',
@@ -99,6 +115,31 @@ function postDetail(overrides: Partial<AdminReportDetail> = {}): AdminReportDeta
   }
 }
 
+const MODERATION_POST: ModerationPostState = {
+  postId: 70,
+  title: '秋のコーデ（今）',
+  authorId: 2,
+  authorUsername: 'haru_st',
+  createdAt: '2026-10-09T08:00:00',
+  hidden: false,
+  hiddenAt: null,
+  hiddenReason: null,
+  hiddenReasonLabel: null,
+  history: [],
+}
+
+const MODERATION_USER: ModerationUserState = {
+  userId: 2,
+  username: 'haru_st',
+  admin: false,
+  suspended: false,
+  suspendedAt: null,
+  suspendedUntil: null,
+  suspensionReason: null,
+  suspensionReasonLabel: null,
+  history: [],
+}
+
 function messageDetail(): AdminReportDetail {
   const messages = Array.from({ length: 11 }, (_, i) => ({
     messageId: 50 + i,
@@ -122,6 +163,8 @@ function messageDetail(): AdminReportDetail {
 beforeEach(() => {
   listReports.mockResolvedValue(LIST)
   fetchEvidenceImage.mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
+  fetchModerationPost.mockResolvedValue(MODERATION_POST)
+  fetchModerationUser.mockResolvedValue(MODERATION_USER)
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:evidence'), revokeObjectURL: vi.fn() }))
 })
 
@@ -132,6 +175,10 @@ afterEach(() => {
   fetchReport.mockReset()
   changeReportStatus.mockReset()
   fetchEvidenceImage.mockReset()
+  fetchModerationPost.mockReset()
+  fetchModerationUser.mockReset()
+  hidePost.mockReset()
+  suspendUser.mockReset()
 })
 
 function renderAt(path: string) {
@@ -174,16 +221,52 @@ describe('通報の一覧', () => {
 })
 
 describe('通報の詳細', () => {
-  it('措置の機能がまだないこと（対応済みにしても何も起きないこと）を明記する', async () => {
+  it('「対応済み」にしても措置は行われず、措置は下の「措置」から行うことを明記する', async () => {
     fetchReport.mockResolvedValue(postDetail())
     const { container } = renderAt('/admin/reports/7')
 
     await screen.findByText('秋のコーデ')
     const notice = container.querySelector('.admin-report-notice')?.textContent ?? ''
-    expect(notice).toContain('措置')
-    expect(notice).toContain('まだありません')
     expect(notice).toContain('「対応済み」にしても')
     expect(notice).toContain('状態を記録するだけ')
+    expect(notice).toContain('「措置」')
+    expect(notice).not.toContain('まだありません')
+  })
+
+  it('投稿の通報では、投稿の非公開化と投稿者の利用停止を出し、通報を結びつけて措置する（選べば対応済みにする）', async () => {
+    fetchReport.mockResolvedValue(postDetail({ currentState: 'EXISTS' }))
+    hidePost.mockResolvedValue({ ...MODERATION_POST, hidden: true, hiddenReason: 'SPAM', hiddenReasonLabel: 'スパム・宣伝' })
+    const { container } = renderAt('/admin/reports/7')
+
+    const section = await waitFor(() => {
+      const found = container.querySelector('.admin-report-moderation')
+      if (!found) throw new Error('まだ表示されていない')
+      return found as HTMLElement
+    })
+    const postPanel = await within(section).findByRole('region', { name: '秋のコーデ（今）' })
+    await within(section).findByRole('region', { name: '@haru_st' })
+    expect(fetchModerationPost).toHaveBeenCalledWith(70)
+    expect(fetchModerationUser).toHaveBeenCalledWith(2)
+
+    fireEvent.change(within(postPanel).getByLabelText('理由'), { target: { value: 'SPAM' } })
+    fireEvent.click(within(postPanel).getByLabelText('この通報を「対応済み」にする'))
+    fireEvent.click(within(postPanel).getByRole('button', { name: '非公開にする' }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: '非公開にする' }))
+
+    await waitFor(() =>
+      expect(hidePost).toHaveBeenCalledWith(70, { reason: 'SPAM', memo: '', reportCaseId: 7, resolveReport: true }),
+    )
+  })
+
+  it('削除された投稿では、非公開化を出さず、投稿者の利用停止だけを出す', async () => {
+    fetchReport.mockResolvedValue(postDetail())
+    const { container } = renderAt('/admin/reports/7')
+
+    await waitFor(() => expect(fetchModerationUser).toHaveBeenCalledWith(2))
+    const section = container.querySelector('.admin-report-moderation') as HTMLElement
+    await within(section).findByRole('region', { name: '@haru_st' })
+    expect(fetchModerationPost).not.toHaveBeenCalled()
+    expect(within(section).queryByRole('button', { name: '非公開にする' })).toBeNull()
   })
 
   it('通報した時点の投稿の内容と、今の状態（削除された）と、通報した人・理由・詳しい内容を出す。本文は HTML として扱わない', async () => {
@@ -253,7 +336,7 @@ describe('通報の詳細', () => {
     const { container } = renderAt('/admin/reports/7')
     await screen.findByText('秋のコーデ')
 
-    fireEvent.change(screen.getByLabelText(/メモ/), { target: { value: '投稿者に連絡した' } })
+    fireEvent.change(screen.getByLabelText(/メモ（任意/), { target: { value: '投稿者に連絡した' } })
     fireEvent.click(screen.getByRole('button', { name: '対応済みにする' }))
 
     await waitFor(() => expect(container.querySelector('.admin-report-status')?.textContent).toContain('対応済み'))

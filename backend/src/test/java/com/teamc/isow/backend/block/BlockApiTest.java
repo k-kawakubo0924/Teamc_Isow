@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * ブロック（POST/DELETE /api/users/{id}/block・GET /api/blocks。docs/profile.md「ブロック」）の確認。
  * ブロックした時点で2人の間のつながりを切ること、ブロックの効果が両方向であること、件数も見えない相手を数えないことを確かめる。
- * 一覧の API から相手が漏れていないことは BlockVisibilityTest で確かめる
+ * 一覧の API から相手が漏れていないことは VisibilityInventoryTest で確かめる
  */
 @SpringBootTest
 @AutoConfigureMockMvc

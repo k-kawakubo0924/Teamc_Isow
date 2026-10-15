@@ -371,7 +371,7 @@ function NotificationCard({
           onOpen()
         }}
       >
-        {actor.profileImageUrl ? (
+        {actor?.profileImageUrl ? (
           <img className="notification-avatar" src={actor.profileImageUrl} alt="" />
         ) : (
           <span className="notification-avatar notification-avatar-empty" aria-hidden="true">
@@ -383,7 +383,8 @@ function NotificationCard({
         )}
         <span className="notification-body">
           <span className="notification-text">
-            <strong>@{actor.username}</strong> {notificationText(notification.type)}
+            {/* 運営からの通知（投稿の非公開化など）は「誰が」がないため、ユーザー名の代わりに「運営」と出す */}
+            <strong>{actor === null ? '運営' : `@${actor.username}`}</strong> {notificationText(notification.type)}
           </span>
           <span className="notification-time">
             {!notification.read && <span className="notification-visually-hidden">未読 </span>}

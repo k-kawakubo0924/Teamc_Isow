@@ -14,6 +14,9 @@ import com.teamc.isow.backend.dm.ConversationOperationException;
 import com.teamc.isow.backend.dm.DmErrorResponse;
 import com.teamc.isow.backend.follow.SelfFollowException;
 import com.teamc.isow.backend.image.InvalidImageException;
+import com.teamc.isow.backend.moderation.AccountSuspendedException;
+import com.teamc.isow.backend.moderation.ModerationConflictException;
+import com.teamc.isow.backend.moderation.SuspendedErrorResponse;
 import com.teamc.isow.backend.notification.NotificationNotFoundException;
 import com.teamc.isow.backend.post.PostDeleteForbiddenException;
 import com.teamc.isow.backend.post.PostEditForbiddenException;
@@ -136,6 +139,13 @@ public class GlobalExceptionHandler {
         return new ApiErrorResponse(e.getMessage(), Map.of());
     }
 
+    /** 措置ができない（すでに非公開など）。理由は例外の message */
+    @ExceptionHandler(ModerationConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleModerationConflict(ModerationConflictException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
     @ExceptionHandler(SelfBlockException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleSelfBlock(SelfBlockException e) {
@@ -202,6 +212,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleInvalidImage(InvalidImageException e) {
         return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
+    /** 利用停止中（ログイン・API）。画面が利用停止の画面を出せるよう、理由と期限を返す（docs/admin.md「6. 措置」） */
+    @ExceptionHandler(AccountSuspendedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public SuspendedErrorResponse handleAccountSuspended(AccountSuspendedException e) {
+        return SuspendedErrorResponse.of(e.getUser());
     }
 
     /** トークンなし・不正なトークンと同じく、本文なしの 401 を返す */

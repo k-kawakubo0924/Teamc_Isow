@@ -199,6 +199,29 @@ npm test
   - 消すのは `backend/evidence/` の中のファイルだけにし、ほかのフォルダ（特に `backend/uploads/`）を巻き込まないよう、消す前に一覧を確かめてください
 - テストでは `backend/target/test-evidence/` を使います（`target/` ごと .gitignore 済み。`mvnw clean` で消えます）
 
+## 措置を取り込んだときの DB（チームへの連絡）
+
+> ⚠️ **措置（投稿の非公開化・利用停止。`docs/admin.md`「6. 措置」）を取り込んだら、DB に次のどちらかを行ってください。**
+
+措置で、運営からの通知（投稿を非公開にした など）のために `notifications.actor_id` を NULL にできるようにしました。
+この変更（NOT NULL を外す）は `ddl-auto=update` では DB に反映されません（列・テーブルの追加は自動で入ります）。
+そのままだと、投稿を非公開にしたときに、投稿者への通知が作られません（非公開そのものはできます。バックエンドのログにエラーが出ます）。
+
+- **DB を作り直す**（ローカルのデータはすべて消えます。上記「管理者の用意（管理画面）」の注意も参照）
+
+  ```bash
+  docker compose down -v
+  docker compose up -d
+  ```
+
+- **データを残したい場合**は、列の NOT NULL だけを外します（`teamc`・`teamc_isow` は `.env` の `DB_USER`・`DB_NAME` に合わせてください）
+
+  ```bash
+  docker compose exec postgres psql -U teamc -d teamc_isow -c "ALTER TABLE notifications ALTER COLUMN actor_id DROP NOT NULL;"
+  ```
+
+- 検査制約（受け取る人と関連するユーザーが同じ行を防ぐもの）は、NULL の行を通すため変えなくて構いません
+
 ## 開発用のテストデータ
 
 > ⚠️ **このテストデータは開発専用です。公開するサーバーには絶対に投入しないでください。パスワードがREADMEに書かれているため、誰でもログインできるアカウントになります。**

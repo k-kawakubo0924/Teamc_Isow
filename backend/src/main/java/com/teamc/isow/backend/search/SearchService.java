@@ -12,6 +12,8 @@ import com.teamc.isow.backend.tag.Tag;
 import com.teamc.isow.backend.tag.TagRepository;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -52,6 +54,7 @@ public class SearchService {
     private final FashionCategoryRepository fashionCategoryRepository;
     private final SearchHistoryService searchHistoryService;
     private final AuthService authService;
+    private final Clock clock;
 
     public SearchService(
             PostRepository postRepository,
@@ -61,7 +64,8 @@ public class SearchService {
             TagRepository tagRepository,
             FashionCategoryRepository fashionCategoryRepository,
             SearchHistoryService searchHistoryService,
-            AuthService authService) {
+            AuthService authService,
+            Clock clock) {
         this.postRepository = postRepository;
         this.postCardService = postCardService;
         this.userRepository = userRepository;
@@ -70,6 +74,7 @@ public class SearchService {
         this.fashionCategoryRepository = fashionCategoryRepository;
         this.searchHistoryService = searchHistoryService;
         this.authService = authService;
+        this.clock = clock;
     }
 
     /**
@@ -96,7 +101,7 @@ public class SearchService {
         Pageable pageable = PostCardService.pageRequest(page, size);
         String pattern = displayKeyword == null
                 ? null : SearchPatterns.contains(SearchKeywordNormalizer.key(displayKeyword));
-        Page<Long> ids = postRepository.searchIds(userId,
+        Page<Long> ids = postRepository.searchIds(userId, LocalDateTime.now(clock),
                 pattern, fashionCategoryId, parsedAgeGroup == null ? null : parsedAgeGroup.name(), pageable);
         PostSearchResponse response = new PostSearchResponse(postCardService.build(userId, ids.getContent()),
                 pageable.getPageNumber(), pageable.getPageSize(), ids.hasNext(), ids.getTotalElements());
@@ -121,7 +126,7 @@ public class SearchService {
         }
 
         Pageable pageable = PostCardService.pageRequest(page, size);
-        Page<User> users = userRepository.search(viewerId,
+        Page<User> users = userRepository.search(viewerId, LocalDateTime.now(clock),
                 keyword == null || keyword.isBlank() ? null : SearchPatterns.contains(keyword),
                 SearchPatterns.exact(keyword), SearchPatterns.startsWith(keyword), pageable);
         Set<Long> followingIds = users.isEmpty()

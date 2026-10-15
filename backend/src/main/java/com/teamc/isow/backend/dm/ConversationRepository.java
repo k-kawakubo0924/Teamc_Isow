@@ -34,6 +34,10 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
             """)
     List<Conversation> findOngoingWith(@Param("userId") Long userId, @Param("partnerIds") Collection<Long> partnerIds);
 
+    /** userId が参加している「申請中」または「進行中」の会話（利用停止のときに終了する。docs/admin.md「6. 措置」） */
+    @Query("SELECT c FROM Conversation c WHERE c.ongoing = TRUE AND (c.user1.id = :userId OR c.user2.id = :userId)")
+    List<Conversation> findOngoingOf(@Param("userId") Long userId);
+
     /** requesterId が partnerIds の各相手に送った申請のうち、指定した状態（拒否）で、since より後に応答されたもの */
     @Query("""
             SELECT c FROM Conversation c

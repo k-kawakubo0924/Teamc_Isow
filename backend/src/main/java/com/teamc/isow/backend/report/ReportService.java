@@ -192,6 +192,10 @@ public class ReportService {
         if (author.getId().equals(reporterId)) {
             throw InputValidationException.of("targetId", "自分の投稿は通報できません");
         }
+        // 非公開の投稿・利用停止中の人の投稿は、ほかの人からは存在しないものと同じ（docs/admin.md「6. 措置」）
+        if (post.isHidden() || author.isSuspendedAt(LocalDateTime.now(clock))) {
+            throw new ReportTargetNotFoundException();
+        }
         requireNotBlockedBy(author.getId(), reporterId);
         EvidenceSnapshot.PostEvidence evidence = new EvidenceSnapshot.PostEvidence(post.getId(), author.getId(),
                 author.getUsername(), post.getTitle(), post.getFashionCategory().getName(),
@@ -209,6 +213,10 @@ public class ReportService {
         User user = userRepository.findById(userId).orElseThrow(ReportTargetNotFoundException::new);
         if (user.getId().equals(reporterId)) {
             throw InputValidationException.of("targetId", "自分自身は通報できません");
+        }
+        // 利用停止中の人は、ほかの人からは存在しないものと同じ（docs/admin.md「6. 措置」）
+        if (user.isSuspendedAt(LocalDateTime.now(clock))) {
+            throw new ReportTargetNotFoundException();
         }
         requireNotBlockedBy(user.getId(), reporterId);
         EvidenceSnapshot.UserEvidence evidence =

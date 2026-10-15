@@ -43,6 +43,8 @@ function post(overrides: Partial<PostResponse> = {}, author: Partial<PostRespons
     ownedByMe: false,
     createdAt: '2026-10-08T12:00:00',
     editedAt: null,
+    hidden: false,
+    hiddenReason: null,
     ...overrides,
   }
 }
@@ -301,5 +303,23 @@ describe('他人の投稿の「…」（通報・ブロック）', () => {
 
     expect(await screen.findByText('ホーム画面')).toBeTruthy()
     expect(blockUser).toHaveBeenCalledWith(2)
+  })
+})
+
+describe('運営が非公開にした投稿（docs/admin.md「6. 措置」）', () => {
+  it('投稿者本人には、非公開になっていることと理由を、投稿の上に出す', async () => {
+    const { container } = await open(post({ ownedByMe: true, hidden: true, hiddenReason: 'SPAM' }))
+
+    const banner = container.querySelector('.post-detail-hidden')
+    expect(banner?.getAttribute('role')).toBe('status')
+    expect(banner?.textContent).toContain('運営により非公開になっています')
+    expect(banner?.textContent).toContain('スパム・宣伝')
+    expect(banner?.textContent).toContain('ほかの人には表示されません')
+  })
+
+  it('非公開でなければ出さない', async () => {
+    const { container } = await open(post({ ownedByMe: true }))
+
+    expect(container.querySelector('.post-detail-hidden')).toBeNull()
   })
 })

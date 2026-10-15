@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { setUnauthorizedHandler } from '../api/client'
+import { setSuspendedHandler, setUnauthorizedHandler, type SuspensionInfo } from '../api/client'
 import { AuthContext, type AuthContextValue } from './authContext'
 import { clearToken, getSession, saveToken, TOKEN_STORAGE_KEY, type AuthSession } from './tokenStorage'
 
@@ -12,9 +12,11 @@ const MAX_TIMEOUT_MS = 2 ** 31 - 1
  * - 有効期限になったら自動でログアウトする
  * - トークン付きの API が 401 を返したらログアウトする
  * - 他のタブでのログイン・ログアウトを反映する
+ * - API が利用停止を返したら、ログアウトして、利用停止の画面へ移る（docs/admin.md「6. 措置」。RouteGuards が移す）
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() => getSession())
+  const [suspension, setSuspension] = useState<SuspensionInfo | null>(null)
 
   const login = useCallback((token: string, expiresAt: string) => {
     saveToken(token, expiresAt)
@@ -39,6 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout])
 
   useEffect(() => {
+    setSuspendedHandler((info) => {
+      logout()
+      setSuspension(info)
+    })
+    return () => setSuspendedHandler(null)
+  }, [logout])
+
+  const clearSuspension = useCallback(() => setSuspension(null), [])
+
+  useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
       // e.key が null になるのは localStorage.clear() のとき
       if (e.key === TOKEN_STORAGE_KEY || e.key === null) {
@@ -50,8 +62,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ token: session?.token ?? null, isLoggedIn: session !== null, login, logout }),
-    [session, login, logout],
+    () => ({
+      token: session?.token ?? null,
+      isLoggedIn: session !== null,
+      login,
+      logout,
+      suspension,
+      clearSuspension,
+    }),
+    [session, login, logout, suspension, clearSuspension],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -78,9 +78,13 @@ public class Notification {
     @Column(name = "type", nullable = false, length = 40, updatable = false)
     private String type;
 
-    /** 関連するユーザー（いいね・フォロー・相談の申し込み／承認／拒否・メッセージの送信をした人）。受け取る人とは別の人 */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "actor_id", nullable = false, updatable = false)
+    /**
+     * 関連するユーザー（いいね・フォロー・相談の申し込み／承認／拒否・メッセージの送信をした人）。受け取る人とは別の人。
+     * 運営からの通知（投稿の非公開化など。docs/admin.md「6. 措置」）では null（「誰が」はない）。
+     * 自分自身を防ぐ検査制約（recipient_id <> actor_id）は、actor_id が NULL なら通る（NULL との比較は偽にならないため）
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_id", updatable = false)
     private User actor;
 
     /** 関連する投稿（いいねの通知のみ。それ以外は null）。投稿を削除すると、この通知も DB が自動で削除する（ON DELETE CASCADE） */
@@ -111,7 +115,7 @@ public class Notification {
     }
 
     private Notification(User recipient, NotificationType type, User actor, Post post, Conversation conversation) {
-        if (recipient.getId().equals(actor.getId())) {
+        if (actor != null && recipient.getId().equals(actor.getId())) {
             throw new IllegalArgumentException("自分の操作では通知を作らない");
         }
         if (type.isWithPost() != (post != null) || type.isWithConversation() != (conversation != null)) {
@@ -132,6 +136,16 @@ public class Notification {
     /** フォローされた。受け取るのはフォローされた人 */
     public static Notification followed(User followee, User follower) {
         return new Notification(followee, NotificationType.FOLLOWED, follower, null, null);
+    }
+
+    /** 運営が投稿を非公開にした（docs/admin.md「6. 措置」）。受け取るのは投稿者。「誰が」はない */
+    public static Notification postHidden(Post post) {
+        return new Notification(post.getAuthor(), NotificationType.POST_HIDDEN, null, post, null);
+    }
+
+    /** 運営が投稿の非公開を解除した。受け取るのは投稿者。「誰が」はない */
+    public static Notification postUnhidden(Post post) {
+        return new Notification(post.getAuthor(), NotificationType.POST_UNHIDDEN, null, post, null);
     }
 
     /** 相談が届いた。受け取るのは申し込まれた人 */

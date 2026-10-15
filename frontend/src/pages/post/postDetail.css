@@ -358,3 +358,23 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* 運営が非公開にした投稿の知らせ（投稿者本人にだけ出る。docs/admin.md「6. 措置」） */
+.post-detail-hidden {
+  margin: 12px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.post-detail-hidden-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.post-detail-hidden-text {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}

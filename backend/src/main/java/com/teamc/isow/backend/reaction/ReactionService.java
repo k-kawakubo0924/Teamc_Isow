@@ -120,7 +120,7 @@ public class ReactionService {
     private Post findPost(Long userId, Long postId) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new PostNotFoundException(postId));
         // 投稿者とブロックの間柄にある投稿も、存在しない投稿と同じ 404（docs/profile.md「ブロック」）
-        userVisibility.requireVisiblePost(userId, postId, post.getAuthor().getId());
+        userVisibility.requireVisiblePost(userId, post);
         return post;
     }
 

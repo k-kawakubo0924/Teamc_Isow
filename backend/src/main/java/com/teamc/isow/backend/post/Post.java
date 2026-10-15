@@ -113,6 +113,18 @@ public class Post {
     @Column(name = "edited_at")
     private LocalDateTime editedAt;
 
+    /**
+     * 管理者が非公開にした日時（docs/admin.md「6. 措置」）。公開なら null。
+     * 非公開の投稿は、投稿者本人以外からは存在しない投稿と同じに見える（VisibilityConditions・UserVisibility）。
+     * 内容と写真はサーバーに残り、投稿者本人は見られる
+     */
+    @Column(name = "hidden_at")
+    private LocalDateTime hiddenAt;
+
+    /** 非公開にした理由（ReportReason の定数名）。投稿者本人の画面に出す */
+    @Column(name = "hidden_reason", length = 30)
+    private String hiddenReason;
+
     protected Post() {
         // JPA 用
     }
@@ -250,5 +262,29 @@ public class Post {
 
     public LocalDateTime getEditedAt() {
         return editedAt;
+    }
+
+    /** 管理者が非公開にする（措置）。reason は ReportReason の定数名 */
+    public void hide(LocalDateTime now, String reason) {
+        this.hiddenAt = now;
+        this.hiddenReason = reason;
+    }
+
+    /** 非公開を解除する */
+    public void unhide() {
+        this.hiddenAt = null;
+        this.hiddenReason = null;
+    }
+
+    public boolean isHidden() {
+        return hiddenAt != null;
+    }
+
+    public LocalDateTime getHiddenAt() {
+        return hiddenAt;
+    }
+
+    public String getHiddenReason() {
+        return hiddenReason;
     }
 }

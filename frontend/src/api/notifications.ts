@@ -9,14 +9,17 @@ export type NotificationType =
   | 'CONSULTATION_APPROVED'
   | 'CONSULTATION_REJECTED'
   | 'MESSAGE_RECEIVED'
+  /** 運営が投稿を非公開にした・公開に戻した（docs/admin.md「6. 措置」）。「誰が」（actor）はない */
+  | 'POST_HIDDEN'
+  | 'POST_UNHIDDEN'
 
 /** 通知の1件（バックエンドの NotificationListResponse.Item）。文面は画面側で type と actor から組み立てる */
 export type NotificationItem = {
   id: number
   type: NotificationType
-  /** いいね・フォロー・相談・メッセージをした人 */
-  actor: { id: number; username: string; profileImageUrl: string | null }
-  /** いいねの通知のみ。それ以外は null */
+  /** いいね・フォロー・相談・メッセージをした人。運営からの通知（POST_HIDDEN など）は null */
+  actor: { id: number; username: string; profileImageUrl: string | null } | null
+  /** いいね・運営からの投稿の通知のみ。それ以外は null */
   post: { id: number; thumbnailUrl: string | null } | null
   /** 相談・メッセージの通知のみ。それ以外は null */
   conversationId: number | null

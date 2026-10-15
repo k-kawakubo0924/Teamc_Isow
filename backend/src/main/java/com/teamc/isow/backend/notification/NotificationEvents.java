@@ -37,4 +37,12 @@ public final class NotificationEvents {
     /** メッセージを送った（通知は会話ごとに1件にまとめる） */
     public record MessageSent(Long conversationId, Long senderId, LocalDateTime sentAt) {
     }
+
+    /** 運営が投稿を非公開にした（docs/admin.md「6. 措置」） */
+    public record PostHidden(Long postId) {
+    }
+
+    /** 運営が投稿の非公開を解除した */
+    public record PostUnhidden(Long postId) {
+    }
 }

@@ -138,6 +138,25 @@ describe('操作ログの一覧', () => {
     }
   })
 
+  it('措置（非公開化・公開に戻す・利用停止・解除）も日本語で出す（docs/admin.md「6. 措置」）', async () => {
+    stored = [
+      log(4, 'USER_UNSUSPENDED', 'USER'),
+      log(3, 'USER_SUSPENDED', 'USER'),
+      log(2, 'POST_UNHIDDEN', 'POST'),
+      log(1, 'POST_HIDDEN', 'POST'),
+    ]
+    renderPage()
+    await screen.findByText('名前：項目4')
+
+    expect(bodyRows().map((row) => cells(row)[2])).toEqual([
+      '利用停止を解除した',
+      '利用停止にした',
+      '投稿を公開に戻した',
+      '投稿を非公開にした',
+    ])
+    expect(cells(bodyRows()[3])[3]).toBe('投稿（ID: 10）')
+  })
+
   it('システムの操作は、システムが行ったと分かるように出す', async () => {
     renderPage()
     await screen.findByText('題名：メンテナンスのお知らせ')
@@ -153,11 +172,11 @@ describe('操作ログの一覧', () => {
   })
 
   it('後から増えた操作の種類など、知らない値は定数名のまま出す（表示が消えないように）', async () => {
-    stored = [log(1, 'USER_SUSPENDED', 'COMMENT', { detail: null })]
+    stored = [log(1, 'POST_DELETED', 'COMMENT', { detail: null })]
     renderPage()
 
-    await screen.findByText('USER_SUSPENDED')
-    expect(cells(bodyRows()[0])).toEqual(['2026/10/09 10:01:00', 'admin', 'USER_SUSPENDED', 'COMMENT（ID: 10）', ''])
+    await screen.findByText('POST_DELETED')
+    expect(cells(bodyRows()[0])).toEqual(['2026/10/09 10:01:00', 'admin', 'POST_DELETED', 'COMMENT（ID: 10）', ''])
   })
 
   it('ログがなければ、そのことを出す', async () => {
