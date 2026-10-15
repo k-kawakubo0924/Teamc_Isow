@@ -1,5 +1,6 @@
 import { cleanup, render, within } from '@testing-library/react'
 import type { ReactElement } from 'react'
+import type { ConversationSummary } from '../../api/conversations'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DmSummaryContext } from '../../components/dmSummaryContext'
@@ -26,11 +27,14 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** DM の件数（ピン留めは3件。design/DMlist.png の見出しのマークのバッジ「3」） */
+const SUMMARY: ConversationSummary = { unreadMessageCount: 2, receivedRequestCount: 2, sentRequestCount: 2, pinnedCount: 3 }
+
 /** 下部ナビのある画面と同じく、DM の件数と通知の未読件数を渡して描画する（通知の未読は3件） */
-function renderPage(page: ReactElement) {
+function renderPage(page: ReactElement, summary: ConversationSummary | null = SUMMARY) {
   return render(
     <MemoryRouter>
-      <DmSummaryContext.Provider value={{ summary: null, refresh: () => {} }}>
+      <DmSummaryContext.Provider value={{ summary, refresh: () => {} }}>
         <NotificationSummaryContext.Provider value={{ summary: { unreadCount: 3, unreadAnnouncementCount: 0 }, refresh: () => {} }}>
           {page}
         </NotificationSummaryContext.Provider>
@@ -39,21 +43,39 @@ function renderPage(page: ReactElement) {
   )
 }
 
+/*
+ * 経緯：ピン留めを作る前は、この見出しの左上のマーク（ピン留めした相談の一覧を開くもの）をいったん削除し、
+ * 「見出しはロゴだけで、押せるものがない」ことを確かめるテストを置いていた（21647d6）。
+ * ピン留めを作ってマークを戻したため（docs/dm.md「DM一覧の見出し」）、そのテストは役目を終え、
+ * マークがピン留めの一覧へのリンクであることを確かめるテストに置き換えた（意図した変更）
+ */
 describe('DM一覧の見出し', () => {
-  it('左上のマーク（ピン留めの一覧を開くもの。未実装）を置かず、見出しはロゴだけ', () => {
+  it('左上のマークは、ピン留めした相談の一覧へのリンクで、ピン留めの件数をバッジに出す', () => {
     const { container } = renderPage(<DmListPage />)
 
     const header = container.querySelector('header.dm-header') as HTMLElement
-    expect(header).not.toBeNull()
-    // 押せるものがない
-    expect(within(header).queryAllByRole('link')).toHaveLength(0)
-    expect(within(header).queryAllByRole('button')).toHaveLength(0)
-    // ベルの絵や「通知」の名前も残っていない
-    expect(header.querySelector('svg')).toBeNull()
-    expect(within(header).queryByLabelText(/通知/)).toBeNull()
-    // 中身はロゴだけ（中央寄せは .dm-header の flex で行う）
-    expect(header.children).toHaveLength(1)
+    const mark = within(header).getByRole('link', { name: 'ピン留めした相談（3件）' })
+    expect(mark.getAttribute('href')).toBe('/dm/pinned')
     expect(within(header).getByRole('heading', { name: 'ISHO' })).toBeTruthy()
+    // 通知ベルではない（通知一覧にはつなげない）
+    expect(within(header).queryByLabelText(/通知/)).toBeNull()
+  })
+
+  it('ピン留めの件数のバッジは、未読のバッジと違う見た目にする（変わらない数字を「対応が必要」と見間違えないように）', () => {
+    const { container } = renderPage(<DmListPage />)
+
+    const header = container.querySelector('header.dm-header') as HTMLElement
+    const badge = header.querySelector('.dm-pin-badge') as HTMLElement
+    expect(badge.textContent).toBe('3')
+    expect(badge.classList.contains('dm-count-badge')).toBe(false)
+  })
+
+  it('ピン留めがなければバッジを出さない', () => {
+    const { container } = renderPage(<DmListPage />, { ...SUMMARY, pinnedCount: 0 })
+
+    const header = container.querySelector('header.dm-header') as HTMLElement
+    expect(within(header).getByRole('link', { name: 'ピン留めした相談' })).toBeTruthy()
+    expect(header.querySelector('.dm-pin-badge')).toBeNull()
   })
 })
 

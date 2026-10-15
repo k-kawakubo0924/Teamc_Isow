@@ -80,7 +80,7 @@ class DmQueryCountTest {
         String subject = String.valueOf(me.getId());
 
         createConversations(5);
-        long list5 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, null, false, 0, 20),
+        long list5 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, null, false, false, 0, 20),
                 r -> r.conversations().size(), 5);
         Conversation first = conversationRepository.findAll().getFirst();
         addMessages(first, 4);
@@ -89,7 +89,7 @@ class DmQueryCountTest {
                 r -> r.messages().size(), 5);
 
         createConversations(15);
-        long list20 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, null, false, 0, 20),
+        long list20 = countSql(() -> conversationListService.list(subject, ConversationFilter.ALL, null, false, false, 0, 20),
                 r -> r.conversations().size(), 20);
         addMessages(first, 15);
         long messages20 = countSql(() -> messageService.list(subject, first.getId(), null, 20),
@@ -98,12 +98,12 @@ class DmQueryCountTest {
         long sent = countSql(() -> messageService.send(subject, first.getId(), new MessageSendRequest("送信", null)),
                 r -> r.body().length(), 2);
         // 相手のユーザー名（dm_p0〜dm_p19）で検索しても、本数は変わらない
-        long searched = countSql(() -> conversationListService.list(subject, ConversationFilter.CHATS, "DM_P", false, 0, 20),
+        long searched = countSql(() -> conversationListService.list(subject, ConversationFilter.CHATS, "DM_P", false, false, 0, 20),
                 r -> r.conversations().size(), 20);
         long summary = countSql(() -> conversationListService.summary(subject), r -> 1, 1);
         long detail = countSql(() -> conversationListService.get(subject, first.getId()), r -> 1, 1);
         // 最初の会話は開いて既読にしたため、未読があるのは残りの19件。相手から届いた最新の未読を読む分、DM一覧より1本多い
-        long unreadOnly = countSql(() -> conversationListService.list(subject, ConversationFilter.CHATS, null, true, 0, 20),
+        long unreadOnly = countSql(() -> conversationListService.list(subject, ConversationFilter.CHATS, null, true, false, 0, 20),
                 r -> r.conversations().size(), 19);
         List<Long> partnerIds = partners.stream().map(User::getId).toList();
         long statuses5 = countSql(() -> consultationService.statuses(subject, partnerIds.subList(0, 5)),

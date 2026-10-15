@@ -14,7 +14,9 @@ public enum ConversationOperationError {
     /** 会話の状態が操作に合わない（終了した会話を承認するなど） */
     INVALID_STATUS(HttpStatus.CONFLICT),
     /** 承認する時点で、自分が受けている「進行中」の会話が上限に達している */
-    LIMIT_REACHED(HttpStatus.CONFLICT);
+    LIMIT_REACHED(HttpStatus.CONFLICT),
+    /** ピン留めの上限（10件）に達している（docs/dm.md「ピン留め」） */
+    PIN_LIMIT_REACHED(HttpStatus.CONFLICT);
 
     private final HttpStatus httpStatus;
 

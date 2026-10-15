@@ -1,9 +1,9 @@
 import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router'
 import { useDmSummary } from '../../components/dmSummaryContext'
-import { timeAgo } from '../../utils/timeAgo'
-import { DmAvatar, DmListFooter } from './dmParts'
-import { useConversationList, type ConversationRow } from './useConversationList'
+import { ChatRow, PinIcon } from './ChatRow'
+import { DmListFooter } from './dmParts'
+import { useConversationList } from './useConversationList'
 import './dm.css'
 
 /** 検索欄の入力が止まってから検索するまでの時間（1文字ごとに API を呼ばないため。フォロー一覧と同じ） */
@@ -28,11 +28,25 @@ export default function DmListPage() {
 
   return (
     <main className="dm-page">
-      {/*
-        design/DMlist.png の左上にある、ピン留めした相談の一覧を開くマークは、ピン留め機能が未実装のため置かない。
-        ピン留め機能を作るときに戻す（docs/dm.md「DM一覧の見出し」）
-      */}
       <header className="dm-header">
+        {/*
+          左上のマークは、ピン留めした相談の一覧を開くもの（design/DMlist.png。docs/dm.md「DM一覧の見出し」）。
+          ピン留めを作るまでいったん削除していたものを戻した。通知ベルではない（通知一覧にはつなげない）。
+          バッジはピン留めの件数で、未読ではないため、設計画像と違い未読のバッジとは別の見た目にする
+          （未読は「対応が必要」の合図で、ピン留めの件数は変わらない数字のため。同じ色だと見間違える）
+        */}
+        <Link
+          to="/dm/pinned"
+          className="dm-pin-link"
+          aria-label={summary !== null && summary.pinnedCount > 0 ? `ピン留めした相談（${summary.pinnedCount}件）` : 'ピン留めした相談'}
+        >
+          <PinIcon size={22} />
+          {summary !== null && summary.pinnedCount > 0 && (
+            <span className="dm-pin-badge" aria-hidden="true">
+              {summary.pinnedCount}
+            </span>
+          )}
+        </Link>
         <h1 className="dm-logo">ISHO</h1>
       </header>
 
@@ -116,38 +130,5 @@ function ChatList({ query }: { query: string }) {
         sentinelRef={sentinelRef}
       />
     </>
-  )
-}
-
-/**
- * 会話1件。行の色はデザインに合わせて、未読あり（白）・既読（ベージュ）・終了（灰色）で分ける。
- * 押すとチャット画面（/dm/{id}）へ移る
- */
-function ChatRow({ conversation, now }: { conversation: ConversationRow; now: Date }) {
-  const ended = conversation.status === 'ENDED'
-  const variant = ended ? 'ended' : conversation.unreadCount > 0 ? 'unread' : 'read'
-  const preview =
-    conversation.lastMessageBody ??
-    (conversation.lastMessageHasImage ? '画像が送信されました' : 'メッセージはまだありません')
-  // メッセージがない会話は、申し込んだ日時からの経過時間を出す
-  const at = conversation.lastMessageAt ?? conversation.requestedAt
-
-  return (
-    <Link to={`/dm/${conversation.id}`} className={`dm-row dm-row-${variant}`}>
-      <DmAvatar partner={conversation.partner} />
-      <span className="dm-row-text">
-        <span className="dm-row-top">
-          <span className="dm-username">@{conversation.partner.username}</span>
-          <span className="dm-time">{timeAgo(at, now, { yesterday: true })}</span>
-          {ended && <span className="dm-status-label">終了</span>}
-        </span>
-        <span className="dm-preview">{preview}</span>
-      </span>
-      {conversation.unreadCount > 0 && (
-        <span className="dm-count-badge" aria-label={`未読 ${conversation.unreadCount}件`}>
-          {conversation.unreadCount}
-        </span>
-      )}
-    </Link>
   )
 }

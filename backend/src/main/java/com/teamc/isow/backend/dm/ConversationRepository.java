@@ -85,7 +85,9 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
      *
      * @param direction どちらが申し込んだ会話を含めるか（ConversationFilter.Direction.code。0 はどちらでも、1 は自分、2 は相手）
      * @param pattern 相手のユーザー名・表示名の絞り込み（小文字にした LIKE のパターン。SearchPatterns.contains で作る）
-     * @param unreadOnly true なら、相手から届いた未読メッセージがある会話だけ（ホームの新着メッセージ）
+     * @param unreadOnly true なら、相手から届いた未読メッセージがある会話だけ（ホームの新着メッセージ）。
+     *     userId が通知をオフにした会話は含めない（docs/dm.md「通知オフ」）
+     * @param pinnedOnly true なら、userId がピン留めした会話だけ（ピン留めした相談の一覧。docs/dm.md「ピン留め」）
      */
     @Query("""
             SELECT c FROM Conversation c JOIN FETCH c.user1 u1 JOIN FETCH c.user2 u2
@@ -97,9 +99,15 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
               AND (:direction = 0
                 OR (:direction = 1 AND c.requestedBy.id = :userId)
                 OR (:direction = 2 AND c.requestedBy.id <> :userId))
-              AND (:unreadOnly = FALSE OR EXISTS (
+              AND (:unreadOnly = FALSE OR (EXISTS (
                     SELECT m.id FROM Message m
-                    WHERE m.conversation = c AND m.sender.id <> :userId AND m.readAt IS NULL))
+                    WHERE m.conversation = c AND m.sender.id <> :userId AND m.readAt IS NULL)
+                AND NOT EXISTS (
+                    SELECT s.id FROM ConversationUserSetting s
+                    WHERE s.conversation = c AND s.user.id = :userId AND s.mutedAt IS NOT NULL)))
+              AND (:pinnedOnly = FALSE OR EXISTS (
+                    SELECT s.id FROM ConversationUserSetting s
+                    WHERE s.conversation = c AND s.user.id = :userId AND s.pinnedAt IS NOT NULL))
             ORDER BY COALESCE(c.lastMessageAt, c.requestedAt) DESC, c.id DESC
             """)
     Slice<Conversation> findForList(
@@ -108,6 +116,7 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
             @Param("direction") int direction,
             @Param("pattern") String pattern,
             @Param("unreadOnly") boolean unreadOnly,
+            @Param("pinnedOnly") boolean pinnedOnly,
             Pageable pageable);
 
     /** 会話1件と、2人のユーザーを一緒に読み込む（チャット画面の上部に相手を表示するため） */
@@ -131,4 +140,23 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
               AND c.requestedBy.id <> :userId AND c.status = :status
             """)
     long countReceived(@Param("userId") Long userId, @Param("status") String status);
+
+    /**
+     * 30日やり取りがない相談の ID（docs/dm.md「30日やり取りがない相談の自動終了」）。判定は Conversation.isInactiveAsOf と同じ
+     * （変えるときは両方を直すこと）。
+     *
+     * <p><b>cutoff はアプリの今の時刻から計算して渡す。DB の現在時刻（CURRENT_TIMESTAMP など）に置き換えないこと</b>
+     * （このアプリは日時を日本時間で保存し、DB は UTC として扱うため、9時間ずれる。docs/admin.md「時刻の扱い」）
+     *
+     * @param cutoff 今の時刻の30日前。最後のやり取りがこれ以前なら対象
+     */
+    @Query("""
+            SELECT c.id FROM Conversation c
+            WHERE (c.status = :requested AND c.requestedAt <= :cutoff)
+               OR (c.status = :active AND c.respondedAt <= :cutoff
+                   AND (c.lastMessageAt IS NULL OR c.lastMessageAt <= :cutoff))
+            ORDER BY c.id
+            """)
+    List<Long> findInactiveIds(@Param("cutoff") LocalDateTime cutoff, @Param("requested") String requested,
+            @Param("active") String active);
 }

@@ -70,11 +70,17 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<UnreadCount> countUnread(
             @Param("conversationIds") Collection<Long> conversationIds, @Param("userId") Long userId);
 
-    /** userId が参加している、指定した状態の会話で、相手から届いた未読メッセージの合計（下部ナビの DM のバッジに使う） */
+    /**
+     * userId が参加している、指定した状態の会話で、相手から届いた未読メッセージの合計（下部ナビの DM のバッジに使う）。
+     * userId が通知をオフにした会話は数えない（docs/dm.md「通知オフ」。DM一覧の行の未読の数は countUnread で今までどおり出す）
+     */
     @Query("""
             SELECT COUNT(m) FROM Message m JOIN m.conversation c
             WHERE (c.user1.id = :userId OR c.user2.id = :userId) AND c.status IN :statuses
               AND m.sender.id <> :userId AND m.readAt IS NULL
+              AND NOT EXISTS (
+                    SELECT s.id FROM ConversationUserSetting s
+                    WHERE s.conversation = c AND s.user.id = :userId AND s.mutedAt IS NOT NULL)
             """)
     long countUnreadTotal(@Param("userId") Long userId, @Param("statuses") Collection<String> statuses);
 

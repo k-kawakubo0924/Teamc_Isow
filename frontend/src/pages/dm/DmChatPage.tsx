@@ -2,7 +2,17 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Form
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { blockUser } from '../../api/blocks'
 import { ApiError } from '../../api/client'
-import { endConversation, sendMessage, type ConversationDetail, type Message } from '../../api/conversations'
+import {
+  endConversation,
+  muteConversation,
+  pinConversation,
+  sendMessage,
+  unmuteConversation,
+  unpinConversation,
+  type ConversationDetail,
+  type ConversationSetting,
+  type Message,
+} from '../../api/conversations'
 import { useAuth } from '../../auth/authContext'
 import { IMAGE_ACCEPT, validateImageFile } from '../../validation/postRules'
 import { blockConfirmText } from '../../components/block/blockText'
@@ -101,6 +111,9 @@ function ChatView({ id }: { id: number }) {
         detail={detail}
         onEnded={(ended) => chat.setDetail((prev) => (prev ? { ...prev, ...ended } : prev))}
         onBlocked={() => void chat.poll()}
+        onSettingChanged={(setting) =>
+          chat.setDetail((prev) => (prev ? { ...prev, pinned: setting.pinned, muted: setting.muted } : prev))
+        }
       />
 
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
@@ -169,17 +182,20 @@ function ChatError({ message }: { message: string }) {
 }
 
 /**
- * 上部：戻る・相手（押すとプロフィール）・メニュー（会話を終了する・ブロック）。
- * ブロックは会話の状態に関係なくできる。ブロックすると進行中の相談は終了するため、会話の状態を取り直す（onBlocked。docs/dm.md「ブロック」）
+ * 上部：戻る・相手（押すとプロフィール）・メニュー（ピン留め・通知オフ・会話を終了する・ブロック）。
+ * ブロックは会話の状態に関係なくできる。ブロックすると進行中の相談は終了するため、会話の状態を取り直す（onBlocked。docs/dm.md「ブロック」）。
+ * ピン留め・通知オフは自分の設定で、相手には分からず、取り消せるため、確認ダイアログを出さない（docs/dm.md「ピン留め」「通知オフ」）
  */
 function ChatHeader({
   detail,
   onEnded,
   onBlocked,
+  onSettingChanged,
 }: {
   detail: ConversationDetail | null
   onEnded: (ended: Pick<ConversationDetail, 'status' | 'endedAt'>) => void
   onBlocked: () => void
+  onSettingChanged: (setting: ConversationSetting) => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -189,7 +205,29 @@ function ChatHeader({
   const [confirming, setConfirming] = useState<'end' | 'block' | null>(null)
   const [ending, setEnding] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** ピン留めなど、確認ダイアログを出さない操作の失敗（上限など） */
+  const [settingError, setSettingError] = useState<string | null>(null)
+  const [settingBusy, setSettingBusy] = useState(false)
   const canEnd = detail?.status === 'ACTIVE'
+  // ピン留めできるのは、DM一覧に出るやり取り中の相談（進行中・終了）
+  const canPin = detail?.status === 'ACTIVE' || detail?.status === 'ENDED'
+  // 通知をオフにできるのは進行中だけ。オンに戻すのはいつでもできる
+  const muteAction = detail?.muted ? 'unmute' : detail?.status === 'ACTIVE' ? 'mute' : null
+
+  /** 自分の設定（ピン留め・通知オフ）を変える。相手には分からない */
+  const changeSetting = async (action: (id: number, token: string) => Promise<ConversationSetting>) => {
+    if (!token || !detail || settingBusy) return
+    setMenuOpen(false)
+    setSettingBusy(true)
+    setSettingError(null)
+    try {
+      onSettingChanged(await action(detail.conversationId, token))
+    } catch (err) {
+      setSettingError(err instanceof ApiError ? err.message : '設定を変えられませんでした。時間をおいて再度お試しください。')
+    } finally {
+      setSettingBusy(false)
+    }
+  }
 
   const handleEnd = async () => {
     if (!token || !detail || ending) return
@@ -234,7 +272,6 @@ function ChatHeader({
         </Link>
       )}
 
-      {/* 通報は次の段階で作る。いまは「会話を終了する」（進行中のときだけ）と「ブロック」 */}
       {detail && (
         <div className="chat-menu-wrap">
           <button
@@ -252,6 +289,32 @@ function ChatHeader({
           </button>
           {menuOpen && (
             <ul className="chat-menu" id={menuId} role="menu">
+              {canPin && (
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="chat-menu-item"
+                    disabled={settingBusy}
+                    onClick={() => void changeSetting(detail.pinned ? unpinConversation : pinConversation)}
+                  >
+                    {detail.pinned ? 'ピン留めを外す' : 'ピン留めする'}
+                  </button>
+                </li>
+              )}
+              {muteAction !== null && (
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="chat-menu-item"
+                    disabled={settingBusy}
+                    onClick={() => void changeSetting(muteAction === 'unmute' ? unmuteConversation : muteConversation)}
+                  >
+                    {muteAction === 'unmute' ? '通知をオンにする' : '通知をオフにする'}
+                  </button>
+                </li>
+              )}
               {canEnd && (
                 <li role="none">
                   <button
@@ -311,6 +374,11 @@ function ChatHeader({
             setError(null)
           }}
         />
+      )}
+      {settingError && (
+        <p className="chat-header-error" role="alert">
+          {settingError}
+        </p>
       )}
     </header>
   )
@@ -569,7 +637,10 @@ function disabledReason(detail: ConversationDetail): string | null {
         ? '相手が承認すると、メッセージを送れるようになります'
         : 'リクエストを承認すると、メッセージを送れるようになります'
     case 'ENDED':
-      return 'この会話は終了しました（閲覧のみ）'
+      // 自動終了だけは理由を出す（相手が終えたように見えないように）。ほかの理由（ブロック・利用停止など）はサーバーも返さない
+      return detail.endedByInactivity
+        ? '30日間やり取りがなかったため、自動で終了しました（閲覧のみ）'
+        : 'この会話は終了しました（閲覧のみ）'
     case 'REJECTED':
       return 'このリクエストは承認されませんでした'
   }
