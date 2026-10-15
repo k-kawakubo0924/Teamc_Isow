@@ -137,6 +137,19 @@ export function unpinConversation(id: number, token: string): Promise<Conversati
   return sendWithToken<ConversationSetting>('DELETE', `/api/conversations/${id}/pin`, token)
 }
 
+/**
+ * 相談の通知をオフにする（docs/dm.md「通知オフ」）。メッセージは届くが、DM のバッジ・ホームの新着メッセージに数えず、
+ * メッセージの通知も作らない。相手には分からない。進行中だけ（それ以外は ApiError 409）
+ */
+export function muteConversation(id: number, token: string): Promise<ConversationSetting> {
+  return sendWithToken<ConversationSetting>('POST', `/api/conversations/${id}/mute`, token)
+}
+
+/** 通知をオンに戻す（会話の状態に関係なくできる） */
+export function unmuteConversation(id: number, token: string): Promise<ConversationSetting> {
+  return sendWithToken<ConversationSetting>('DELETE', `/api/conversations/${id}/mute`, token)
+}
+
 /** 当事者でなければ 404（存在しない会話と同じ） */
 export function fetchConversation(id: number, token: string, signal?: AbortSignal): Promise<ConversationDetail> {
   return getJson<ConversationDetail>(`/api/conversations/${id}`, token, signal)

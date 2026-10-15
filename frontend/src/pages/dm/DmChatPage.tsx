@@ -4,8 +4,10 @@ import { blockUser } from '../../api/blocks'
 import { ApiError } from '../../api/client'
 import {
   endConversation,
+  muteConversation,
   pinConversation,
   sendMessage,
+  unmuteConversation,
   unpinConversation,
   type ConversationDetail,
   type ConversationSetting,
@@ -180,9 +182,9 @@ function ChatError({ message }: { message: string }) {
 }
 
 /**
- * 上部：戻る・相手（押すとプロフィール）・メニュー（ピン留め・会話を終了する・ブロック）。
+ * 上部：戻る・相手（押すとプロフィール）・メニュー（ピン留め・通知オフ・会話を終了する・ブロック）。
  * ブロックは会話の状態に関係なくできる。ブロックすると進行中の相談は終了するため、会話の状態を取り直す（onBlocked。docs/dm.md「ブロック」）。
- * ピン留めは自分の設定で、相手には分からず、取り消せるため、確認ダイアログを出さない（docs/dm.md「ピン留め」）
+ * ピン留め・通知オフは自分の設定で、相手には分からず、取り消せるため、確認ダイアログを出さない（docs/dm.md「ピン留め」「通知オフ」）
  */
 function ChatHeader({
   detail,
@@ -209,8 +211,10 @@ function ChatHeader({
   const canEnd = detail?.status === 'ACTIVE'
   // ピン留めできるのは、DM一覧に出るやり取り中の相談（進行中・終了）
   const canPin = detail?.status === 'ACTIVE' || detail?.status === 'ENDED'
+  // 通知をオフにできるのは進行中だけ。オンに戻すのはいつでもできる
+  const muteAction = detail?.muted ? 'unmute' : detail?.status === 'ACTIVE' ? 'mute' : null
 
-  /** 自分の設定（ピン留め）を変える。相手には分からない */
+  /** 自分の設定（ピン留め・通知オフ）を変える。相手には分からない */
   const changeSetting = async (action: (id: number, token: string) => Promise<ConversationSetting>) => {
     if (!token || !detail || settingBusy) return
     setMenuOpen(false)
@@ -295,6 +299,19 @@ function ChatHeader({
                     onClick={() => void changeSetting(detail.pinned ? unpinConversation : pinConversation)}
                   >
                     {detail.pinned ? 'ピン留めを外す' : 'ピン留めする'}
+                  </button>
+                </li>
+              )}
+              {muteAction !== null && (
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="chat-menu-item"
+                    disabled={settingBusy}
+                    onClick={() => void changeSetting(muteAction === 'unmute' ? unmuteConversation : muteConversation)}
+                  >
+                    {muteAction === 'unmute' ? '通知をオンにする' : '通知をオフにする'}
                   </button>
                 </li>
               )}

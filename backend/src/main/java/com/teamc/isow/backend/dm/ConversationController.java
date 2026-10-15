@@ -78,6 +78,18 @@ public class ConversationController {
         return settingService.unpin(jwt.getSubject(), conversationId);
     }
 
+    /** 通知をオフにする（自分の設定。相手には分からない）。進行中だけ（それ以外は 409） */
+    @PostMapping("/{conversationId:\\d+}/mute")
+    public ConversationSettingResponse mute(@AuthenticationPrincipal Jwt jwt, @PathVariable Long conversationId) {
+        return settingService.mute(jwt.getSubject(), conversationId);
+    }
+
+    /** 通知をオンに戻す（いつでもできる） */
+    @DeleteMapping("/{conversationId:\\d+}/mute")
+    public ConversationSettingResponse unmute(@AuthenticationPrincipal Jwt jwt, @PathVariable Long conversationId) {
+        return settingService.unmute(jwt.getSubject(), conversationId);
+    }
+
     /** DM の件数（下部ナビの DM のバッジと、DM一覧の「メッセージリクエスト」「送信したリクエスト」の件数） */
     @GetMapping("/summary")
     public ConversationSummaryResponse summary(@AuthenticationPrincipal Jwt jwt) {

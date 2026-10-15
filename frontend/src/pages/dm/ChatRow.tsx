@@ -6,7 +6,7 @@ import type { ConversationRow } from './useConversationList'
 /**
  * やり取り中の会話1件（DM一覧・ピン留めした相談の一覧）。行の色はデザインに合わせて、
  * 未読あり（白）・既読（ベージュ）・終了（灰色）で分ける。押すとチャット画面（/dm/{id}）へ移る。
- * 自分がピン留めした相談には、ピンの印を出す（docs/dm.md「ピン留め」。相手には分からない）
+ * 自分がピン留めした相談にはピンの印を、通知をオフにした相談には通知オフの印を出す（docs/dm.md「ピン留め」「通知オフ」。相手には分からない）
  */
 export function ChatRow({ conversation, now }: { conversation: ConversationRow; now: Date }) {
   const ended = conversation.status === 'ENDED'
@@ -30,6 +30,11 @@ export function ChatRow({ conversation, now }: { conversation: ConversationRow; 
               <PinIcon size={12} />
             </span>
           )}
+          {conversation.muted && (
+            <span className="dm-row-mark" role="img" aria-label="通知オフ">
+              <MutedIcon />
+            </span>
+          )}
         </span>
         <span className="dm-preview">{preview}</span>
       </span>
@@ -39,6 +44,16 @@ export function ChatRow({ conversation, now }: { conversation: ConversationRow; 
         </span>
       )}
     </Link>
+  )
+}
+
+/** 通知オフの印（斜線の入ったベル） */
+function MutedIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 16.5V11a6 6 0 0 1 10.5-4M18 11v5.5l1.5 2H8" />
+      <path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16" />
+    </svg>
   )
 }
 

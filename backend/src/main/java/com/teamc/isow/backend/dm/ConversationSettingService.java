@@ -70,6 +70,39 @@ public class ConversationSettingService {
         return response(conversationId, setting);
     }
 
+    /**
+     * 通知をオフにする（進行中だけ。それ以外は 409 INVALID_STATUS）。メッセージは届くが、DM のバッジ・ホームの新着メッセージに数えず、
+     * メッセージの通知も作らない（docs/dm.md「通知オフ」）
+     */
+    @Transactional
+    public ConversationSettingResponse mute(String subject, Long conversationId) {
+        User me = authService.requireCurrentUser(subject);
+        Conversation conversation = participantConversation(conversationId, me.getId());
+        if (conversation.getStatus() != ConversationStatus.ACTIVE) {
+            throw new ConversationOperationException(ConversationOperationError.INVALID_STATUS,
+                    "この会話は" + conversation.getStatus().getLabel() + "のため、通知をオフにできません。");
+        }
+        ConversationUserSetting setting = settingRepository.findOne(me.getId(), conversationId)
+                .orElseGet(() -> new ConversationUserSetting(me, conversation));
+        setting.mute(LocalDateTime.now(clock));
+        settingRepository.save(setting);
+        return response(conversationId, setting);
+    }
+
+    /** 通知をオンに戻す（会話の状態に関係なくできる。オフでなくても成功する） */
+    @Transactional
+    public ConversationSettingResponse unmute(String subject, Long conversationId) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        participantConversation(conversationId, userId);
+        return settingRepository.findOne(userId, conversationId)
+                .map(setting -> {
+                    setting.unmute();
+                    saveOrDelete(setting);
+                    return response(conversationId, setting);
+                })
+                .orElseGet(() -> new ConversationSettingResponse(conversationId, false, false));
+    }
+
     /** ピン留めを外す（していなくても成功する） */
     @Transactional
     public ConversationSettingResponse unpin(String subject, Long conversationId) {

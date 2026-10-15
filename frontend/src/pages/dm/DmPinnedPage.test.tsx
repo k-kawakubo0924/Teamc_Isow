@@ -92,6 +92,21 @@ describe('ピン留めした相談の一覧', () => {
     expect((first.closest('a') as HTMLAnchorElement).getAttribute('href')).toBe('/dm/1')
   })
 
+  it('通知をオフにした相談には、通知オフの印を出す', async () => {
+    fetchConversations.mockResolvedValue({
+      conversations: [item(1, 'haru_st', { muted: true }), item(2, 'yui_m')],
+      page: 0,
+      size: 20,
+      hasNext: false,
+    })
+    renderPage()
+
+    const muted = (await screen.findByText('@haru_st')).closest('a') as HTMLElement
+    const normal = screen.getByText('@yui_m').closest('a') as HTMLElement
+    expect(within(muted).getByLabelText('通知オフ')).toBeTruthy()
+    expect(within(normal).queryByLabelText('通知オフ')).toBeNull()
+  })
+
   it('ピン留めがなければ、その旨を出す', async () => {
     fetchConversations.mockResolvedValue({ conversations: [], page: 0, size: 20, hasNext: false })
     renderPage()

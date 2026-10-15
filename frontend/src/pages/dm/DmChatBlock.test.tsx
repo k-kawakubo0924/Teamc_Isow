@@ -32,10 +32,14 @@ vi.mock('../../api/blocks', () => ({ blockUser: (id: number) => blockUser(id) })
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
 const pinConversation = vi.fn<(id: number) => Promise<ConversationSetting>>()
 const unpinConversation = vi.fn<(id: number) => Promise<ConversationSetting>>()
+const muteConversation = vi.fn<(id: number) => Promise<ConversationSetting>>()
+const unmuteConversation = vi.fn<(id: number) => Promise<ConversationSetting>>()
 vi.mock('../../api/conversations', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/conversations')>()),
   pinConversation: (id: number) => pinConversation(id),
   unpinConversation: (id: number) => unpinConversation(id),
+  muteConversation: (id: number) => muteConversation(id),
+  unmuteConversation: (id: number) => unmuteConversation(id),
 }))
 vi.mock('../../api/reports', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/reports')>()),
@@ -71,6 +75,8 @@ afterEach(() => {
   setDetail.mockReset()
   pinConversation.mockReset()
   unpinConversation.mockReset()
+  muteConversation.mockReset()
+  unmuteConversation.mockReset()
 })
 
 function renderChat(status: ConversationDetail['status']) {
@@ -89,16 +95,45 @@ function renderChatWith(conversationDetail: ConversationDetail) {
 }
 
 describe('チャット画面のメニュー', () => {
-  it('進行中の会話では「ピン留めする」「会話を終了する」「ブロック」がある', () => {
+  it('進行中の会話では「ピン留めする」「通知をオフにする」「会話を終了する」「ブロック」がある', () => {
     renderChat('ACTIVE')
 
     fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
 
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'ピン留めする',
+      '通知をオフにする',
       '会話を終了する',
       'ブロック',
     ])
+  })
+
+  it('「通知をオフにする」で確認なしにオフにし、会話の設定を更新する（相手には分からない）', async () => {
+    muteConversation.mockResolvedValue({ conversationId: 10, pinned: false, muted: true })
+    renderChat('ACTIVE')
+
+    fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '通知をオフにする' }))
+
+    await vi.waitFor(() => expect(setDetail).toHaveBeenCalled())
+    expect(muteConversation).toHaveBeenCalledWith(10)
+    const update = setDetail.mock.calls[0][0] as (prev: ConversationDetail) => ConversationDetail
+    expect(update(conversation('ACTIVE'))).toMatchObject({ muted: true })
+  })
+
+  it('通知オフなら「通知をオンにする」を出す。終了した後でもオンに戻せる', async () => {
+    unmuteConversation.mockResolvedValue({ conversationId: 10, pinned: false, muted: false })
+    renderChatWith({ ...conversation('ENDED'), muted: true })
+
+    fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'ピン留めする',
+      '通知をオンにする',
+      'ブロック',
+    ])
+    fireEvent.click(screen.getByRole('menuitem', { name: '通知をオンにする' }))
+
+    await vi.waitFor(() => expect(unmuteConversation).toHaveBeenCalledWith(10))
   })
 
   it('終了した会話でも「ピン留めする」と「ブロック」はできる（「会話を終了する」は出さない）', () => {

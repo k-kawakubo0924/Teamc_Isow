@@ -2,6 +2,8 @@ package com.teamc.isow.backend.notification;
 
 import com.teamc.isow.backend.dm.Conversation;
 import com.teamc.isow.backend.dm.ConversationRepository;
+import com.teamc.isow.backend.dm.ConversationUserSetting;
+import com.teamc.isow.backend.dm.ConversationUserSettingRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
 import com.teamc.isow.backend.user.UserRepository;
@@ -34,6 +36,7 @@ public class NotificationService {
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final ConversationRepository conversationRepository;
+    private final ConversationUserSettingRepository settingRepository;
     /** 本来の処理のトランザクションはコミット済みのため、新しいトランザクションで書き込む */
     private final TransactionTemplate newTransaction;
 
@@ -42,11 +45,13 @@ public class NotificationService {
             PostRepository postRepository,
             UserRepository userRepository,
             ConversationRepository conversationRepository,
+            ConversationUserSettingRepository settingRepository,
             PlatformTransactionManager transactionManager) {
         this.notificationRepository = notificationRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.conversationRepository = conversationRepository;
+        this.settingRepository = settingRepository;
         this.newTransaction = new TransactionTemplate(transactionManager);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -142,6 +147,11 @@ public class NotificationService {
         Long recipientId = conversation.getUser1().getId().equals(event.senderId())
                 ? conversation.getUser2().getId()
                 : conversation.getUser1().getId();
+        // 受け取る人が通知をオフにした相談では、通知を作らず、既読にした通知も未読に戻さない（docs/dm.md「通知オフ」）
+        if (settingRepository.findOne(recipientId, event.conversationId())
+                .map(ConversationUserSetting::isMuted).orElse(false)) {
+            return;
+        }
         notificationRepository.findMessageNotification(recipientId, event.conversationId()).ifPresentOrElse(
                 notification -> notification.messageArrived(event.sentAt()),
                 () -> notificationRepository.save(

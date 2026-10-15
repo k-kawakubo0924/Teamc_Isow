@@ -155,6 +155,8 @@ class VisibilityInventoryTest {
         own("POST /api/conversations/{conversationId}/messages", "会話の当事者だけ。終了した会話には送れない（BlockApiTest）");
         own("POST /api/conversations/{conversationId}/pin", "会話の当事者だけ。自分の設定だけを扱い、相手には分からない（ConversationPinApiTest）");
         own("DELETE /api/conversations/{conversationId}/pin", "会話の当事者だけ。自分の設定だけを扱う");
+        own("POST /api/conversations/{conversationId}/mute", "会話の当事者だけ。自分の設定だけを扱い、相手には分からない（ConversationMuteApiTest）");
+        own("DELETE /api/conversations/{conversationId}/mute", "会話の当事者だけ。自分の設定だけを扱う");
     }
 
     private static void checked(String key, String path) {
