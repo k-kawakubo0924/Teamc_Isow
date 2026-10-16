@@ -305,3 +305,8 @@
   color: var(--color-accent);
   text-decoration: none;
 }
+
+/* 「パスワードをお忘れですか？」はリンク（docs/auth.md「パスワードの再設定」）。ボタンと同じ見た目にする */
+a.auth-text-button {
+  text-decoration: none;
+}

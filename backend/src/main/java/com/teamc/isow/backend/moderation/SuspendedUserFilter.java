@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.moderation;
 
+import com.teamc.isow.backend.auth.JwtTokenService;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -28,6 +29,9 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>トークンは失効させない（失効の仕組みはない）。リクエストのたびに DB を読むため、利用停止にした直後から、
  *       すでに持っているトークンでも使えなくなる。期限を過ぎれば、その時点から使える</li>
  *   <li>ログインしていないリクエスト（ログイン・新規会員登録など）はそのまま通す。ログインの利用停止は AuthService で確かめる</li>
+ *   <li>トークンの世代（ver）が、DB のユーザーの世代と違えば 401（本文なし。期限切れと同じ扱い）にする。利用停止より先に確かめる
+ *       （docs/auth.md「トークンの世代（全端末のログアウト）」）。世代の入っていないトークン（この仕組みの前に発行したもの）は世代0として扱う。
+ *       毎回ユーザーを読むここで確かめるため、API ごとに確かめを書く必要はない</li>
  *   <li>例外として通す API はない。利用停止中の申し立て（/api/contacts/appeal）はトークンを付けずに、申し立て用の鍵を本文で送る
  *       （docs/settings.md「お問い合わせ」）。403 の応答で、その鍵を渡す</li>
  * </ul>
@@ -51,7 +55,12 @@ public class SuspendedUserFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        Optional<User> suspended = currentUser().filter(user -> user.isSuspendedAt(LocalDateTime.now(clock)));
+        Optional<User> user = currentUser();
+        if (user.isPresent() && tokenVersion() != user.get().getTokenVersion()) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
+        Optional<User> suspended = user.filter(u -> u.isSuspendedAt(LocalDateTime.now(clock)));
         if (suspended.isPresent()) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -62,6 +71,16 @@ public class SuspendedUserFilter extends OncePerRequestFilter {
             return;
         }
         chain.doFilter(request, response);
+    }
+
+    /** トークンの世代。入っていなければ 0 */
+    private static long tokenVersion() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (!(authentication instanceof JwtAuthenticationToken jwt)) {
+            return 0;
+        }
+        Object version = jwt.getToken().getClaims().get(JwtTokenService.VERSION_CLAIM);
+        return version instanceof Number number ? number.longValue() : 0;
     }
 
     private Optional<User> currentUser() {

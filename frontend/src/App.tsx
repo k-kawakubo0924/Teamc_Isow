@@ -18,7 +18,10 @@ import DmSentPage from './pages/dm/DmSentPage'
 import { FollowListPage } from './pages/follow/FollowListPage'
 import HealthCheckPage from './pages/HealthCheckPage'
 import HomePage from './pages/home/HomePage'
+import EmailChangeConfirmPage from './pages/EmailChangeConfirmPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import LoginPage from './pages/LoginPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import NotFoundPage from './pages/NotFoundPage'
 import NotificationPage from './pages/notification/NotificationPage'
 import PostDetailPage from './pages/post/PostDetailPage'
@@ -31,6 +34,8 @@ import ProfileEditPage from './pages/settings/ProfileEditPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import BlockListPage from './pages/settings/BlockListPage'
 import ContactPage from './pages/settings/ContactPage'
+import EmailSettingsPage from './pages/settings/EmailSettingsPage'
+import PasswordSettingsPage from './pages/settings/PasswordSettingsPage'
 import SignUpPage from './pages/SignUpPage'
 import SuspendedPage from './pages/SuspendedPage'
 
@@ -73,6 +78,9 @@ function App() {
         <Route path="/settings/blocks" element={<BlockListPage />} />
         {/* お問い合わせ（docs/settings.md「お問い合わせ」）。詳細設定と同じく、下部ナビゲーションを表示しない */}
         <Route path="/settings/contact" element={<ContactPage />} />
+        {/* パスワード再設定（ログイン中の変更）・メールアドレス再設定（docs/settings.md） */}
+        <Route path="/settings/password" element={<PasswordSettingsPage />} />
+        <Route path="/settings/email" element={<EmailSettingsPage />} />
 
         {/*
           管理画面（docs/admin.md）。PC 向けの別の枠で、下部ナビゲーションを表示しない。
@@ -102,6 +110,8 @@ function App() {
       <Route element={<GuestOnly />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<SignUpPage />} />
+        {/* パスワードの再設定のメールを頼む（docs/auth.md「パスワードの再設定」） */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       </Route>
 
       {/*
@@ -109,6 +119,18 @@ function App() {
         利用停止の情報がなければ、画面の中でログイン画面へ移る
       */}
       <Route path="/suspended" element={<SuspendedPage />} />
+
+      {/*
+        新しいパスワードを設定する（docs/auth.md「パスワードの再設定」）。メールのリンクから開く。
+        ログイン中に開いても使えるよう、ログインの有無で振り分けない（設定すると、この端末もログアウトする）
+      */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+      {/*
+        メールアドレスの変更の確認（docs/settings.md「メールアドレスの変更」）。確認メールのリンクから開く。
+        ログインしていない端末でも完了できるよう、ログインの有無で振り分けない
+      */}
+      <Route path="/email-change/confirm" element={<EmailChangeConfirmPage />} />
 
       <Route path="/health" element={<HealthCheckPage />} />
     </Routes>

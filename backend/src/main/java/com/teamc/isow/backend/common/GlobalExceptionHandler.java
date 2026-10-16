@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.common;
 
+import com.teamc.isow.backend.account.EmailChangeLimitExceededException;
 import com.teamc.isow.backend.admin.AnnouncementAlreadyWithdrawnException;
 import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
@@ -8,6 +9,7 @@ import com.teamc.isow.backend.contact.AdminContactConflictException;
 import com.teamc.isow.backend.contact.AppealTokenInvalidException;
 import com.teamc.isow.backend.contact.ContactLimitExceededException;
 import com.teamc.isow.backend.contact.SuspensionChangedException;
+import com.teamc.isow.backend.auth.InvalidAccountLinkException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
 import com.teamc.isow.backend.dm.ConsultationUnavailableException;
@@ -33,6 +35,7 @@ import com.teamc.isow.backend.user.UserNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -147,6 +150,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AdminReportConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ApiErrorResponse handleAdminReportConflict(AdminReportConflictException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
+    /**
+     * メールアドレスの変更の申し込みが1時間に3回を超えた（docs/settings.md「メールアドレスの変更」）。
+     * 「時間をおいて」ではなく、もう一度申し込めるまでの時間を文言（あと約N分）と Retry-After ヘッダー（秒）で伝える
+     */
+    @ExceptionHandler(EmailChangeLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleEmailChangeLimitExceeded(EmailChangeLimitExceededException e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.retryAfterSeconds()))
+                .body(new ApiErrorResponse("メールアドレスの変更の手続きは1時間に3回までです。あと約"
+                        + e.retryAfterMinutes() + "分で、もう一度申し込めます。", Map.of()));
+    }
+
+    /** メールのリンクの鍵が使えない（期限切れ・使用済みなど。docs/auth.md「リンクの鍵」）。文言は例外の message */
+    @ExceptionHandler(InvalidAccountLinkException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleInvalidAccountLink(InvalidAccountLinkException e) {
         return new ApiErrorResponse(e.getMessage(), Map.of());
     }
 

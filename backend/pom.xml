@@ -50,6 +50,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
+		<!-- メールの送信（パスワードの再設定・メールアドレスの変更。docs/auth.md「メールの送信」）。開発中は Mailpit に SMTP で送る -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
 		<!-- 画像の EXIF から写真の向き（Orientation）を読む（ImageMetadataStripper）。Java 標準には EXIF の項目を読む部品がないため -->
 		<dependency>
 			<groupId>com.drewnoakes</groupId>

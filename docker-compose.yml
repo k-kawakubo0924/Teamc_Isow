@@ -11,5 +11,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # 開発用のメール受信（docs/auth.md「メールの送信」）。アプリが送ったメールを外へは送らずに受け取り、ブラウザで見られるようにする。
+  # SMTP は MAIL_PORT（既定 1025）、届いたメールの画面は http://localhost:<MAILPIT_UI_PORT>（既定 8025）。
+  # メールはコンテナの中のメモリにだけ置く（止めると消える）。本番では使わない（環境変数で実際の SMTP サーバーに切り替える）
+  mailpit:
+    image: axllent/mailpit:v1.22.0
+    restart: unless-stopped
+    ports:
+      - "${MAIL_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
 volumes:
   postgres_data:

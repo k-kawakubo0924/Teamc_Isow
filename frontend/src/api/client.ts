@@ -40,8 +40,19 @@ export class ApiError extends Error {
   }
 }
 
+/*
+ * 失敗の文言は、種類ごとに分ける（利用者が「やり直せばよいのか」「入力が悪いのか」を見分けられるように）。
+ * - 接続できない：CONNECTION_ERROR_MESSAGE
+ * - 入力の誤り（400 で欄ごとの誤りがある）：INPUT_ERROR_MESSAGE（欄ごとの誤りは body.errors で欄の下に出すため、「赤い欄を修正してください」がそのまま通る）
+ * - 本文に message がない失敗（404・500 など）：SERVER_PROBLEM_MESSAGE
+ * - それ以外（本文に message がある 400・401・403・409・429 など）：サーバーの文言をそのまま
+ * 以前は本文に message がない失敗をすべて「エラーが発生しました。時間をおいて再度お試しください。」にしていたため、
+ * API が存在しない（404）ことに気づくのが遅れた。すべてを1つの文言に戻さないこと
+ */
 const CONNECTION_ERROR_MESSAGE = 'サーバーに接続できませんでした。時間をおいて再度お試しください。'
-const UNEXPECTED_ERROR_MESSAGE = 'エラーが発生しました。時間をおいて再度お試しください。'
+// 画面の側で入力を確かめたときの文言（validation/authRules.ts・postRules.ts の INVALID_INPUT_MESSAGE）とそろえる
+const INPUT_ERROR_MESSAGE = '入力内容に誤りがあります。赤い欄を修正してください。'
+const SERVER_PROBLEM_MESSAGE = 'サーバーで問題が起きました。時間をおいてやり直してください。'
 
 /** JSON を POST で送る。token を渡すと Authorization: Bearer ヘッダーを付ける（認証が必要なAPI用） */
 export function postJson<T>(path: string, body: unknown, token?: string | null): Promise<T> {
@@ -150,7 +161,14 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   }
 
   const errorBody = toErrorBody(json)
-  throw new ApiError(res.status, errorBody, errorBody?.message ?? UNEXPECTED_ERROR_MESSAGE)
+  throw new ApiError(res.status, errorBody, failureMessage(res.status, errorBody))
+}
+
+/** 画面に出す失敗の文言（上のコメントの分け方） */
+function failureMessage(status: number, body: ApiErrorBody | null): string {
+  if (body === null) return SERVER_PROBLEM_MESSAGE
+  if (status === 400 && Object.keys(body.errors).length > 0) return INPUT_ERROR_MESSAGE
+  return body.message
 }
 
 /** エラー応答の本文。本文が空、または JSON でない場合は null */
