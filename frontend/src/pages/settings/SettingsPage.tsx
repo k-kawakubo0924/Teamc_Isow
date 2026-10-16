@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/authContext'
 import { goBack } from './goBack'
 import './settings.css'
 
-/** 「準備中です」を表示しておく時間（ミリ秒） */
+/** 知らせ（パスワードを変更した など）を表示しておく時間（ミリ秒） */
 const NOTICE_DURATION_MS = 2000
 
 const ICON_PROPS = {
@@ -27,8 +27,12 @@ function SettingsPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { logout } = useAuth()
-  // 消えるときは文字を残したまま薄くする（先に文字を消すと、空の枠が一瞬見えるため）
-  const [notice, setNotice] = useState({ text: '', visible: false, shownAt: 0 })
+  // 消えるときは文字を残したまま薄くする（先に文字を消すと、空の枠が一瞬見えるため）。
+  // ほかの画面から知らせ（state.notice）を受け取ったら、開いたときに出す
+  const [notice, setNotice] = useState(() => {
+    const text = (location.state as { notice?: string } | null)?.notice
+    return typeof text === 'string' ? { text, visible: true, shownAt: Date.now() } : { text: '', visible: false, shownAt: 0 }
+  })
 
   useEffect(() => {
     if (!notice.visible) return
@@ -36,9 +40,6 @@ function SettingsPage() {
     return () => clearTimeout(timer)
   }, [notice.visible, notice.shownAt])
 
-  // パスワード再設定・メールアドレス再設定は、画面ができるまで「準備中です」と表示するだけ。
-  // 続けて押したときも表示時間を延ばすよう、押した時刻を持つ
-  const showComingSoon = () => setNotice({ text: '準備中です', visible: true, shownAt: Date.now() })
 
   const handleLogout = () => {
     logout()
@@ -73,7 +74,7 @@ function SettingsPage() {
               <path d="M8 11V8a4 4 0 0 1 8 0v3" />
             </svg>
           }
-          onClick={showComingSoon}
+          onClick={() => navigate('/settings/password')}
         />
         <MenuItem
           label="メールアドレス再設定"
@@ -83,7 +84,7 @@ function SettingsPage() {
               <path d="m4 7 8 6 8-6" />
             </svg>
           }
-          onClick={showComingSoon}
+          onClick={() => navigate('/settings/email')}
         />
         {/* ブロックした相手の一覧と解除（docs/profile.md「ブロック」）。画面画像にはない項目 */}
         <MenuItem

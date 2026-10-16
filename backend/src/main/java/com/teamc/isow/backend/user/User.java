@@ -103,6 +103,19 @@ public class User {
     private String role = Role.USER.name();
 
     /**
+     * トークンの世代（docs/auth.md「トークンの世代（全端末のログアウト）」）。ログイン用のトークンに入れ（ver）、
+     * リクエストのたびに比べて、違えば 401 にする。パスワードの再設定・変更、メールアドレスの変更で進め、それまでのトークンをすべて無効にする。
+     * 既存の行も 0 になるよう、DB の既定値を付ける（ddl-auto=update で NOT NULL の列を足すため）
+     */
+    @Column(name = "token_version", nullable = false)
+    @ColumnDefault("0")
+    private int tokenVersion;
+
+    /** 最後にパスワードの再設定のメールを送った日時（同じアカウントには5分に1通まで。docs/auth.md「パスワードの再設定」） */
+    @Column(name = "password_reset_requested_at")
+    private LocalDateTime passwordResetRequestedAt;
+
+    /**
      * 利用停止にした日時（docs/admin.md「6. 措置」）。利用停止にしていなければ null。
      * 利用停止中かどうかは isSuspendedAt(now) で判定する（期限を過ぎていれば、この列が残っていても停止中ではない）
      */
@@ -167,6 +180,45 @@ public class User {
         this.suspendedAt = null;
         this.suspendedUntil = null;
         this.suspensionReason = null;
+    }
+
+    /** トークンの世代を進める（それまでに発行したログイン用のトークン・再設定の鍵などをすべて使えなくする） */
+    public void bumpTokenVersion() {
+        this.tokenVersion++;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    /**
+     * パスワードを変える（再設定・ログイン中の変更）。トークンの世代も進め、すべての端末をログアウトさせる
+     *
+     * @param newPasswordHash ハッシュにしたパスワード
+     */
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+        bumpTokenVersion();
+    }
+
+    /**
+     * メールアドレスを変える（新しいアドレスの確認が済んだとき。docs/settings.md「メールアドレスの変更」）。
+     * トークンの世代も進め、すべての端末をログアウトさせる（乗っ取った人の端末も追い出すため）
+     *
+     * @param newEmail 正規化済みのアドレス
+     */
+    public void changeEmail(String newEmail) {
+        this.email = newEmail;
+        bumpTokenVersion();
+    }
+
+    /** パスワードの再設定のメールを送ってよいか（前に送ってから interval がたったか）。送ってよければ、送った日時を now にする */
+    public boolean tryRecordPasswordResetRequest(LocalDateTime now, java.time.Duration interval) {
+        if (passwordResetRequestedAt != null && passwordResetRequestedAt.plus(interval).isAfter(now)) {
+            return false;
+        }
+        this.passwordResetRequestedAt = now;
+        return true;
     }
 
     public LocalDateTime getSuspendedAt() {

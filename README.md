@@ -50,11 +50,17 @@ $b = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create
 >
 > 何が該当ポートを使用しているか分からない場合は `docker ps` や `netstat -ano | findstr <ポート番号>` で確認できます。
 
-### 2. PostgreSQL の起動（Docker）
+### 2. PostgreSQL と開発用のメール受信の起動（Docker）
 
 ```bash
 docker compose up -d
 ```
+
+- PostgreSQL と、開発用のメール受信（Mailpit）が立ち上がります。
+- アプリが送ったメール（パスワードの再設定・メールアドレスの変更など）は、外へは送られず Mailpit に届きます。
+  **`http://localhost:8025` をブラウザで開くと、届いたメールを読めます**（アカウントの作成・設定は不要です）。
+- 届いたメールは Mailpit のコンテナを止めると消えます。
+- ポートが他と重なる場合は、`.env` の `MAIL_PORT`（SMTP。既定 1025）・`MAILPIT_UI_PORT`（画面。既定 8025）を変えてください。
 
 ### 3. バックエンドの起動
 
@@ -112,6 +118,12 @@ npm test
 | `DM_MAX_RECEIVED_ACTIVE_CONVERSATIONS` | 1人が受けられる「進行中」の相談の上限（自分から申し込んだ会話と、申請中の会話は数えない） | `3` |
 | `ADMIN_EMAIL` | 管理者にするユーザーのメールアドレス。起動時に、このメールアドレスの登録済みユーザーを管理者にする（下記「管理者の用意（管理画面）」） | なし（空なら何もしない） |
 | `DEV_SEED_ENABLED` | `true` のときだけ、起動時に開発用のテストデータを投入する（下記「開発用のテストデータ」）。**公開するサーバーでは絶対に `true` にしない** | なし（投入しない） |
+| `MAIL_HOST` | メールを送る SMTP サーバー。開発中は docker-compose の Mailpit（docs/auth.md「メールの送信」） | `localhost` |
+| `MAIL_PORT` | SMTP のポート。docker-compose の Mailpit が待ち受けるポートも兼ねる | `1025` |
+| `MAIL_USERNAME`・`MAIL_PASSWORD` | SMTP の認証（本番の送信サービス用。Mailpit では不要） | なし |
+| `MAIL_SMTP_AUTH`・`MAIL_SMTP_STARTTLS` | SMTP の認証・暗号化（STARTTLS）を使うか（本番の送信サービス用） | `false` |
+| `MAIL_FROM` | メールの差出人 | `no-reply@isho.local` |
+| `MAILPIT_UI_PORT` | Mailpit の画面のポート（docker-compose 用） | `8025` |
 
 ### `frontend/.env`
 

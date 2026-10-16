@@ -78,6 +78,8 @@ class VisibilityInventoryTest {
         // ---- ログイン・共通 ----
         own("POST /api/auth/register", "ログイン前の操作");
         own("POST /api/auth/login", "ログイン前の操作");
+        own("POST /api/auth/password-reset/request", "ログイン前の操作。登録の有無にかかわらず同じ応答（PasswordResetApiTest）");
+        own("POST /api/auth/password-reset/confirm", "ログイン前の操作。再設定の鍵で本人を確かめる（PasswordResetApiTest）");
         checked("GET /api/auth/me", "/api/auth/me");
         checked("GET /api/health", "/api/health");
         checked("GET /api/masters", "/api/masters");
@@ -112,6 +114,9 @@ class VisibilityInventoryTest {
         checked("GET /api/users/me", "/api/users/me");
         own("PUT /api/users/me", "自分のプロフィールを変える");
         own("POST /api/users/me/profile-image", "自分のプロフィール画像を変える");
+        own("POST /api/users/me/email-change", "自分のメールアドレスの変更を申し込む（EmailChangeApiTest）");
+        own("POST /api/users/me/password", "自分のパスワードを変える（PasswordChangeApiTest）");
+        own("POST /api/auth/email-change/confirm", "確認のリンクの鍵で本人を確かめる。ログインしていない端末でも使える（EmailChangeApiTest）");
         checked("GET /api/users/me/favorites", "/api/users/me/favorites");
         checked("GET /api/users/{userId}", "/api/users/{c}");
         checked("GET /api/users/{userId}/posts", "/api/users/{c}/posts");
@@ -349,7 +354,9 @@ class VisibilityInventoryTest {
      * （ContactApiTest で確かめる）
      */
     private static final Set<String> PUBLIC_APIS = Set.of(
-            "POST /api/auth/register", "POST /api/auth/login", "GET /api/health", "POST /api/contacts/appeal");
+            "POST /api/auth/register", "POST /api/auth/login", "GET /api/health", "POST /api/contacts/appeal",
+            "POST /api/auth/password-reset/request", "POST /api/auth/password-reset/confirm",
+            "POST /api/auth/email-change/confirm");
 
     private void hide(Post post) {
         jdbcTemplate.update("UPDATE posts SET hidden_at = ?, hidden_reason = 'SPAM' WHERE id = ?",

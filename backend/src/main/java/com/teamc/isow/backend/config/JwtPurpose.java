@@ -21,6 +21,12 @@ public final class JwtPurpose {
     /** 利用停止中の申し立て（POST /api/contacts/appeal）だけに使える鍵 */
     public static final String SUSPENSION_APPEAL = "suspension_appeal";
 
+    /** パスワードの再設定のリンクの鍵（docs/auth.md「パスワードの再設定」） */
+    public static final String PASSWORD_RESET = "password_reset";
+
+    /** 新しいメールアドレスの確認のリンクの鍵（docs/settings.md「メールアドレスの変更」） */
+    public static final String EMAIL_CHANGE = "email_change";
+
     private JwtPurpose() {
     }
 

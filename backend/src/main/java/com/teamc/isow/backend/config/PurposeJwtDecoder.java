@@ -1,5 +1,7 @@
 package com.teamc.isow.backend.config;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.crypto.SecretKey;
@@ -20,11 +22,15 @@ public class PurposeJwtDecoder {
     private final Map<String, NimbusJwtDecoder> decoders;
 
     PurposeJwtDecoder(SecretKey secretKey) {
-        // 用途ごとに検証の部品を作る（いまは申し立て用だけ）
-        NimbusJwtDecoder appeal = NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
-        appeal.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefault(), JwtPurpose.require(JwtPurpose.SUSPENSION_APPEAL)));
-        this.decoders = Map.of(JwtPurpose.SUSPENSION_APPEAL, appeal);
+        // 用途ごとに検証の部品を作る（申し立て・パスワードの再設定・メールアドレスの確認）
+        Map<String, NimbusJwtDecoder> byPurpose = new HashMap<>();
+        for (String purpose : List.of(JwtPurpose.SUSPENSION_APPEAL, JwtPurpose.PASSWORD_RESET, JwtPurpose.EMAIL_CHANGE)) {
+            NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+            decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                    JwtValidators.createDefault(), JwtPurpose.require(purpose)));
+            byPurpose.put(purpose, decoder);
+        }
+        this.decoders = Map.copyOf(byPurpose);
     }
 
     /** purpose が一致し、署名・期限が正しければ中身を返す。そうでなければ空 */

@@ -21,8 +21,8 @@ public record RegisterRequest(
         String phoneNumber,
 
         @NotBlank(message = "パスワードを入力してください")
-        // BCrypt は73バイト目以降を無視するため上限を72文字とする
-        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,72}$", message = "8文字以上、英字と数字を含めてください")
+        // BCrypt は73バイト目以降を無視するため上限を72文字とする（再設定・変更と同じ規則。PasswordRules）
+        @Pattern(regexp = PasswordRules.PATTERN, message = PasswordRules.MESSAGE)
         String password,
 
         @NotBlank(message = "ユーザー名を入力してください")

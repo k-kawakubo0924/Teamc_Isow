@@ -61,6 +61,10 @@ public class SecurityConfig {
                 // 利用停止中の申し立て（docs/settings.md「お問い合わせ」）。トークンの代わりに、申し立て用の鍵を本文で受け取り、
                 // ContactService で確かめる（利用停止中はログインのトークンが出ないため）
                 .requestMatchers(HttpMethod.POST, "/api/contacts/appeal").permitAll()
+                // パスワードの再設定（ログイン前。docs/auth.md「パスワードの再設定」）。鍵はメールのリンクで受け取り、サービスで確かめる
+                .requestMatchers(HttpMethod.POST, "/api/auth/password-reset/request", "/api/auth/password-reset/confirm").permitAll()
+                // メールアドレスの変更の確認（docs/settings.md「メールアドレスの変更」）。ログインしていない端末でも、確認のリンクの鍵で完了できる
+                .requestMatchers(HttpMethod.POST, "/api/auth/email-change/confirm").permitAll()
                 // 保存した画像（ローカル保存時）。<img> タグからの読み込みには認証ヘッダーを付けられないため許可する
                 // （ファイル名は推測できない乱数。クラウドストレージの公開 URL と同じ扱い）
                 .requestMatchers(HttpMethod.GET, LocalImageWebConfig.URL_PATH + "**").permitAll()

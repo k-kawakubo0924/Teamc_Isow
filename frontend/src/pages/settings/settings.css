@@ -360,3 +360,76 @@
 .blocks-sentinel {
   height: 1px;
 }
+
+/* ---- パスワード再設定（ログイン中）・メールアドレス再設定（design/ResetPassword.png・ResetMailadress.png） ---- */
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 16px 40px;
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-input,
+.account-readonly {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.account-input {
+  background: #fff;
+}
+
+.account-readonly {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.account-input-error {
+  border-color: var(--color-error);
+}
+
+.account-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.account-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+.account-message {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.account-message-error {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
