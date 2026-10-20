@@ -65,7 +65,7 @@ class DevDataSeederTest {
                 "dev_aoi@example.com", "dev_ren@example.com", "dev_mio@example.com", "dev_sora@example.com",
                 "dev_kenta@example.com", "dev_yui@example.com", "dev_haru@example.com", "dev_new@example.com");
         for (String email : emails) {
-            assertThat(authService.login(new LoginRequest(email, PASSWORD)).token()).isNotBlank();
+            assertThat(authService.login(new LoginRequest(email, PASSWORD), "127.0.0.1").token()).isNotBlank();
         }
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM users WHERE email NOT LIKE '%@example.com'", Integer.class)).isZero();

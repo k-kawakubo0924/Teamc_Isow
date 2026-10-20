@@ -1,6 +1,5 @@
 package com.teamc.isow.backend.common;
 
-import com.teamc.isow.backend.account.EmailChangeLimitExceededException;
 import com.teamc.isow.backend.admin.AnnouncementAlreadyWithdrawnException;
 import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
@@ -154,15 +153,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * メールアドレスの変更の申し込みが1時間に3回を超えた（docs/settings.md「メールアドレスの変更」）。
-     * 「時間をおいて」ではなく、もう一度申し込めるまでの時間を文言（あと約N分）と Retry-After ヘッダー（秒）で伝える
+     * 回数の上限に達した（メールアドレスの変更の申し込み・ログインの失敗など。RetryLaterException）。
+     * 「時間をおいて」ではなく、もう一度できるまでの時間を文言（あと約N分）と Retry-After ヘッダー（秒）で伝える
      */
-    @ExceptionHandler(EmailChangeLimitExceededException.class)
-    public ResponseEntity<ApiErrorResponse> handleEmailChangeLimitExceeded(EmailChangeLimitExceededException e) {
+    @ExceptionHandler(RetryLaterException.class)
+    public ResponseEntity<ApiErrorResponse> handleRetryLater(RetryLaterException e) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.retryAfterSeconds()))
-                .body(new ApiErrorResponse("メールアドレスの変更の手続きは1時間に3回までです。あと約"
-                        + e.retryAfterMinutes() + "分で、もう一度申し込めます。", Map.of()));
+                .body(new ApiErrorResponse(e.userMessage(), Map.of()));
     }
 
     /** メールのリンクの鍵が使えない（期限切れ・使用済みなど。docs/auth.md「リンクの鍵」）。文言は例外の message */

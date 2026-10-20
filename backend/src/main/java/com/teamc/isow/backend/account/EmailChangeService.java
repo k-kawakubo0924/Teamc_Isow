@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
  * メールアドレスの変更（docs/settings.md「メールアドレスの変更」）。
  *
  * <ul>
- *   <li>現在のパスワードを求める（アカウントの所有権を移す操作のため。開いたままの端末を触られただけで奪われないように）</li>
+ *   <li>現在のパスワードを求める（アカウントの所有権を移す操作のため。開いたままの端末を触られただけで奪われないように）。
+ *       失敗の回数はパスワードの変更と合わせて数える（CurrentPasswordVerifier）</li>
  *   <li>新しいアドレスに確認のリンク（purpose=email_change の JWT。24時間）を送り、開いた時点で変更を完了する。
  *       完了するまでは古いアドレスでログインできる。鍵には申し込みの ID だけを入れ、アドレスは入れない</li>
  *   <li>新しいアドレスがすでに使われていても、申し込んだ人には同じ応答を返し、そのアドレスの持ち主にだけ知らせる。
@@ -53,18 +53,18 @@ public class EmailChangeService {
     private final AuthService authService;
     private final UserRepository userRepository;
     private final EmailChangeRequestRepository requestRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final CurrentPasswordVerifier currentPasswordVerifier;
     private final AccountTokens accountTokens;
     private final AccountMails accountMails;
     private final Clock clock;
 
     public EmailChangeService(AuthService authService, UserRepository userRepository,
-            EmailChangeRequestRepository requestRepository, PasswordEncoder passwordEncoder, AccountTokens accountTokens,
-            AccountMails accountMails, Clock clock) {
+            EmailChangeRequestRepository requestRepository, CurrentPasswordVerifier currentPasswordVerifier,
+            AccountTokens accountTokens, AccountMails accountMails, Clock clock) {
         this.authService = authService;
         this.userRepository = userRepository;
         this.requestRepository = requestRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.currentPasswordVerifier = currentPasswordVerifier;
         this.accountTokens = accountTokens;
         this.accountMails = accountMails;
         this.clock = clock;
@@ -75,9 +75,7 @@ public class EmailChangeService {
     public AccountRequests.Accepted request(String subject, AccountRequests.EmailChange request) {
         // 回数の制限を同時に押されても超えないよう、ユーザーの行をロックしてから数える
         User user = userRepository.findByIdForUpdate(authService.requireCurrentUser(subject).getId()).orElseThrow();
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            throw InputValidationException.of("currentPassword", "現在のパスワードが正しくありません");
-        }
+        currentPasswordVerifier.verify(user, request.currentPassword());
         if (!request.newEmail().equals(request.confirmEmail())) {
             throw InputValidationException.of("confirmEmail", "確認用メールアドレスが一致しません");
         }

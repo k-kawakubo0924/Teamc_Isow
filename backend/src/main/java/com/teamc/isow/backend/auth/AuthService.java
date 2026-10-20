@@ -19,16 +19,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
     private final Clock clock;
+    private final LoginFailureLimits loginFailureLimits;
 
     /** 存在しないメールアドレスでも照合処理を走らせるためのダミーのハッシュ（応答時間の差で登録有無を推測させない） */
     private final String dummyPasswordHash;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenService jwtTokenService,
-            Clock clock) {
+            Clock clock, LoginFailureLimits loginFailureLimits) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
         this.clock = clock;
+        this.loginFailureLimits = loginFailureLimits;
         this.dummyPasswordHash = passwordEncoder.encode("dummy-password-for-timing");
     }
 
@@ -53,14 +55,19 @@ public class AuthService {
     /**
      * request は正規化・入力チェック済みであること。
      * メールアドレスが存在しない場合もパスワードが違う場合も、同じ例外を投げる。
+     * 失敗が続いていれば、照合せずに LoginLimitExceededException（LoginFailureLimits）
+     *
+     * @param clientAddress 接続元の IP アドレス（メモリの上の回数制限だけに使い、保存もログへの記録もしない）
      */
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String clientAddress) {
+        loginFailureLimits.acquire(request.email(), clientAddress);
         Optional<User> user = userRepository.findByEmail(request.email());
         String passwordHash = user.map(User::getPasswordHash).orElse(dummyPasswordHash);
         boolean matches = passwordEncoder.matches(request.password(), passwordHash);
         if (user.isEmpty() || !matches) {
             throw new InvalidCredentialsException();
         }
+        loginFailureLimits.succeeded(request.email(), clientAddress);
         // 利用停止中は、パスワードが正しいときだけ伝える（他人が利用停止中かどうかを探れないように。docs/admin.md「6. 措置」）
         if (user.get().isSuspendedAt(LocalDateTime.now(clock))) {
             throw new AccountSuspendedException(user.get());
