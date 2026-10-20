@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.teamc.isow.backend.common.AppLog;
+import com.teamc.isow.backend.common.AppLogExtension;
 import com.teamc.isow.backend.mail.OutgoingMail;
 import com.teamc.isow.backend.mail.RecordingMailSender;
 import com.teamc.isow.backend.user.User;
@@ -17,8 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -39,7 +39,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension.class)
+@ExtendWith(AppLogExtension.class)
 class LoginLimitApiTest {
 
     private static final String EMAIL = "login-limit-user@example.com";
@@ -221,12 +221,12 @@ class LoginLimitApiTest {
     // ---- 記録 ----
 
     @Test
-    void アプリのログに_メールアドレスとIPアドレスを書かない(CapturedOutput output) throws Exception {
+    void アプリのログに_メールアドレスとIPアドレスを書かない(AppLog appLog) throws Exception {
         String ip = "10.0.2.10";
         failTimes(EMAIL, ip, 5);
         login(EMAIL, WRONG, ip).andExpect(status().isTooManyRequests());
 
-        assertThat(output.getAll()).doesNotContain(EMAIL, ip);
+        assertThat(appLog.text()).doesNotContain(EMAIL, ip);
     }
 
     // ---- 部品 ----

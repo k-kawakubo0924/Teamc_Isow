@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.teamc.isow.backend.common.AppLog;
+import com.teamc.isow.backend.common.AppLogExtension;
 import com.teamc.isow.backend.mail.OutgoingMail;
 import com.teamc.isow.backend.mail.RecordingMailSender;
 import com.teamc.isow.backend.user.User;
@@ -21,8 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -43,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension.class)
+@ExtendWith(AppLogExtension.class)
 class EmailChangeApiTest {
 
     private static final String OLD = "email-change-old@example.com";
@@ -302,14 +302,14 @@ class EmailChangeApiTest {
     }
 
     @Test
-    void メールアドレス_鍵_パスワードはアプリのログに書かない(CapturedOutput output) throws Exception {
+    void メールアドレス_鍵_パスワードはアプリのログに書かない(AppLog appLog) throws Exception {
         // 使われているアドレスへの申し込みを先にする（後にすると、変更待ちの申し込みが無効になるため）
         change(PASSWORD, TAKEN, TAKEN).andExpect(status().isAccepted());
         change(PASSWORD, NEW, NEW).andExpect(status().isAccepted());
         String token = RecordingMailSender.tokenOf(onlyMailTo(NEW));
         confirm(token).andExpect(status().isNoContent());
 
-        assertThat(output.getAll()).doesNotContain(OLD, NEW, TAKEN, token, PASSWORD);
+        assertThat(appLog.text()).doesNotContain(OLD, NEW, TAKEN, token, PASSWORD);
     }
 
     // ---- 部品 ----

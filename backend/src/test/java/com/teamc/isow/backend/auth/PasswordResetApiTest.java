@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.teamc.isow.backend.common.AppLog;
+import com.teamc.isow.backend.common.AppLogExtension;
 import com.teamc.isow.backend.mail.OutgoingMail;
 import com.teamc.isow.backend.mail.RecordingMailSender;
 import com.teamc.isow.backend.user.User;
@@ -23,8 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,7 +50,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension.class)
+@ExtendWith(AppLogExtension.class)
 class PasswordResetApiTest {
 
     private static final String EMAIL = "pw-reset-user@example.com";
@@ -233,13 +233,13 @@ class PasswordResetApiTest {
     }
 
     @Test
-    void メールアドレス_鍵_リンクはアプリのログに書かない(CapturedOutput output) throws Exception {
+    void メールアドレス_鍵_リンクはアプリのログに書かない(AppLog appLog) throws Exception {
         request(EMAIL, "10.0.1.13").andExpect(status().isAccepted());
         request("pw-reset-nobody@example.com", "10.0.1.13").andExpect(status().isAccepted());
         String token = RecordingMailSender.tokenOf(onlyMailTo(EMAIL));
         confirm(token, NEW_PASSWORD).andExpect(status().isNoContent());
 
-        assertThat(output.getAll()).doesNotContain(EMAIL, "pw-reset-nobody", token, "reset-password#");
+        assertThat(appLog.text()).doesNotContain(EMAIL, "pw-reset-nobody", token, "reset-password#");
     }
 
     // ---- 部品 ----
