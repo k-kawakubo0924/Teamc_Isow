@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.teamc.isow.backend.user.User;
+import com.teamc.isow.backend.user.UserRepository;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -41,6 +44,12 @@ class ImageUploadServiceTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Value("${app.image.local.dir}")
     private Path uploadDir;
@@ -149,12 +158,19 @@ class ImageUploadServiceTest {
     void 保存した画像はログインなしでブラウザから表示でき_形式の推測を禁止するヘッダーが付く() throws Exception {
         byte[] png = image(10, 10, "png");
         String url = imageUploadService.upload(new MockMultipartFile("file", "a.png", "image/png", png));
+        // 配るのは参照されている画像だけのため、プロフィール画像として参照させる（PublicImageAccessTest）
+        User user = userRepository.save(new User("img-upload@example.com", "09000000323", "hash", "img_upload"));
+        jdbcTemplate.update("UPDATE users SET profile_image_url = ? WHERE id = ?", url, user.getId());
 
-        mockMvc.perform(get("/uploads/" + url.substring(BASE_URL.length())))
-                .andExpect(status().isOk())
-                .andExpect(header().string("Content-Type", "image/png"))
-                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
-                .andExpect(content().bytes(png));
+        try {
+            mockMvc.perform(get("/uploads/" + url.substring(BASE_URL.length())))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Content-Type", "image/png"))
+                    .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                    .andExpect(content().bytes(png));
+        } finally {
+            userRepository.delete(user);
+        }
     }
 
     @Test

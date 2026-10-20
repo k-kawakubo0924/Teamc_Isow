@@ -13,10 +13,15 @@ type Props = {
 /** ホームの投稿一覧の1件（design/home.png のカード） */
 export function PostCard({ post, detailed, onToggleLike, onToggleFavorite }: Props) {
   const { author, fashionCategory } = post
-  // 写真を押すと投稿の詳細画面へ（1列・2列・3列のどれでも）
+  // 写真を押すと投稿の詳細画面へ（1列・2列・3列のどれでも）。
+  // 運営が非公開にした自分の投稿はサムネイルが届かないため、写真の代わりに文言を出す（3列でも収まる短さにする）
   const photo = (
     <Link to={`/posts/${post.id}`} className="home-card-photo-link">
-      <img className="home-card-photo" src={post.thumbnailUrl} alt={`@${author.username} の投稿`} loading="lazy" />
+      {post.thumbnailUrl === null ? (
+        <span className="home-card-photo home-card-photo-hidden">運営により非公開</span>
+      ) : (
+        <img className="home-card-photo" src={post.thumbnailUrl} alt={`@${author.username} の投稿`} loading="lazy" />
+      )}
     </Link>
   )
   if (!detailed) {

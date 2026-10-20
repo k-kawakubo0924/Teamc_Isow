@@ -15,6 +15,14 @@ describe('PostPhotoViewer（投稿の写真。確認画面・詳細画面で共�
     expect(screen.queryByRole('button', { name: '次の写真' })).toBeNull()
   })
 
+  it('写真がない（運営が非公開にした投稿。写真の URL は届かない）なら、写真の代わりに文言を出す', () => {
+    const { container } = render(<PostPhotoViewer urls={[]} />)
+
+    expect(screen.getByText('写真は運営により非公開にしています')).toBeTruthy()
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.queryByRole('button', { name: '次の写真' })).toBeNull()
+  })
+
   it('写真が2枚以上なら枚数表示とボタンを出し、ボタンで切り替えられる', () => {
     render(<PostPhotoViewer urls={['http://localhost/uploads/a.jpg', 'http://localhost/uploads/b.jpg']} />)
 

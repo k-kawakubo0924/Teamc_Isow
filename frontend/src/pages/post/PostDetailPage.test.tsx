@@ -322,4 +322,11 @@ describe('運営が非公開にした投稿（docs/admin.md「6. 措置」）', 
 
     expect(container.querySelector('.post-detail-hidden')).toBeNull()
   })
+
+  it('写真は本人にも配らない（URL が届かない）ため、写真の代わりに「写真は運営により非公開にしています」と出す', async () => {
+    const { container } = await open(post({ ownedByMe: true, hidden: true, hiddenReason: 'SPAM', imageUrls: [] }))
+
+    expect(screen.getByText('写真は運営により非公開にしています')).toBeTruthy()
+    expect(container.querySelector('.post-photo img')).toBeNull()
+  })
 })

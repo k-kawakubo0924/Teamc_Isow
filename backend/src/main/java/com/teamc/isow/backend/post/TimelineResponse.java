@@ -17,7 +17,7 @@ public record TimelineResponse(List<Item> posts, String tab, int page, int size,
     /**
      * 一覧の1件（design/home.png のカード）。
      *
-     * @param thumbnailUrl 1枚目の写真
+     * @param thumbnailUrl 1枚目の写真。非公開の投稿（本人にだけ届く）では null（写真を配らないため。画面は代わりの表示を出す）
      * @param likeCount いいね件数（公開情報）
      * @param likedByMe ログイン中のユーザーがいいねしているか
      * @param favoritedByMe ログイン中のユーザーがお気に入りにしているか（本人にだけ返す）

@@ -139,11 +139,13 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p JOIN FETCH p.author JOIN FETCH p.fashionCategory WHERE p.id IN :ids")
     List<Post> findWithAuthorAndFashionCategoryByIdIn(@Param("ids") Collection<Long> ids);
 
-    /** 1枚目の写真（一覧のサムネイル）だけを、まとめて読み込む */
+    /**
+     * 1枚目の写真（一覧のサムネイル）だけを、まとめて読み込む。
+     * 非公開・投稿者が利用停止中の投稿の写真は配らないため、含めない（PublicImageAccess。見ているのが投稿者本人でも同じ）
+     */
     @Query("""
-            SELECT new com.teamc.isow.backend.post.PostThumbnail(i.post.id, i.imageUrl)
-            FROM PostImage i
-            WHERE i.post.id IN :postIds AND i.sortOrder = 1
-            """)
-    List<PostThumbnail> findThumbnails(@Param("postIds") Collection<Long> postIds);
+            SELECT new com.teamc.isow.backend.post.PostThumbnail(p.id, i.imageUrl)
+            FROM PostImage i JOIN i.post p
+            WHERE p.id IN :postIds AND i.sortOrder = 1 AND""" + VisibilityConditions.POST_PUBLIC)
+    List<PostThumbnail> findThumbnails(@Param("postIds") Collection<Long> postIds, @Param("now") LocalDateTime now);
 }

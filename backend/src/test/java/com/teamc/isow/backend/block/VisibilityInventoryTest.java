@@ -284,9 +284,13 @@ class VisibilityInventoryTest {
         Post hidden = f.createPost(f.c, "BLKHIDDENPOST");
         f.like(f.a, hidden);
         f.favorite(f.a, hidden);
-        // 確かめる意味があるか：非公開にする前は、A の一覧・検索に出ている
-        assertThat(body(f.a, "/api/search/posts?q=BLKHIDDEN")).contains("BLKHIDDENPOST");
-        assertThat(body(f.a, "/api/users/me/favorites")).contains("BLKHIDDENPOST");
+        // 一覧のカード・通知の投稿は、題名を持たず、目印（BLKHIDDENPOST）はサムネイルの URL にしか出ない。
+        // 非公開の投稿はサムネイルが null になる（写真を配らないため）ので、漏れても目印が出ない。そのため、カードの形
+        // （{"id":…,"thumbnailUrl":…}。通知の投稿も同じ形）でも探す
+        String card = "\"id\":" + hidden.getId() + ",\"thumbnailUrl\"";
+        // 確かめる意味があるか：非公開にする前は、A の一覧・検索に出ている（カードの形でも見つかる）
+        assertThat(body(f.a, "/api/search/posts?q=BLKHIDDEN")).contains("BLKHIDDENPOST").contains(card);
+        assertThat(body(f.a, "/api/users/me/favorites")).contains("BLKHIDDENPOST").contains(card);
 
         hide(hidden);
 
@@ -294,14 +298,14 @@ class VisibilityInventoryTest {
         for (Map.Entry<String, Entry> registered : REGISTRY.entrySet()) {
             if (registered.getValue().kind() == Kind.CHECKED) {
                 String path = registered.getValue().pathOrReason();
-                leaks.addAll(findLeaks(registered.getKey(), f.a, path, "BLKHIDDENPOST"));
-                leaks.addAll(findLeaks(registered.getKey(), f.b, path, "BLKHIDDENPOST"));
+                leaks.addAll(findLeaks(registered.getKey(), f.a, path, "BLKHIDDENPOST", card));
+                leaks.addAll(findLeaks(registered.getKey(), f.b, path, "BLKHIDDENPOST", card));
             }
         }
         assertThat(leaks).as("非公開にした投稿が、投稿者以外への応答に含まれている API").isEmpty();
         // 投稿者本人は、自分の一覧で見られる
         assertThat(body(f.c, "/api/posts/me")).contains("BLKHIDDENPOST");
-        assertThat(body(f.c, "/api/users/{c}/posts")).contains("BLKHIDDENPOST");
+        assertThat(body(f.c, "/api/users/{c}/posts")).contains(card);
     }
 
     @Test

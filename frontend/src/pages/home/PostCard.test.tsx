@@ -41,6 +41,27 @@ describe('投稿のカード（ホーム・プロフィール・検索結果）'
     expect(container.querySelector('.home-card-meta')?.textContent).toBe('160cm ・ きれいめ')
   })
 
+  it.each([true, false])(
+    'サムネイルがない（運営が非公開にした自分の投稿）なら、写真の代わりに文言を出し、詳細画面へのリンクは残す（detailed: %s）',
+    (detailed) => {
+      const { container } = render(
+        <MemoryRouter>
+          <PostCard
+            post={{ ...item(160), thumbnailUrl: null }}
+            detailed={detailed}
+            onToggleLike={() => {}}
+            onToggleFavorite={() => {}}
+          />
+        </MemoryRouter>,
+      )
+
+      expect(container.querySelector('img')).toBeNull()
+      const link = container.querySelector('.home-card-photo-link')
+      expect(link?.getAttribute('href')).toBe('/posts/1')
+      expect(link?.textContent).toContain('運営により非公開')
+    },
+  )
+
   it('写真を押すと投稿の詳細画面へ移るリンクになっている', () => {
     const { container } = renderCard(item(160))
 
