@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.teamc.isow.backend.admin.AdminOperationLogRepository;
+import com.teamc.isow.backend.common.AppLog;
+import com.teamc.isow.backend.common.AppLogExtension;
 import com.teamc.isow.backend.user.UserRepository;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -18,8 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,7 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension.class)
+@ExtendWith(AppLogExtension.class)
 class AdminContactApiTest {
 
     @Autowired
@@ -151,7 +151,7 @@ class AdminContactApiTest {
     // ---- 状態の記録 ----
 
     @Test
-    void 対応済みにすると状態_終了日時_対応した管理者_メモが残り_ログには状態だけを書く(CapturedOutput output) throws Exception {
+    void 対応済みにすると状態_終了日時_対応した管理者_メモが残り_ログには状態だけを書く(AppLog appLog) throws Exception {
         f.send(f.sender, "log-secret@example.com", "APP", "ログに書かない本文").andExpect(status().isCreated());
         long id = f.latestId();
 
@@ -169,7 +169,7 @@ class AdminContactApiTest {
         assertThat(log.get("target_id")).isEqualTo(id);
         assertThat(log.get("operator_id")).isEqualTo(f.admin.getId());
         assertThat(log.get("detail")).isEqualTo("状態：対応済み");
-        assertThat(output.getAll()).doesNotContain("ログに書かない本文", "log-secret@example.com", "ログに書かないメモ");
+        assertThat(appLog.text()).doesNotContain("ログに書かない本文", "log-secret@example.com", "ログに書かないメモ");
     }
 
     @Test

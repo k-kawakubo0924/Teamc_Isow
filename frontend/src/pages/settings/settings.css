@@ -427,6 +427,8 @@
   border-radius: 8px;
   font-size: 13px;
   line-height: 1.7;
+  /* そこへ画面を動かしたとき、上に貼り付いたヘッダー（52px）の下に隠れないように */
+  scroll-margin-top: 64px;
 }
 
 .account-message-error {

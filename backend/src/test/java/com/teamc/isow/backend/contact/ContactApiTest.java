@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.teamc.isow.backend.common.AppLog;
+import com.teamc.isow.backend.common.AppLogExtension;
 import com.teamc.isow.backend.user.UserRepository;
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -18,8 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension.class)
+@ExtendWith(AppLogExtension.class)
 class ContactApiTest {
 
     @Autowired
@@ -152,12 +152,12 @@ class ContactApiTest {
     }
 
     @Test
-    void 内容とメールアドレスはアプリのログに出さない(CapturedOutput output) throws Exception {
+    void 内容とメールアドレスはアプリのログに出さない(AppLog appLog) throws Exception {
         f.send(f.sender, "secret-address@example.com", "USER", "ログに出してはいけない本文").andExpect(status().isCreated());
         f.send(f.sender, "secret-address@example.com", "NOPE", "誤りでもログに出してはいけない本文")
                 .andExpect(status().isBadRequest());
 
-        assertThat(output.getAll()).doesNotContain("ログに出してはいけない本文", "secret-address@example.com");
+        assertThat(appLog.text()).doesNotContain("ログに出してはいけない本文", "secret-address@example.com");
     }
 
     // ---- 利用停止中の申し立て ----

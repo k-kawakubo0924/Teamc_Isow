@@ -77,7 +77,7 @@ function LoginPage() {
       <h1 className="auth-logo auth-logo-spaced">ISHO</h1>
 
       {bannerMessage ? (
-        <ErrorBanner message={bannerMessage} />
+        <ErrorBanner message={bannerMessage} scrollIntoView />
       ) : (
         (registered || notice) && (
           <div className="auth-banner auth-banner-success" role="status">

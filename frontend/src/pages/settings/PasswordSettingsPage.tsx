@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { changePassword } from '../../api/account'
 import { ApiError } from '../../api/client'
@@ -23,6 +23,12 @@ function PasswordSettingsPage() {
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const messageRef = useRef<HTMLParagraphElement>(null)
+
+  // 「完了」は上に貼り付いたヘッダーにあり、下の欄まで動かしたまま押せる。フォームの上のエラーが画面の外に出たままにならないよう、そこへ動かす
+  useEffect(() => {
+    if (message) messageRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [message])
 
   const set = (field: Field, value: string) => setForm((prev) => ({ ...prev, [field]: value }))
 
@@ -67,7 +73,7 @@ function PasswordSettingsPage() {
       </header>
       <div className="account-form">
         {message && (
-          <p className="account-message account-message-error" role="alert">
+          <p className="account-message account-message-error" role="alert" ref={messageRef}>
             {message}
           </p>
         )}

@@ -17,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
  * ログイン中のパスワードの変更（docs/settings.md「パスワード再設定（ログイン中の変更）」、design/ResetPassword.png）。
  *
  * <ul>
- *   <li>現在のパスワードを求める（メールアドレスの変更とそろえる。開いたままの端末を触られただけで変えられないように）</li>
+ *   <li>現在のパスワードを求める（メールアドレスの変更とそろえる。開いたままの端末を触られただけで変えられないように）。
+ *       失敗の回数はメールアドレスの変更と合わせて数える（CurrentPasswordVerifier）</li>
  *   <li>変更するとトークンの世代を進め、すべての端末をログアウトさせる。操作した端末だけは続けて使えるよう、新しいトークンを返す</li>
  *   <li>登録アドレスに「パスワードが変更されました」と知らせる</li>
  * </ul>
@@ -28,15 +29,18 @@ public class PasswordChangeService {
     private final AuthService authService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CurrentPasswordVerifier currentPasswordVerifier;
     private final JwtTokenService jwtTokenService;
     private final AccountMails accountMails;
     private final Clock clock;
 
     public PasswordChangeService(AuthService authService, UserRepository userRepository, PasswordEncoder passwordEncoder,
-            JwtTokenService jwtTokenService, AccountMails accountMails, Clock clock) {
+            CurrentPasswordVerifier currentPasswordVerifier, JwtTokenService jwtTokenService, AccountMails accountMails,
+            Clock clock) {
         this.authService = authService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.currentPasswordVerifier = currentPasswordVerifier;
         this.jwtTokenService = jwtTokenService;
         this.accountMails = accountMails;
         this.clock = clock;
@@ -46,9 +50,7 @@ public class PasswordChangeService {
     @Transactional
     public LoginResponse change(String subject, AccountRequests.PasswordChange request) {
         User user = userRepository.findByIdForUpdate(authService.requireCurrentUser(subject).getId()).orElseThrow();
-        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-            throw InputValidationException.of("currentPassword", "現在のパスワードが正しくありません");
-        }
+        currentPasswordVerifier.verify(user, request.currentPassword());
         if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
             throw InputValidationException.of("newPassword", "今のパスワードと同じです");
         }

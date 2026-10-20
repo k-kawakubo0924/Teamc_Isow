@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { requestEmailChange } from '../../api/account'
 import { me } from '../../api/auth'
@@ -28,6 +28,12 @@ function EmailSettingsPage() {
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
   const [saving, setSaving] = useState(false)
+  const messageRef = useRef<HTMLParagraphElement>(null)
+
+  // 「完了」は上に貼り付いたヘッダーにあり、下の欄まで動かしたまま押せる。フォームの上の文言が画面の外に出たままにならないよう、そこへ動かす
+  useEffect(() => {
+    if (message) messageRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [message])
 
   useEffect(() => {
     if (!token) return
@@ -87,7 +93,7 @@ function EmailSettingsPage() {
       </header>
       <div className="account-form">
         {message && (
-          <p className={`account-message${message.ok ? '' : ' account-message-error'}`} role={message.ok ? 'status' : 'alert'}>
+          <p className={`account-message${message.ok ? '' : ' account-message-error'}`} role={message.ok ? 'status' : 'alert'} ref={messageRef}>
             {message.text}
           </p>
         )}

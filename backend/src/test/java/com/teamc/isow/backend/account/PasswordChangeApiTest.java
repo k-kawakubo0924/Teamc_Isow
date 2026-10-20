@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.teamc.isow.backend.common.AppLog;
+import com.teamc.isow.backend.common.AppLogExtension;
 import com.teamc.isow.backend.mail.OutgoingMail;
 import com.teamc.isow.backend.mail.RecordingMailSender;
 import com.teamc.isow.backend.user.UserRepository;
@@ -19,8 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.system.CapturedOutput;
-import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -36,7 +36,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ExtendWith(OutputCaptureExtension.class)
+@ExtendWith(AppLogExtension.class)
 class PasswordChangeApiTest {
 
     private static final String EMAIL = "pw-change-user@example.com";
@@ -122,11 +122,11 @@ class PasswordChangeApiTest {
     }
 
     @Test
-    void パスワードはアプリのログに書かない(CapturedOutput output) throws Exception {
+    void パスワードはアプリのログに書かない(AppLog appLog) throws Exception {
         change(token, "wrongpass1", NEW_PASSWORD).andExpect(status().isBadRequest());
         change(token, PASSWORD, NEW_PASSWORD).andExpect(status().isOk());
 
-        assertThat(output.getAll()).doesNotContain(PASSWORD, NEW_PASSWORD, "wrongpass1", EMAIL);
+        assertThat(appLog.text()).doesNotContain(PASSWORD, NEW_PASSWORD, "wrongpass1", EMAIL);
     }
 
     private ResultActions change(String bearer, String currentPassword, String newPassword) throws Exception {

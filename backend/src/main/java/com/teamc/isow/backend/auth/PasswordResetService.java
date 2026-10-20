@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       （DB・アプリのログに保存しない）。どちらも、超えた分は同じ応答を返して送らないだけ</li>
  *   <li>リンクの鍵は purpose=password_reset の JWT（30分。AccountTokens）。トークンの世代を入れ、再設定で世代が進むので1回しか使えない</li>
  *   <li>再設定するとトークンの世代を進め、すべての端末をログアウトさせる。登録アドレスに「パスワードが変更されました」と知らせる</li>
+ *   <li>再設定を完了すると、ログインの失敗の回数のうち、そのアドレスの分（①）を消す。IP アドレスごとの分（②）は消さない（LoginFailureLimits）</li>
  *   <li>利用停止中の人も再設定できる（ログインすると、今までどおり利用停止の画面と申し立てに進める）</li>
  *   <li>アプリのログに、メールアドレス・鍵・リンクを書かない（送ったことは MailDispatcher が種類とユーザー ID だけ書く）</li>
  * </ul>
@@ -51,16 +52,19 @@ public class PasswordResetService {
     private final AccountMails accountMails;
     private final Clock clock;
     private final InMemoryRateLimiter perIpLimiter;
+    private final LoginFailureLimits loginFailureLimits;
 
     public PasswordResetService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-            AccountTokens accountTokens, AccountMails accountMails, Clock clock,
-            @Value("${app.auth.password-reset.max-requests-per-ip:10}") int maxRequestsPerIp) {
+            AccountTokens accountTokens, AccountMails accountMails, Clock clock, LoginFailureLimits loginFailureLimits,
+            @Value("${app.auth.password-reset.max-requests-per-ip:10}") int maxRequestsPerIp,
+            @Value("${app.auth.password-reset.max-tracked-ips:10000}") int maxTrackedIps) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.accountTokens = accountTokens;
         this.accountMails = accountMails;
         this.clock = clock;
-        this.perIpLimiter = new InMemoryRateLimiter(maxRequestsPerIp, PER_IP_WINDOW, clock);
+        this.loginFailureLimits = loginFailureLimits;
+        this.perIpLimiter = new InMemoryRateLimiter(maxRequestsPerIp, PER_IP_WINDOW, maxTrackedIps, clock);
     }
 
     /**
@@ -91,5 +95,10 @@ public class PasswordResetService {
                 .orElseThrow(() -> new InvalidAccountLinkException(INVALID_LINK_MESSAGE));
         user.changePassword(passwordEncoder.encode(newPassword));
         accountMails.passwordChanged(user, LocalDateTime.now(clock));
+        // ログインの①（このアドレス × IP アドレス）を消す。②は消さない（LoginFailureLimits）。メールを送った時点（request）では消さない。
+        // 保存（コミット）の前に消している。保存に失敗すると、①が消えてパスワードが変わっていない状態になるが、
+        // そこに辿り着けるのはメールを受け取った本人だけで、得られるのは入力のやり直し5回分にすぎない。
+        // 再設定をもう一度行えば済むため、順番を厳密にするだけの価値がない
+        loginFailureLimits.passwordReset(user.getEmail());
     }
 }
