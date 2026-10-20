@@ -54,6 +54,15 @@ public final class VisibilityConditions {
             + NOT_SUSPENDED_PREFIX + "u" + NOT_SUSPENDED_MIDDLE + "u" + NOT_SUSPENDED_SUFFIX
             + "u.suspendedUntil <= :now)))) ";
 
+    /**
+     * 投稿が、誰から見ても見えないわけではない（クエリで投稿の別名を {@code p} にすること）。非公開でなく、投稿者が利用停止中でない。
+     * 見ている人が分からないところ（保存した画像の配信。{@code <img>} のタグは認証のヘッダーを付けられない）で使う。
+     * ブロックは見ている人ごとに違うため、ここには入れない。パラメーターは {@code :now} だけ
+     */
+    public static final String POST_PUBLIC = " (p.hiddenAt IS NULL AND "
+            + NOT_SUSPENDED_PREFIX + "p.author" + NOT_SUSPENDED_MIDDLE + "p.author" + NOT_SUSPENDED_SUFFIX
+            + "p.author.suspendedUntil <= :now))) ";
+
     private VisibilityConditions() {
     }
 }

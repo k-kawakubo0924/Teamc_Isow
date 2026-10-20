@@ -10,7 +10,7 @@ import java.util.List;
  * 投稿の内容（投稿の作成・詳細・自分の投稿一覧で共通）。
  *
  * @param tags タグ（ID 順）
- * @param imageUrls 写真の URL（表示順。1枚目がサムネイル）
+ * @param imageUrls 写真の URL（表示順。1枚目がサムネイル）。非公開の投稿では空（写真を配らないため。画面は代わりの表示を出す）
  * @param likeCount いいね件数（公開情報）
  * @param likedByMe ログイン中のユーザーがいいねしているか
  * @param favoritedByMe ログイン中のユーザーがお気に入りにしているか（本人にだけ返す）
@@ -56,7 +56,8 @@ public record PostResponse(
                 post.getWornItems(),
                 post.getDescription(),
                 post.getReferenceUrl(),
-                post.getImages().stream().map(PostImage::getImageUrl).toList(),
+                // 非公開の投稿（受け取るのは投稿者本人だけ）の写真は、本人にも配らないため、URL を返さない（PublicImageAccess）
+                post.isHidden() ? List.of() : post.getImages().stream().map(PostImage::getImageUrl).toList(),
                 new AuthorResponse(post.getAuthor().getId(), post.getAuthor().getUsername(),
                         post.getAuthor().getProfileImageUrl(), post.getAuthor().getHeightCm()),
                 reactions.likeCount(),

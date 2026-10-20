@@ -3,6 +3,8 @@ package com.teamc.isow.backend.post;
 import com.teamc.isow.backend.post.PostResponse.FashionCategoryResponse;
 import com.teamc.isow.backend.reaction.ReactionSummary;
 import com.teamc.isow.backend.reaction.ReactionSummaryService;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,10 +31,12 @@ public class PostCardService {
 
     private final PostRepository postRepository;
     private final ReactionSummaryService reactionSummaryService;
+    private final Clock clock;
 
-    public PostCardService(PostRepository postRepository, ReactionSummaryService reactionSummaryService) {
+    public PostCardService(PostRepository postRepository, ReactionSummaryService reactionSummaryService, Clock clock) {
         this.postRepository = postRepository;
         this.reactionSummaryService = reactionSummaryService;
+        this.clock = clock;
     }
 
     /** page は 0 から。範囲外の page・size はエラーにせず、0 以上・1〜MAX_PAGE_SIZE に丸める（自分の投稿一覧と同じ） */
@@ -52,7 +56,8 @@ public class PostCardService {
         }
         Map<Long, Post> posts = postRepository.findWithAuthorAndFashionCategoryByIdIn(postIds).stream()
                 .collect(Collectors.toMap(Post::getId, Function.identity()));
-        Map<Long, String> thumbnails = postRepository.findThumbnails(postIds).stream()
+        // 非公開の投稿（本人にだけ届く）は、サムネイルが null になる（写真を配らないため。画面は代わりの表示を出す）
+        Map<Long, String> thumbnails = postRepository.findThumbnails(postIds, LocalDateTime.now(clock)).stream()
                 .collect(Collectors.toMap(PostThumbnail::postId, PostThumbnail::imageUrl));
         Map<Long, ReactionSummary> reactions = reactionSummaryService.summarize(viewerId, postIds);
 

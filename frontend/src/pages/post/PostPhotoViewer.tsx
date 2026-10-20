@@ -7,13 +7,22 @@ import './postPhoto.css'
  * 1枚のときは切り替えるものがないため、枚数表示もボタンも出さない。
  * 横スワイプは入れていない（入れる場合は確認画面と詳細画面の両方に同時に入れる。docs/post.md）
  *
- * @param urls 写真の URL（表示順）。確認画面ではまだ保存していない写真のプレビュー、詳細画面では /uploads/ の URL
+ * @param urls 写真の URL（表示順）。確認画面ではまだ保存していない写真のプレビュー、詳細画面では /uploads/ の URL。
+ *   運営が非公開にした投稿では空（写真は本人にも配らないため、URL が届かない。docs/admin.md「6. 措置」）で、写真の代わりに文言を出す
  */
 export function PostPhotoViewer({ urls }: { urls: string[] }) {
   const [index, setIndex] = useState(0)
   // 写真が減った場合（確認画面から入力画面に戻って削除した場合など）も、範囲外にならないようにする
   const current = Math.min(index, urls.length - 1)
   const url = urls[current]
+
+  if (urls.length === 0) {
+    return (
+      <section className="post-photo post-photo-hidden" aria-label="写真">
+        <p>写真は運営により非公開にしています</p>
+      </section>
+    )
+  }
 
   return (
     <section className="post-photo" aria-label="写真">

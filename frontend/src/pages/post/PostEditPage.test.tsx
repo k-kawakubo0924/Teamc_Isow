@@ -130,6 +130,14 @@ describe('編集画面を開く', () => {
     expect(note).toContain('いいね')
   })
 
+  it('運営が非公開にした投稿は、写真の代わりに「写真は運営により非公開にしています」と出す（写真の URL は届かない）', async () => {
+    const { container } = renderEdit(post({ hidden: true, hiddenReason: 'SPAM', imageUrls: [] }))
+    await formReady()
+
+    expect(screen.getByText('写真は運営により非公開にしています')).toBeTruthy()
+    expect(container.querySelector('.post-photo img')).toBeNull()
+  })
+
   it('他人の投稿なら、編集画面を出さずに「この投稿は編集できません」と出す', async () => {
     renderEdit(post({ ownedByMe: false }))
 
@@ -166,6 +174,19 @@ describe('保存', () => {
       description: '丈が長めのコートです',
       referenceUrl: '',
     })
+  })
+
+  it('運営が非公開にした投稿も、写真の枚数で止めずに確認画面へ進み、保存できる（写真は変えられないため確かめない）', async () => {
+    updatePost.mockResolvedValue(post({ hidden: true, imageUrls: [] }))
+    renderEdit(post({ hidden: true, hiddenReason: 'SPAM', imageUrls: [] }))
+    await formReady()
+
+    await goToConfirm()
+    expect(screen.queryByText('写真を1枚以上選択してください')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '保存する' }))
+
+    expect(await screen.findByText('詳細画面')).toBeTruthy()
+    expect(updatePost).toHaveBeenCalled()
   })
 
   it('入力に誤りがあれば、確認画面へ進まない', async () => {

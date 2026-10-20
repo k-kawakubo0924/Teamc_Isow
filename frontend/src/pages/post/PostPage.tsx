@@ -190,8 +190,8 @@ function PostPage({ editing }: { editing?: PostResponse } = {}) {
   /** 入力画面の「確認」。入力チェックを通ったら確認画面へ進む */
   const handleConfirm = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // 編集では写真を変えないため、投稿の写真の枚数で確かめる
-    const errors = validatePost(form, editing ? editing.imageUrls.length : images.length)
+    // 編集では写真を変えないため、写真は確かめない（運営が非公開にした投稿では写真の URL が届かず、枚数が0に見える）
+    const errors = validatePost(form, editing ? null : images.length)
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
       setBannerMessage(INVALID_INPUT_MESSAGE)

@@ -49,7 +49,8 @@ public class NotificationQueryService {
         Pageable pageable = PostCardService.pageRequest(page, size);
         Slice<Notification> notifications = notificationRepository.findPageByRecipientId(userId, LocalDateTime.now(clock), pageable);
 
-        // 関連する投稿は ID だけを使う（投稿の行は読まない）。サムネイルはページ分をまとめて読む
+        // 関連する投稿は ID だけを使う（投稿の行は読まない）。サムネイルはページ分をまとめて読む。
+        // 非公開にした投稿（「非公開にしました」の通知など）は、サムネイルが null になる（写真を配らないため）
         List<Long> postIds = notifications.getContent().stream()
                 .map(Notification::getPost)
                 .filter(Objects::nonNull)
@@ -58,7 +59,7 @@ public class NotificationQueryService {
                 .toList();
         Map<Long, String> thumbnails = postIds.isEmpty()
                 ? Map.of()
-                : postRepository.findThumbnails(postIds).stream()
+                : postRepository.findThumbnails(postIds, LocalDateTime.now(clock)).stream()
                         .collect(Collectors.toMap(PostThumbnail::postId, PostThumbnail::imageUrl));
 
         List<NotificationListResponse.Item> items = notifications.getContent().stream()

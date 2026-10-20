@@ -82,8 +82,11 @@ export function validateNewTag(name: string, currentTags: string[]): string | nu
 // 日本語を含む URL（https://example.com/商品 など）も受け付ける（バックエンドの HttpUrlValidator と同じ）
 const HTTP_URL = /^https?:\/\/[^\s/?#@]+(?:[/?#]\S*)?$/i
 
-/** 送信前の確認。写真の枚数と、文字の項目・選択の項目を確認する */
-export function validatePost(form: PostForm, imageCount: number): PostFieldErrors {
+/**
+ * 送信前の確認。写真の枚数と、文字の項目・選択の項目を確認する。
+ * imageCount が null なら写真は確かめない（編集。写真は変えられないうえ、運営が非公開にした投稿では写真の URL が届かず、枚数が0に見えるため）
+ */
+export function validatePost(form: PostForm, imageCount: number | null): PostFieldErrors {
   const errors: PostFieldErrors = {}
   const title = form.title.trim()
   const wornItems = form.wornItems.trim()
@@ -92,7 +95,7 @@ export function validatePost(form: PostForm, imageCount: number): PostFieldError
 
   if (imageCount === 0) {
     errors.images = '写真を1枚以上選択してください'
-  } else if (imageCount > MAX_IMAGES) {
+  } else if (imageCount !== null && imageCount > MAX_IMAGES) {
     errors.images = `写真は${MAX_IMAGES}枚まで選択できます`
   }
 

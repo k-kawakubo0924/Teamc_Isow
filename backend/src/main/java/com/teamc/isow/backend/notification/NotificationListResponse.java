@@ -39,6 +39,7 @@ public record NotificationListResponse(List<Item> notifications, int page, int s
     }
 
     /** 関連する投稿 */
+    /** @param thumbnailUrl 1枚目の写真。非公開の投稿では null（写真を配らないため。画面は代わりの表示を出す） */
     public record PostSummary(Long id, String thumbnailUrl) {
     }
 }

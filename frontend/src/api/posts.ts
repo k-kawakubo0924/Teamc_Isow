@@ -53,8 +53,11 @@ export type TimelineTab = 'recommended' | 'following' | 'latest'
 /** ホームの投稿一覧の1件（バックエンドの TimelineResponse.Item） */
 export type TimelineItem = {
   id: number
-  /** 1枚目の写真 */
-  thumbnailUrl: string
+  /**
+   * 1枚目の写真。運営が非公開にした投稿（本人にだけ届く）では null。
+   * 非公開にした投稿の写真は本人にも配らないため（docs/admin.md「6. 措置」）。カードは写真の代わりに文言を出す
+   */
+  thumbnailUrl: string | null
   fashionCategory: { id: number; name: string }
   /** heightCm は身長（cm）。未設定は null で、表示を省く */
   author: { id: number; username: string; heightCm: number | null }
