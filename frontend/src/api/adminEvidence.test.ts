@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fetchEvidenceImage } from './admin'
+import { setUnauthorizedHandler } from './client'
 
 /*
  * 証拠の写真の取得（docs/admin.md「通報」の「証拠の写真の配信」）。
@@ -29,5 +30,15 @@ describe('fetchEvidenceImage', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })))
 
     await expect(fetchEvidenceImage(7, 101, 'admin-token')).rejects.toThrow()
+  })
+
+  it('401 なら、ほかの API と同じくログアウトの処理を呼ぶ（DM の画像と同じ取得の部品を通す。docs/dm.md「画像」）', async () => {
+    const onUnauthorized = vi.fn()
+    setUnauthorizedHandler(onUnauthorized)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 401 })))
+
+    await expect(fetchEvidenceImage(7, 101, 'admin-token')).rejects.toThrow()
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+    setUnauthorizedHandler(null)
   })
 })

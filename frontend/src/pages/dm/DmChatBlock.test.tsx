@@ -209,7 +209,7 @@ describe('チャット画面のメニュー', () => {
 
 describe('メッセージの通報', () => {
   function message(id: number, mine: boolean, body: string): Message {
-    return { id, senderId: mine ? 1 : 2, mine, body, imageUrl: null, sentAt: '2026-10-10T12:00:00', readAt: null }
+    return { id, senderId: mine ? 1 : 2, mine, body, hasImage: false, sentAt: '2026-10-10T12:00:00', readAt: null }
   }
 
   it('相手のメッセージを押すと「通報」が出て、そのメッセージを対象にした通報の入力を出す', () => {

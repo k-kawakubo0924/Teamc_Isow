@@ -9,6 +9,7 @@ import type {
   ModerationUserState,
   SuspendUserRequest,
 } from '../../api/admin'
+import { clearAuthorizedImages } from '../../hooks/authorizedImageCache'
 import AdminReportDetailPage from './AdminReportDetailPage'
 import AdminReportsPage from './AdminReportsPage'
 
@@ -170,6 +171,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  // 画像の控えは画面を開いている間だけ残るため、テストごとに捨てる（取得を毎回確かめるため）
+  clearAuthorizedImages()
   vi.unstubAllGlobals()
   listReports.mockReset()
   fetchReport.mockReset()

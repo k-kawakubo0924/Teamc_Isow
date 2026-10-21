@@ -129,7 +129,25 @@ export function setSuspendedHandler(handler: ((info: SuspensionInfo) => void) | 
   suspendedHandler = handler
 }
 
+/**
+ * 認証付きで中身（画像など）を取得する（DM の画像・証拠の写真。docs/dm.md「画像」）。
+ * <img> のタグは認証のヘッダーを付けられないため、中身を取得してから、その場限りの URL にして表示する。
+ * 借りた端末・共用の端末に残さないよう、ブラウザにキャッシュさせない（no-store）。失敗の扱い（401 でのログアウトなど）はほかの API と同じ
+ */
+export async function getBlob(path: string, token: string, signal?: AbortSignal): Promise<Blob> {
+  const res = await send(path, { method: 'GET', headers: { Authorization: `Bearer ${token}` }, cache: 'no-store', signal })
+  return res.blob()
+}
+
 async function request<T>(path: string, init: RequestInit): Promise<T> {
+  const res = await send(path, init)
+  // 本文のない成功（204。検索履歴の削除など）は undefined を返す。呼び出し側は T に void を指定すること
+  if (res.status === 204) return undefined as T
+  return (await res.json()) as T
+}
+
+/** リクエストを送り、成功した応答を返す。失敗は ApiError にする（401・利用停止の処理もここで行う） */
+async function send(path: string, init: RequestInit): Promise<Response> {
   let res: Response
   try {
     res = await fetch(`${API_BASE_URL}${path}`, init)
@@ -139,11 +157,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
     throw new ApiError(0, null, CONNECTION_ERROR_MESSAGE)
   }
 
-  if (res.ok) {
-    // 本文のない成功（204。検索履歴の削除など）は undefined を返す。呼び出し側は T に void を指定すること
-    if (res.status === 204) return undefined as T
-    return (await res.json()) as T
-  }
+  if (res.ok) return res
 
   // ログインAPIの 401（認証失敗）は対象外にするため、トークンを付けたリクエストのみ扱う
   const sentToken = new Headers(init.headers).has('Authorization')

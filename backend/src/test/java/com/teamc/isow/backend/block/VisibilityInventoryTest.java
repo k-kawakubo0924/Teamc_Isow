@@ -154,6 +154,8 @@ class VisibilityInventoryTest {
         exempt("GET /api/conversations", "ブロックした時点で相談は終了するが、過去の会話は両方から読めるまま残す（docs/dm.md「ブロック」）");
         exempt("GET /api/conversations/{conversationId}", "過去の会話は両方から読めるまま残す（docs/dm.md「ブロック」）");
         exempt("GET /api/conversations/{conversationId}/messages", "過去の会話は両方から読めるまま残す（docs/dm.md「ブロック」）");
+        exempt("GET /api/conversations/{conversationId}/messages/{messageId}/image",
+                "会話の当事者2人にだけ配る。過去の会話は両方から読めるまま残すため、画像も同じ（MessageImageApiTest）");
         own("POST /api/conversations/{conversationId}/accept", "会話の当事者だけ。ブロックした時点で申請中の相談は終了しているため承認できない");
         own("POST /api/conversations/{conversationId}/reject", "会話の当事者だけ。ブロックした時点で申請中の相談は終了しているため拒否できない");
         own("POST /api/conversations/{conversationId}/end", "会話の当事者だけ。ブロックした時点で終了している");

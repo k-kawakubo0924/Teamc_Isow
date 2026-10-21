@@ -2,8 +2,10 @@ package com.teamc.isow.backend.dm;
 
 import com.teamc.isow.backend.common.InputValidationException;
 import jakarta.validation.Valid;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -130,6 +132,22 @@ public class ConversationController {
             @PathVariable Long conversationId,
             @Valid @ModelAttribute MessageSendRequest request) {
         return messageService.send(jwt.getSubject(), conversationId, request);
+    }
+
+    /**
+     * メッセージの画像の中身（docs/dm.md「画像」）。会話の当事者2人にだけ返す（ほかは管理者も 404）。
+     * DM の画像は /uploads/** では配信しない。{@code <img>} のタグは認証のヘッダーを付けられないため、画面はここから取得して
+     * その場限りの URL にして表示する。借りた端末・共用の端末に残さないよう、キャッシュさせない
+     */
+    @GetMapping("/{conversationId:\\d+}/messages/{messageId:\\d+}/image")
+    public ResponseEntity<byte[]> messageImage(@AuthenticationPrincipal Jwt jwt, @PathVariable Long conversationId,
+            @PathVariable Long messageId) {
+        MessageService.MessageImage image = messageService.image(jwt.getSubject(), conversationId, messageId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image.content());
     }
 
     /**

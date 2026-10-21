@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { setSuspendedHandler, setUnauthorizedHandler, type SuspensionInfo } from '../api/client'
+import { clearAuthorizedImages } from '../hooks/authorizedImageCache'
 import { AuthContext, type AuthContextValue } from './authContext'
 import { clearToken, getSession, saveToken, TOKEN_STORAGE_KEY, type AuthSession } from './tokenStorage'
 
@@ -25,6 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearToken()
+    // 画面を開いている間だけ控えていた画像（DM の画像・証拠の写真）も捨てる。借りた端末・共用の端末に残さないため（docs/dm.md「画像」）
+    clearAuthorizedImages()
     setSession(null)
   }, [])
 
@@ -54,7 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleStorage = (e: StorageEvent) => {
       // e.key が null になるのは localStorage.clear() のとき
       if (e.key === TOKEN_STORAGE_KEY || e.key === null) {
-        setSession(getSession())
+        const next = getSession()
+        // ほかのタブでログアウトしたら、このタブの画像の控えも捨てる（上の logout と同じ理由）
+        if (next === null) clearAuthorizedImages()
+        setSession(next)
       }
     }
     window.addEventListener('storage', handleStorage)

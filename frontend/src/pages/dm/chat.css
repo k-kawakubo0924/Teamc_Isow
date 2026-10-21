@@ -190,6 +190,22 @@
   object-fit: cover;
 }
 
+/* 画像の読み込み中（認証付きの API から取得している間）。読み込み後に画面が大きく動かないよう、画像の場所に枠を出す */
+.chat-image-loading {
+  width: 180px;
+  height: 180px;
+  background: #e6dfd5;
+}
+
+.chat-image-failed {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 .chat-time {
   flex-shrink: 0;
   font-size: 10px;

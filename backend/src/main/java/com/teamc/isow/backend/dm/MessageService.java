@@ -5,6 +5,7 @@ import static com.teamc.isow.backend.dm.ConversationChecks.requireStatus;
 
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.common.InputValidationException;
+import com.teamc.isow.backend.image.ImageStorage;
 import com.teamc.isow.backend.image.ImageUploadService;
 import com.teamc.isow.backend.image.ImageUploadService.PreparedImage;
 import com.teamc.isow.backend.image.InvalidImageException;
@@ -14,6 +15,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class MessageService {
 
+    private static final Logger log = LoggerFactory.getLogger(MessageService.class);
+
     /** 1回に読むメッセージの件数の上限 */
     static final int MAX_PAGE_SIZE = 50;
 
@@ -37,6 +42,7 @@ public class MessageService {
     private final UserRepository userRepository;
     private final AuthService authService;
     private final ImageUploadService imageUploadService;
+    private final ImageStorage imageStorage;
     private final ApplicationEventPublisher events;
     private final TransactionTemplate transactionTemplate;
     private final TransactionTemplate readOnlyTransactionTemplate;
@@ -47,6 +53,7 @@ public class MessageService {
             UserRepository userRepository,
             AuthService authService,
             ImageUploadService imageUploadService,
+            ImageStorage imageStorage,
             ApplicationEventPublisher events,
             PlatformTransactionManager transactionManager) {
         this.conversationRepository = conversationRepository;
@@ -54,6 +61,7 @@ public class MessageService {
         this.userRepository = userRepository;
         this.authService = authService;
         this.imageUploadService = imageUploadService;
+        this.imageStorage = imageStorage;
         this.events = events;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.readOnlyTransactionTemplate = new TransactionTemplate(transactionManager);
@@ -130,6 +138,34 @@ public class MessageService {
         boolean hasMore = oldestFirst.size() > limit;
         List<Message> page = oldestFirst.subList(0, Math.min(limit, oldestFirst.size()));
         return new MessageListResponse(page.stream().map(m -> MessageResponse.of(m, userId)).toList(), hasMore);
+    }
+
+    /**
+     * メッセージの画像の中身（docs/dm.md「画像」）。会話の当事者2人にだけ返す。
+     * 当事者なら、終了・拒否した会話、ブロックで終わった会話、相手が利用停止中の会話も読める（メッセージの一覧と同じ）。
+     * 当事者でない・会話のメッセージでない・画像がない・ファイルが読めない、のどれも、会話が存在しない場合と同じ 404 にする
+     * （管理者も当事者でなければ 404。通報されたものは証拠の写しがあるため。docs/dm.md「画像」）。既読にはしない
+     */
+    @Transactional(readOnly = true)
+    public MessageImage image(String subject, Long conversationId, Long messageId) {
+        Long userId = authService.requireCurrentUser(subject).getId();
+        requireParticipant(conversationRepository.findById(conversationId), conversationId, userId);
+        String url = messageRepository.findById(messageId)
+                .filter(message -> message.getConversation().getId().equals(conversationId))
+                .map(Message::getImageUrl)
+                .orElseThrow(() -> new ConversationNotFoundException(conversationId));
+        byte[] content;
+        try {
+            content = imageStorage.read(url);
+        } catch (RuntimeException e) {
+            log.warn("DM の画像を読めませんでした: messageId={}", messageId, e);
+            throw new ConversationNotFoundException(conversationId);
+        }
+        return new MessageImage(content, url.endsWith(".png") ? "image/png" : "image/jpeg");
+    }
+
+    /** メッセージの画像の中身と、その MIME タイプ（保存するときに付けた拡張子から決める。jpg・png だけ） */
+    public record MessageImage(byte[] content, String contentType) {
     }
 
     /**

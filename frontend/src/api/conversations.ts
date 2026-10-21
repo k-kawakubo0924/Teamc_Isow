@@ -1,4 +1,4 @@
-import { getJson, postForm, sendWithToken } from './client'
+import { getBlob, getJson, postForm, sendWithToken } from './client'
 import { TIMELINE_PAGE_SIZE } from './posts'
 
 /** 会話の状態（バックエンドの ConversationStatus の定数名） */
@@ -184,8 +184,11 @@ export type Message = {
   mine: boolean
   /** 本文。画像だけのメッセージは null */
   body: string | null
-  /** 画像の URL。画像がなければ null */
-  imageUrl: string | null
+  /**
+   * 画像があるか。中身は fetchMessageImage で当事者だけが取得する（DM の画像は /uploads では配らない。docs/dm.md「画像」）。
+   * 保存先（ファイル名）は届かない
+   */
+  hasImage: boolean
   sentAt: string
   /** 相手が読んだ日時。未読は null */
   readAt: string | null
@@ -216,6 +219,19 @@ export function fetchMessages(
   if (range.before !== undefined) params.set('before', String(range.before))
   if (range.after !== undefined) params.set('after', String(range.after))
   return getJson<MessageListResponse>(`/api/conversations/${id}/messages?${params}`, token, signal)
+}
+
+/** メッセージの画像の API のパス（画像の控えを見分ける名前にも使う） */
+export function messageImagePath(conversationId: number, messageId: number): string {
+  return `/api/conversations/${conversationId}/messages/${messageId}/image`
+}
+
+/**
+ * メッセージの画像の中身（docs/dm.md「画像」）。会話の当事者2人にだけ返る（ほかは管理者も 404）。
+ * 画面では useAuthorizedImage で、その場限りの URL にして表示する
+ */
+export function fetchMessageImage(conversationId: number, messageId: number, token: string): Promise<Blob> {
+  return getBlob(messageImagePath(conversationId, messageId), token)
 }
 
 /** メッセージを送る。本文（body）と画像（image）のどちらか一方は必須。進行中の会話だけ送れる */
