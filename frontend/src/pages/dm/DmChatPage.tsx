@@ -4,6 +4,8 @@ import { blockUser } from '../../api/blocks'
 import { ApiError } from '../../api/client'
 import {
   endConversation,
+  fetchMessageImage,
+  messageImagePath,
   muteConversation,
   pinConversation,
   sendMessage,
@@ -14,6 +16,7 @@ import {
   type Message,
 } from '../../api/conversations'
 import { useAuth } from '../../auth/authContext'
+import { useAuthorizedImage } from '../../hooks/useAuthorizedImage'
 import { IMAGE_ACCEPT, validateImageFile } from '../../validation/postRules'
 import { blockConfirmText } from '../../components/block/blockText'
 import { ReportDialog } from '../../components/report/ReportDialog'
@@ -127,6 +130,7 @@ function ChatView({ id }: { id: number }) {
           {messages.map((message) => (
             <li key={message.id}>
               <Bubble
+                conversationId={id}
                 message={message}
                 detail={detail}
                 onImageLoad={handleImageLoad}
@@ -449,6 +453,7 @@ function ConfirmDialog({
  * 相手のメッセージは押すと、下に「このメッセージを通報」を出す（docs/admin.md「通報」。自分のメッセージは通報できない）
  */
 function Bubble({
+  conversationId,
   message,
   detail,
   onImageLoad,
@@ -456,6 +461,7 @@ function Bubble({
   onSelect,
   onReport,
 }: {
+  conversationId: number
   message: Message
   detail: ConversationDetail | null
   onImageLoad: () => void
@@ -465,8 +471,8 @@ function Bubble({
 }) {
   const content = (
     <>
-      {message.imageUrl && (
-        <img className="chat-image" src={message.imageUrl} alt="送信された画像" onLoad={onImageLoad} />
+      {message.hasImage && (
+        <ChatImage conversationId={conversationId} messageId={message.id} onLoad={onImageLoad} />
       )}
       {message.body !== null && <p className="chat-bubble">{message.body}</p>}
     </>
@@ -493,6 +499,20 @@ function Bubble({
       </time>
     </div>
   )
+}
+
+/**
+ * メッセージの画像（docs/dm.md「画像」）。DM の画像は会話の当事者2人にだけ配るため、/uploads ではなく認証付きの API から取得し、
+ * その場限りの URL にして表示する。読み込み中は同じ場所に枠を出す（読み込み後に画面が大きく動かないように）
+ */
+function ChatImage({ conversationId, messageId, onLoad }: { conversationId: number; messageId: number; onLoad: () => void }) {
+  const { token } = useAuth()
+  const { url, failed } = useAuthorizedImage(messageImagePath(conversationId, messageId), token, (t) =>
+    fetchMessageImage(conversationId, messageId, t),
+  )
+  if (failed) return <p className="chat-image-failed">画像を読み込めませんでした</p>
+  if (url === null) return <span className="chat-image chat-image-loading" aria-label="画像を読み込み中" />
+  return <img className="chat-image" src={url} alt="送信された画像" onLoad={onLoad} />
 }
 
 /** 下部：＋（画像）・入力欄・送信ボタン。送れない状態（申請中・終了）では理由を出して無効にする */

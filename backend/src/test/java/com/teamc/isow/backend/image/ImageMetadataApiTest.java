@@ -135,7 +135,9 @@ class ImageMetadataApiTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        assertStrippedAndUpright(JsonPath.read(body, "$.imageUrl"));
+        // DM の画像の保存先は応答に出さないため、DB から読む（docs/dm.md「画像」）
+        assertStrippedAndUpright(jdbcTemplate.queryForObject("SELECT image_url FROM messages WHERE id = ?", String.class,
+                ((Number) JsonPath.read(body, "$.id")).longValue()));
     }
 
     /** 保存されたファイルに位置情報・撮影日時・端末情報・向きが残っておらず、縦長で左上の赤が右上に移っていること */

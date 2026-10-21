@@ -2,7 +2,6 @@ package com.teamc.isow.backend.dm;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -96,7 +95,7 @@ class MessageApiTest {
                 .andExpect(jsonPath("$.senderId").value(userB.getId()))
                 .andExpect(jsonPath("$.mine").value(true))
                 .andExpect(jsonPath("$.body").value("こちらこそ"))
-                .andExpect(jsonPath("$.imageUrl").isEmpty())
+                .andExpect(jsonPath("$.hasImage").value(false))
                 .andExpect(jsonPath("$.sentAt").isNotEmpty())
                 .andExpect(jsonPath("$.readAt").isEmpty())
                 .andReturn().getResponse().getContentAsString();
@@ -115,14 +114,16 @@ class MessageApiTest {
         String imageOnly = send(userA, conversationId, null, new MockMultipartFile("image", "a.png", "image/png", png))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.body").isEmpty())
-                .andExpect(jsonPath("$.imageUrl", startsWith("http://localhost/uploads/")))
+                .andExpect(jsonPath("$.hasImage").value(true))
                 .andReturn().getResponse().getContentAsString();
         send(userA, conversationId, "これはどうですか", new MockMultipartFile("image", "b.png", "image/png", png))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.body").value("これはどうですか"))
-                .andExpect(jsonPath("$.imageUrl", startsWith("http://localhost/uploads/")));
+                .andExpect(jsonPath("$.hasImage").value(true));
 
-        String url = JsonPath.read(imageOnly, "$.imageUrl");
+        // 応答には保存先を出さないため、DB から読む（MessageImageApiTest）
+        String url = jdbcTemplate.queryForObject("SELECT image_url FROM messages WHERE id = ?", String.class,
+                ((Number) JsonPath.read(imageOnly, "$.id")).longValue());
         // メタデータを取り除くために保存し直すため、バイト列は変わるが、PNG は画素が1つも変わらない
         assertThat(ImageTestSupport.pixels(Files.readAllBytes(uploadDir.resolve(url.substring(url.lastIndexOf('/') + 1)))))
                 .isEqualTo(ImageTestSupport.pixels(png));

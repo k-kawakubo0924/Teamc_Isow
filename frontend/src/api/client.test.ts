@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, getJson, postJson } from './client'
+import { ApiError, getBlob, getJson, postJson, setUnauthorizedHandler } from './client'
 
 /*
  * API の失敗を画面に出す文言（共通の部品 client.ts）の確認。
@@ -75,5 +75,45 @@ describe('API の失敗の文言', () => {
 
     expect(err.status).toBe(0)
     expect(err.message).toBe('サーバーに接続できませんでした。時間をおいて再度お試しください。')
+  })
+})
+
+/*
+ * 認証付きで画像などの中身を取得する（DM の画像・証拠の写真。docs/dm.md「画像」）。
+ * <img> のタグは認証のヘッダーを付けられないため、中身を取得してから、その場限りの URL にして表示する
+ */
+describe('getBlob', () => {
+  afterEach(() => {
+    setUnauthorizedHandler(null)
+  })
+
+  it('トークンを付け、ブラウザに残さない（no-store）で取得し、中身を返す', async () => {
+    const fetchMock = vi.fn(async () => new Response('xy', { status: 200, headers: { 'Content-Type': 'image/png' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const blob = await getBlob('/api/conversations/10/messages/5/image', 'token')
+
+    expect(blob.size).toBe(2)
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toMatch(/\/api\/conversations\/10\/messages\/5\/image$/)
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer token')
+    expect(init.cache).toBe('no-store')
+  })
+
+  it('401 なら、ほかの API と同じくログアウトの処理を呼ぶ（期限切れのまま画像だけ失敗し続けないように）', async () => {
+    const onUnauthorized = vi.fn()
+    setUnauthorizedHandler(onUnauthorized)
+    stubFetch(401, '')
+
+    const err = await failure(() => getBlob('/api/conversations/10/messages/5/image', 'token'))
+
+    expect(err.status).toBe(401)
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+
+  it('404 は例外にする', async () => {
+    stubFetch(404, JSON.stringify({ message: '会話が見つかりません。', errors: {} }))
+
+    expect((await failure(() => getBlob('/api/conversations/10/messages/5/image', 'token'))).status).toBe(404)
   })
 })

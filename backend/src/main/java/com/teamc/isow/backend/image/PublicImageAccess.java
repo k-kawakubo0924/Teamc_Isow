@@ -14,15 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
  * 誰にも見えないものを止める。
  *
  * <ul>
- *   <li>配るのは、次のどれかとして参照されているファイルだけ（参照されていないファイルは、保存先にあっても配らない）
+ *   <li>配るのは、公開されてよい画像として、次のどれかに参照されているファイルだけ（参照されていないファイルは、保存先にあっても配らない）
  *     <ul>
  *       <li>投稿の写真（post_images）。ただし、非公開にした投稿・利用停止中の投稿者の投稿は除く（投稿者本人も含め、誰にも配らない）</li>
- *       <li>プロフィール画像（users.profile_image_url）。利用停止中でも配る（DM の相手のアプリには出ているため）</li>
- *       <li>DM の画像（messages.image_url）。送った人が利用停止中でも配る（相手は過去のメッセージを読めるため）</li>
+ *       <li>プロフィール画像（users.profile_image_url）。利用停止中でも配る（DM の相手のアプリにアイコンが出ているため）</li>
  *     </ul>
  *   </li>
- *   <li>画像を保存する処理はこの3つ（PostService・ProfileEditService・MessageService）だけ。
- *       新しく画像を保存する場所を作ったら、ここにも足すこと（足さないと、その画像は 404 になる）</li>
+ *   <li>DM の画像（messages.image_url）は、ここに登録しない。特定の人（会話の当事者2人）にだけ見せる画像のため、
+ *       認証付きの API（GET /api/conversations/{id}/messages/{messageId}/image）から配る。保存先は公開の画像と同じフォルダのままで、
+ *       /uploads/** から取れないのは、ここに登録していないことだけによる（docs/dm.md「画像」）</li>
+ *   <li>画像を保存する処理は、投稿（PostService）・プロフィール画像（ProfileEditService）・DM（MessageService）の3つだけ。
+ *       新しく画像を保存する場所を作ったら、公開されてよい画像ならここに登録し、特定の人にだけ見せる画像なら登録せずに認証付きの API を通す
+ *       （どちらにもしないと、その画像は配信されず 404 になる。CLAUDE.md）</li>
  *   <li>参照は、URL の最後のファイル名で探す。DB の URL の先頭（app.image.local.public-base-url。既定はポート番号を含む）を
  *       途中で変えても、見つけられるようにするため</li>
  * </ul>
@@ -39,7 +42,6 @@ public class PublicImageAccess {
     private static final String POST_IMAGE = "SELECT COUNT(i) FROM PostImage i JOIN i.post p"
             + " WHERE i.imageUrl LIKE :suffix AND" + VisibilityConditions.POST_PUBLIC;
     private static final String PROFILE_IMAGE = "SELECT COUNT(u) FROM User u WHERE u.profileImageUrl LIKE :suffix";
-    private static final String MESSAGE_IMAGE = "SELECT COUNT(m) FROM Message m WHERE m.imageUrl LIKE :suffix";
 
     private final EntityManager entityManager;
     private final Clock clock;
@@ -61,8 +63,6 @@ public class PublicImageAccess {
                         .setParameter("now", LocalDateTime.now(clock))
                         .getSingleResult()) > 0
                 || count(entityManager.createQuery(PROFILE_IMAGE, Long.class)
-                        .setParameter("suffix", suffix).getSingleResult()) > 0
-                || count(entityManager.createQuery(MESSAGE_IMAGE, Long.class)
                         .setParameter("suffix", suffix).getSingleResult()) > 0;
     }
 

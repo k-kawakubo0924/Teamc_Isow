@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import {
   changeReportStatus,
+  evidenceImagePath,
   fetchEvidenceImage,
   fetchModerationPost,
   fetchModerationUser,
@@ -14,6 +15,7 @@ import {
 import { ApiError } from '../../api/client'
 import { reportReasonLabel } from '../../api/reports'
 import { useAuth } from '../../auth/authContext'
+import { useAuthorizedImage } from '../../hooks/useAuthorizedImage'
 import { formatAdminDateTime } from './adminFormat'
 import { PostModerationPanel, UserModerationPanel } from './ModerationPanels'
 import { REPORT_CURRENT_STATE_LABELS, REPORT_STATUS_LABELS, REPORT_TARGET_LABELS } from './reportLabels'
@@ -226,27 +228,11 @@ function EvidenceImages({ caseId, fileIds, token }: { caseId: number; fileIds: n
   )
 }
 
+/** 証拠の写真。管理者向けの API から認証付きで取得し、その場限りの URL にして表示する（DM の画像と同じ部品。docs/dm.md「画像」） */
 function EvidenceImage({ caseId, fileId, token }: { caseId: number; fileId: number; token: string }) {
-  const [url, setUrl] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    let objectUrl: string | null = null
-    fetchEvidenceImage(caseId, fileId, token)
-      .then((blob) => {
-        if (cancelled) return
-        objectUrl = URL.createObjectURL(blob)
-        setUrl(objectUrl)
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true)
-      })
-    return () => {
-      cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [caseId, fileId, token])
+  const { url, failed } = useAuthorizedImage(evidenceImagePath(caseId, fileId), token, (t) =>
+    fetchEvidenceImage(caseId, fileId, t),
+  )
 
   if (failed) return <p className="admin-report-meta">写真を読み込めませんでした。</p>
   if (!url) return <p className="admin-report-meta">写真を読み込み中…</p>

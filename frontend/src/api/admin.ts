@@ -1,4 +1,4 @@
-import { API_BASE_URL, ApiError, getJson, postJson, sendWithToken } from './client'
+import { getBlob, getJson, postJson, sendWithToken } from './client'
 
 /*
  * 管理者向けの API（docs/admin.md）。/api/admin/** はサーバー側で管理者だけに許可している。
@@ -247,20 +247,18 @@ export function changeReportStatus(
   return postJson<AdminReportStatusResult>(`/api/admin/reports/${caseId}/status`, { status, memo }, token)
 }
 
+/** 証拠の写真の API のパス（画像の控えを見分ける名前にも使う） */
+export function evidenceImagePath(caseId: number, fileId: number): string {
+  return `/api/admin/reports/${caseId}/evidence-files/${fileId}`
+}
+
 /**
  * 証拠の写真の中身（管理者向けの API から、認証つきで取得する）。
  * 証拠の写真は /uploads/** では配信しない。<img> のタグからは認証のヘッダーを付けられないため、取得した中身を Blob で返し、
- * 画面で一時的な URL（URL.createObjectURL）にして表示する
+ * 画面で一時的な URL（URL.createObjectURL）にして表示する（DM の画像と同じ部品。useAuthorizedImage）
  */
-export async function fetchEvidenceImage(caseId: number, fileId: number, token: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE_URL}/api/admin/reports/${caseId}/evidence-files/${fileId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: 'no-store',
-  })
-  if (!res.ok) {
-    throw new ApiError(res.status, null, '証拠の写真を読み込めませんでした。')
-  }
-  return res.blob()
+export function fetchEvidenceImage(caseId: number, fileId: number, token: string): Promise<Blob> {
+  return getBlob(evidenceImagePath(caseId, fileId), token)
 }
 
 // ---- 措置（docs/admin.md「6. 措置」） ----

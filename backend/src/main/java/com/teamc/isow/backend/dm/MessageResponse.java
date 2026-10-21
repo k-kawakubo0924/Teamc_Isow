@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
  * @param senderId 送信者のユーザーID
  * @param mine ログイン中のユーザーが送ったものか（画面の左右の出し分けに使う）
  * @param body 本文。画像だけのメッセージは null
- * @param imageUrl 画像の URL。画像がなければ null
+ * @param hasImage 画像があるか。画像の中身は GET /api/conversations/{id}/messages/{messageId}/image から当事者だけが取得する。
+ *     保存先（ファイル名）は応答に出さない（docs/dm.md「画像」）
  * @param sentAt 送信日時
  * @param readAt 相手が読んだ日時。未読は null
  */
@@ -18,7 +19,7 @@ public record MessageResponse(
         Long senderId,
         boolean mine,
         String body,
-        String imageUrl,
+        boolean hasImage,
         LocalDateTime sentAt,
         LocalDateTime readAt) {
 
@@ -30,7 +31,7 @@ public record MessageResponse(
                 senderId,
                 senderId.equals(viewerId),
                 message.getBody(),
-                message.getImageUrl(),
+                message.getImageUrl() != null,
                 message.getSentAt(),
                 message.getReadAt());
     }

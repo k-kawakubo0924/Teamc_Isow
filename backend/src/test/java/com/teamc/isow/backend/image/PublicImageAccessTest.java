@@ -50,9 +50,10 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
  * 誰が見ているかは分からないため、「誰にも見えない」ものを止める。
  *
  * <ul>
- *   <li>配るのは、投稿の写真・プロフィール画像・DM の画像として参照されているファイルだけ</li>
+ *   <li>配るのは、公開されてよい画像（投稿の写真・プロフィール画像）として参照されているファイルだけ</li>
+ *   <li>DM の画像は配らない（当事者2人にだけ、認証付きの API から配る。MessageImageApiTest）</li>
  *   <li>非公開にした投稿・利用停止中の投稿者の投稿の写真は、誰にも配らない（投稿者本人にも）</li>
- *   <li>利用停止中のユーザーのプロフィール画像と、その人が送った DM の画像は配る（DM の相手のアプリには出ているため）</li>
+ *   <li>利用停止中のユーザーのプロフィール画像は配る（DM の相手のアプリにアイコンが出ているため）</li>
  *   <li>止めた写真の 404 は、存在しないファイルの 404 と同じ形（非公開になったことを URL から探れない）</li>
  * </ul>
  */
@@ -111,17 +112,25 @@ class PublicImageAccessTest {
     // ---- 配るもの ----
 
     @Test
-    void 投稿の写真_プロフィール画像_DMの画像は_ログインなしで取得でき_ブラウザに残さない() throws Exception {
+    void 投稿の写真とプロフィール画像は_ログインなしで取得でき_ブラウザに残さない() throws Exception {
         List<String> photos = postPhotos(createPost(author, 2));
         String profile = setProfileImage(author);
-        String dm = sendImage(author, activeConversation(viewer, author));
 
-        for (String url : List.of(photos.get(0), photos.get(1), profile, dm)) {
+        for (String url : List.of(photos.get(0), photos.get(1), profile)) {
             mockMvc.perform(get(path(url)))
                     .andExpect(status().isOk())
                     .andExpect(header().string("Content-Type", "image/png"))
                     .andExpect(header().string("Cache-Control", Matchers.containsString("no-store")));
         }
+    }
+
+    @Test
+    void DMの画像は_参照されていても配らない_当事者にだけ認証付きのAPIから配るため() throws Exception {
+        String dm = sendImage(author, activeConversation(viewer, author));
+
+        mockMvc.perform(get(path(dm))).andExpect(status().isNotFound());
+        as(author, get(path(dm))).andExpect(status().isNotFound());
+        as(viewer, get(path(dm))).andExpect(status().isNotFound());
     }
 
     @Test
@@ -219,13 +228,11 @@ class PublicImageAccessTest {
     }
 
     @Test
-    void 利用停止中でも_プロフィール画像と送ったDMの画像は取得できる_DMの相手のアプリには出ているため() throws Exception {
+    void 利用停止中でも_プロフィール画像は取得できる_DMの相手のアプリにアイコンが出ているため() throws Exception {
         String profile = setProfileImage(author);
-        String dm = sendImage(author, activeConversation(viewer, author));
         suspend(author, null);
 
         mockMvc.perform(get(path(profile))).andExpect(status().isOk());
-        mockMvc.perform(get(path(dm))).andExpect(status().isOk());
     }
 
     // ---- 参照されていないファイル ----
@@ -290,12 +297,13 @@ class PublicImageAccessTest {
         return id;
     }
 
-    /** 画像付きのメッセージを送り、その画像の URL を返す */
+    /** 画像付きのメッセージを送り、その画像の保存先の URL を返す（応答には出さないため DB から読む） */
     private String sendImage(User sender, long conversationId) throws Exception {
         String body = as(sender, multipart("/api/conversations/" + conversationId + "/messages")
                         .file(new MockMultipartFile("image", "m.png", "image/png", png())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return JsonPath.read(body, "$.imageUrl");
+        return jdbcTemplate.queryForObject("SELECT image_url FROM messages WHERE id = ?", String.class,
+                ((Number) JsonPath.read(body, "$.id")).longValue());
     }
 
     /** 投稿を非公開にした状態にする（管理者の API を通さず、DB に直接書く） */
