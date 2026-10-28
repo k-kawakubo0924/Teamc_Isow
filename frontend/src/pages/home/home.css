@@ -46,13 +46,13 @@
 
 .home-logo {
   margin: 0;
-  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
-  font-size: 24px;
-  font-weight: 400;
-  letter-spacing: 0.45em;
-  /* letter-spacing は最後の文字の後ろにも付くため、その分だけ左に寄せて中央をそろえる */
-  text-indent: 0.45em;
-  color: var(--color-text);
+}
+
+/* ロゴの画像（323×100）。縦横比が崩れないよう高さだけで大きさを決める */
+.home-logo-image {
+  display: block;
+  height: 22px;
+  width: auto;
 }
 
 /* ---- 新着メッセージ（新着がなければ表示しない） ---- */

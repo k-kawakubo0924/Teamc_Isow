@@ -69,3 +69,17 @@ describe('ホーム画面の通知ベル（docs/notification.md）', () => {
     expect(bell(container).querySelector('.home-bell-badge')?.textContent).toBe('99+')
   })
 })
+
+describe('ホーム画面の見出し', () => {
+  it('タイトル「ISHO」はロゴの画像で表示し、alt を "ISHO" にする', () => {
+    const { container } = renderHome({ unreadCount: 0, unreadAnnouncementCount: 0 })
+
+    const header = container.querySelector('header.home-header') as HTMLElement
+    const heading = within(header).getByRole('heading', { level: 1, name: 'ISHO' })
+    const logo = within(heading).getByRole('img')
+    expect(logo.getAttribute('alt')).toBe('ISHO')
+    expect(logo.getAttribute('src')).toMatch(/logo/)
+    // 文字の「ISHO」は残さない（画像だけで見出しになっている）
+    expect(heading.textContent).toBe('')
+  })
+})

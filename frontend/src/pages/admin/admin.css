@@ -31,6 +31,13 @@
   font-weight: 600;
 }
 
+/* ロゴの画像（323×100）。後ろの「管理画面」の文字と並べるため、高さだけで大きさを決めて下端をそろえる */
+.admin-logo-image {
+  height: 13px;
+  width: auto;
+  vertical-align: baseline;
+}
+
 .admin-user {
   margin: 6px 0 0;
   color: var(--color-text-muted);

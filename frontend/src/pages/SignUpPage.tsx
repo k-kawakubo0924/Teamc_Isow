@@ -12,6 +12,7 @@ import {
   type SignUpField,
   type SignUpForm,
 } from '../validation/authRules'
+import { AuthLogo } from './AuthLogo'
 import { ErrorBanner } from './ErrorBanner'
 import { PasswordInput } from './PasswordInput'
 import './auth.css'
@@ -86,7 +87,7 @@ function SignUpPage() {
 
   return (
     <main className="auth-page">
-      <h1 className="auth-logo">ISHO</h1>
+      <AuthLogo />
       <p className="auth-subtitle">{step === 'input' ? '新規登録' : '入力内容の確認'}</p>
 
       {bannerMessage && <ErrorBanner message={bannerMessage} />}

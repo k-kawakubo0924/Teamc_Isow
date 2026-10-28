@@ -89,3 +89,17 @@ describe('ホーム画面の通知ベル（DM一覧の変更に巻き込まれ�
     expect(bell.querySelector('.home-bell-badge')?.textContent).toBe('3')
   })
 })
+
+describe('DM一覧の見出しのタイトル', () => {
+  it('タイトル「ISHO」はロゴの画像で表示し、alt を "ISHO" にする', () => {
+    const { container } = renderPage(<DmListPage />)
+
+    const header = container.querySelector('header.dm-header') as HTMLElement
+    const heading = within(header).getByRole('heading', { level: 1, name: 'ISHO' })
+    const logo = within(heading).getByRole('img')
+    expect(logo.getAttribute('alt')).toBe('ISHO')
+    expect(logo.getAttribute('src')).toMatch(/logo/)
+    // 文字の「ISHO」は残さない（画像だけで見出しになっている）
+    expect(heading.textContent).toBe('')
+  })
+})

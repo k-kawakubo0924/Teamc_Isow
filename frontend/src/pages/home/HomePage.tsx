@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { fetchTimeline, type TimelineTab } from '../../api/posts'
 import { fetchMyProfile } from '../../api/profile'
+import logo from '../../assets/logo.png'
 import { useAuth } from '../../auth/authContext'
 import { notificationBadgeCount, useNotificationSummary } from '../../components/notificationSummaryContext'
 import { HOME_COLUMNS, loadColumns, saveColumns, type Columns } from './columnSetting'
@@ -32,7 +33,9 @@ function HomePage() {
     <main className="home-page">
       <header className="home-header">
         <NotificationBell />
-        <h1 className="home-logo">ISHO</h1>
+        <h1 className="home-logo">
+          <img className="home-logo-image" src={logo} alt="ISHO" />
+        </h1>
       </header>
 
       {/* 新着がなければ欄ごと出さない */}
