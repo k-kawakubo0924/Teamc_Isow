@@ -4,6 +4,7 @@ import { confirmPasswordReset } from '../api/auth'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/authContext'
 import { passwordRuleError } from '../validation/authRules'
+import { AuthLogo } from './AuthLogo'
 import { ErrorBanner } from './ErrorBanner'
 import { PasswordInput } from './PasswordInput'
 import './auth.css'
@@ -78,7 +79,7 @@ function ResetPasswordPage() {
   if (!token) {
     return (
       <main className="auth-page">
-        <h1 className="auth-logo auth-logo-spaced">ISHO</h1>
+        <AuthLogo spaced />
         <h2 className="auth-subtitle">パスワードの再設定</h2>
         <ErrorBanner message="リンクが正しくありません。メールのリンクをもう一度開くか、再設定のメールをもう一度送ってください。" />
         {againLink}
@@ -88,7 +89,7 @@ function ResetPasswordPage() {
 
   return (
     <main className="auth-page">
-      <h1 className="auth-logo auth-logo-spaced">ISHO</h1>
+      <AuthLogo spaced />
       <h2 className="auth-subtitle">パスワードの再設定</h2>
 
       {error && <ErrorBanner message={error} />}

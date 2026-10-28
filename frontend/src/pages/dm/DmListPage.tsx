@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { Link } from 'react-router'
+import logo from '../../assets/logo.png'
 import { useDmSummary } from '../../components/dmSummaryContext'
 import { ChatRow, PinIcon } from './ChatRow'
 import { DmListFooter } from './dmParts'
@@ -47,7 +48,9 @@ export default function DmListPage() {
             </span>
           )}
         </Link>
-        <h1 className="dm-logo">ISHO</h1>
+        <h1 className="dm-logo">
+          <img className="dm-logo-image" src={logo} alt="ISHO" />
+        </h1>
       </header>
 
       <Link to="/dm/requests" className="dm-request-link">

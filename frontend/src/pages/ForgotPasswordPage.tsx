@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import { requestPasswordReset } from '../api/auth'
 import { emailRuleError, normalizeEmail } from '../validation/authRules'
+import { AuthLogo } from './AuthLogo'
 import { ErrorBanner } from './ErrorBanner'
 import './auth.css'
 
@@ -38,7 +39,7 @@ function ForgotPasswordPage() {
 
   return (
     <main className="auth-page">
-      <h1 className="auth-logo auth-logo-spaced">ISHO</h1>
+      <AuthLogo spaced />
       <h2 className="auth-subtitle">パスワードの再設定</h2>
 
       {error && <ErrorBanner message={error} />}

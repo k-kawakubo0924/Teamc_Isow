@@ -4,6 +4,7 @@ import { login } from '../api/auth'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/authContext'
 import { INVALID_INPUT_MESSAGE, normalizeEmail, validateLogin, type LoginForm } from '../validation/authRules'
+import { AuthLogo } from './AuthLogo'
 import { ErrorBanner } from './ErrorBanner'
 import { PasswordInput } from './PasswordInput'
 import './auth.css'
@@ -74,7 +75,7 @@ function LoginPage() {
 
   return (
     <main className="auth-page">
-      <h1 className="auth-logo auth-logo-spaced">ISHO</h1>
+      <AuthLogo spaced />
 
       {bannerMessage ? (
         <ErrorBanner message={bannerMessage} scrollIntoView />

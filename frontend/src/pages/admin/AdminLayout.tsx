@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router'
 import { getAdminMe } from '../../api/admin'
 import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/authContext'
+import logo from '../../assets/logo.png'
 import NotFoundPage from '../NotFoundPage'
 import './admin.css'
 
@@ -76,7 +77,9 @@ function AdminLayout() {
         <div className="admin-layout">
           <aside className="admin-sidebar">
             <header className="admin-header">
-              <p className="admin-logo">ISHO 管理画面</p>
+              <p className="admin-logo">
+                <img className="admin-logo-image" src={logo} alt="ISHO" /> 管理画面
+              </p>
               <p className="admin-user">{check.username}</p>
             </header>
             <nav className="admin-nav" aria-label="管理メニュー">

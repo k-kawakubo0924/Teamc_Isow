@@ -10,14 +10,14 @@
 
 .auth-logo {
   margin: 0;
-  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
-  font-size: 30px;
-  font-weight: 400;
-  letter-spacing: 0.45em;
-  /* letter-spacing は最後の文字の後ろにも付くため、その分だけ左に寄せて中央をそろえる */
-  text-indent: 0.45em;
-  text-align: center;
-  color: var(--color-text);
+}
+
+/* ロゴの画像（323×100。文字が画像いっぱいに入っている）。縦横比が崩れないよう高さだけで大きさを決める */
+.auth-logo-image {
+  display: block;
+  height: 28px;
+  width: auto;
+  margin: 0 auto;
 }
 
 .auth-subtitle {

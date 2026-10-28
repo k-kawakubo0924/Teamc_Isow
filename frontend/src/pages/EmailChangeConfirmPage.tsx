@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { confirmEmailChange } from '../api/account'
 import { useAuth } from '../auth/authContext'
+import { AuthLogo } from './AuthLogo'
 import { ErrorBanner } from './ErrorBanner'
 import './auth.css'
 
@@ -44,7 +45,7 @@ function EmailChangeConfirmPage() {
 
   return (
     <main className="auth-page">
-      <h1 className="auth-logo auth-logo-spaced">ISHO</h1>
+      <AuthLogo spaced />
       <h2 className="auth-subtitle">メールアドレスの変更</h2>
       {!token ? (
         <ErrorBanner message="リンクが正しくありません。確認メールのリンクをもう一度開いてください。" />
