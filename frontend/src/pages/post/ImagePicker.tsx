@@ -101,7 +101,7 @@ export function ImagePicker({ images, error, onAdd, onRemove, onMove }: Props) {
         ))}
       </ul>
 
-      <p className="post-hint">JPEG・PNG、1枚 10MB まで。1枚目が一覧のサムネイルになります。</p>
+      <p className="post-hint">JPEG・PNG、1枚 9MB まで。1枚目が一覧のサムネイルになります。</p>
       {error && <p className="post-field-error">{error}</p>}
     </section>
   )

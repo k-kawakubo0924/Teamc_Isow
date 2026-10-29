@@ -4,8 +4,11 @@
 // 最終的な判定はバックエンドが行う。ここでのチェックは、送信前に早めに知らせるためのもの。
 
 export const MAX_IMAGES = 10
-/** 1ファイルあたりの上限。超えるファイルは送らない（大きく超えると、サーバーのエラー本文が届かないため） */
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+/**
+ * 1ファイルあたりの上限（バックエンドの app.image.max-file-size と同じ）。超えるファイルは送らない（大きく超えると、サーバーのエラー本文が届かないため）。
+ * 写真10枚の投稿が、公開時の入口（Cloudflare）の1リクエスト 100MB に収まる大きさ（docs/post.md「写真の大きさ」）
+ */
+export const MAX_IMAGE_BYTES = 9 * 1024 * 1024
 export const MAX_TITLE_LENGTH = 100
 export const MAX_TAGS = 10
 export const MAX_TAG_LENGTH = 30
@@ -48,7 +51,7 @@ export function validateImageFile(file: File): string | null {
     return `「${file.name}」は選択できません。JPEG または PNG の画像を選択してください。`
   }
   if (file.size > MAX_IMAGE_BYTES) {
-    return `「${file.name}」は大きすぎます。画像は1枚あたり ${MAX_IMAGE_BYTES / 1024 / 1024}MB 以下にしてください。`
+    return `「${file.name}」は大きすぎます（1枚あたり${MAX_IMAGE_BYTES / 1024 / 1024}MBまで）。写真アプリなどで画像を小さくしてから、もう一度選択してください。`
   }
   return null
 }

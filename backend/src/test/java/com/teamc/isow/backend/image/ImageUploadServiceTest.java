@@ -136,20 +136,20 @@ class ImageUploadServiceTest {
     }
 
     @Test
-    void サイズ上限の10MBを超えるファイルは保存しない() {
-        byte[] large = new byte[10 * 1024 * 1024 + 1];
+    void サイズ上限の9MBを超えるファイルは保存しない() {
+        byte[] large = new byte[9 * 1024 * 1024 + 1];
 
         assertThatThrownBy(() -> imageUploadService.upload(new MockMultipartFile("file", "large.png", "image/png", large)))
                 .isInstanceOf(InvalidImageException.class)
-                .hasMessageContaining("10MB");
+                .hasMessageContaining("9MB");
     }
 
     @Test
     void 縦横が大きすぎる画像はファイルが小さくても保存しない() throws Exception {
         // 1辺の上限を超える（ファイル自体は数KB）
         assertRejected(new MockMultipartFile("file", "wide.png", "image/png", binaryImage(ImageUploadService.MAX_DIMENSION + 1, 1)));
-        // 1辺は上限以内だが、画素数の上限（4,000万）を超える
-        assertRejected(new MockMultipartFile("file", "huge.png", "image/png", binaryImage(7000, 6000)));
+        // 1辺は上限以内だが、画素数の上限（6,000万）を超える
+        assertRejected(new MockMultipartFile("file", "huge.png", "image/png", binaryImage(9000, 6700)));
     }
 
     // ---- 配信 ----

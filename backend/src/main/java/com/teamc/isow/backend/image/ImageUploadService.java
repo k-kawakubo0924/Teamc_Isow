@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.MemoryCacheImageInputStream;
@@ -26,13 +27,31 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class ImageUploadService {
 
-    /** 1辺の長さの上限（ピクセル）。展開すると巨大になる画像でメモリを使い切られるのを防ぐ */
+    /**
+     * 1辺の長さの上限（ピクセル）。展開すると巨大になる画像で、処理の時間とメモリを使い切られるのを防ぐ
+     * （docs/post.md「写真の大きさ」）
+     */
     static final int MAX_DIMENSION = 10_000;
 
-    /** 画素数の上限（4,000万画素）。同上 */
-    static final long MAX_PIXELS = 40_000_000L;
+    /**
+     * 画素数の上限（6,000万画素）。今のスマホがふつうに撮る写真（2,400万画素）と、高画素のモード（5,000万画素前後）が通る大きさ。
+     * 展開するときは間引いて読むため、使うメモリは元の画素数に比例しない
+     */
+    static final long MAX_PIXELS = 60_000_000L;
+
+    /**
+     * プログレッシブ形式の JPEG の画素数の上限（2,500万画素）。この形式は、間引いて読んでも、展開する部品が Java の外で
+     * 元の大きさぶんのメモリ（1画素あたり約3バイト）を使うため、低くしている。スマホのカメラはふつうの形式で保存する
+     */
+    static final long MAX_PROGRESSIVE_JPEG_PIXELS = 25_000_000L;
+
+    /** 保存するときの長辺の上限（ピクセル）。これより大きい画像は縮めて保存する */
+    static final int MAX_LONG_SIDE = 2048;
 
     private static final String INVALID_FORMAT_MESSAGE = "JPEG または PNG の画像を選択してください。";
+
+    /** 大きすぎる画像を断るときに、どうすればよいかを伝える文 */
+    private static final String SHRINK_HINT = "写真アプリなどで画像を小さくしてから、もう一度選択してください。";
 
     private static final Logger log = LoggerFactory.getLogger(ImageUploadService.class);
 
@@ -83,13 +102,14 @@ public class ImageUploadService {
         if (ImageFormat.detect(content) != declared) {
             throw new InvalidImageException(INVALID_FORMAT_MESSAGE);
         }
-        BufferedImage decoded = decode(content, declared);
+        // 長辺が MAX_LONG_SIDE を超える画像は縮める（向きを直す前に縮め、回す画素を少なくする）
+        BufferedImage image = ImageResizer.fitWithin(decode(content, declared), MAX_LONG_SIDE);
 
         // 位置情報・撮影日時・端末情報などのメタデータを取り除く（写真の向きはピクセルを回転して保つ）。
         // 取り除けなかった場合は、メタデータが付いたまま公開されないよう、元の画像を保存せずに断る
         byte[] stripped;
         try {
-            stripped = ImageMetadataStripper.strip(content, decoded, declared.imageIoName);
+            stripped = ImageMetadataStripper.strip(content, image, declared.imageIoName);
         } catch (IOException | RuntimeException e) {
             log.warn("画像のメタデータを取り除けませんでした", e);
             throw new InvalidImageException("画像を処理できませんでした。別の画像を選択してください。");
@@ -147,8 +167,12 @@ public class ImageUploadService {
     }
 
     /**
-     * 画像として最後まで読み込めることを確かめ、展開したピクセルを返す（メタデータを取り除くのにそのまま使う）。
-     * 先にヘッダーから縦横のサイズだけを読み、大きすぎる画像は全体を読み込む前に弾く
+     * 画像として最後まで読み込めることを確かめ、展開したピクセルを返す（縮めて、メタデータを取り除くのにそのまま使う）。
+     * 先にヘッダーから縦横のサイズだけを読み、大きすぎる画像は全体を読み込む前に弾く。
+     *
+     * <p>長辺が MAX_LONG_SIDE の2倍以上ある画像は、展開するときに間引いて読む（ImageReadParam.setSourceSubsampling）。
+     * 元の大きさの画素を一度も持たないため、大きな写真でもメモリを使い切らない。間引くのは、長辺が MAX_LONG_SIDE を下回らない
+     * ところまで（細かい柄が崩れないよう、最後の縮小は面積平均で行う。ImageResizer）
      */
     private static BufferedImage decode(byte[] content, ImageFormat format) {
         Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName(format.imageIoName);
@@ -164,13 +188,23 @@ public class ImageUploadService {
             if (width <= 0 || height <= 0) {
                 throw unreadable();
             }
-            if (width > MAX_DIMENSION || height > MAX_DIMENSION || (long) width * height > MAX_PIXELS) {
-                throw new InvalidImageException("画像のサイズが大きすぎます。縦横 " + MAX_DIMENSION + " ピクセル以下の画像を選択してください。");
+            if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+                throw new InvalidImageException("画像が大きすぎます（縦横それぞれ10,000ピクセルまで）。" + SHRINK_HINT);
             }
+            long pixels = (long) width * height;
+            if (pixels > MAX_PIXELS) {
+                throw new InvalidImageException("画像が大きすぎます（6,000万画素まで）。" + SHRINK_HINT);
+            }
+            if (format == ImageFormat.JPEG && pixels > MAX_PROGRESSIVE_JPEG_PIXELS && isProgressiveJpeg(content)) {
+                throw new InvalidImageException("画像が大きすぎます（この形式の画像は2,500万画素まで）。" + SHRINK_HINT);
+            }
+            ImageReadParam param = reader.getDefaultReadParam();
+            int step = Math.max(1, Math.max(width, height) / MAX_LONG_SIDE);
+            param.setSourceSubsampling(step, step, 0, 0);
             // 途中で途切れた JPEG は例外にならず警告だけが出るため、警告も不可として扱う
             boolean[] warned = {false};
             reader.addIIOReadWarningListener((source, warning) -> warned[0] = true);
-            BufferedImage image = reader.read(0);
+            BufferedImage image = reader.read(0, param);
             if (image == null || warned[0]) {
                 throw unreadable();
             }
@@ -185,8 +219,38 @@ public class ImageUploadService {
         }
     }
 
+    /**
+     * プログレッシブ形式の JPEG か（ヘッダーの SOF マーカーの種類で見る。画像の本体は読まない）。
+     * 形式が読み取れないときは false（ふつうの形式として扱い、展開できなければ decode で断る）
+     */
+    static boolean isProgressiveJpeg(byte[] content) {
+        int i = 2;
+        while (i + 3 < content.length) {
+            if ((content[i] & 0xFF) != 0xFF) {
+                return false;
+            }
+            int marker = content[i + 1] & 0xFF;
+            // マーカーの前の埋め草（0xFF の連続）は飛ばす
+            if (marker == 0xFF) {
+                i++;
+                continue;
+            }
+            // SOF2・SOF6・SOF10・SOF14 がプログレッシブ。SOS（画像の本体の始まり）まで来たら、それより後に SOF はない
+            if (marker == 0xC2 || marker == 0xC6 || marker == 0xCA || marker == 0xCE) {
+                return true;
+            }
+            if (marker == 0xDA) {
+                return false;
+            }
+            int length = ((content[i + 2] & 0xFF) << 8) | (content[i + 3] & 0xFF);
+            i += 2 + length;
+        }
+        return false;
+    }
+
     private InvalidImageException tooLarge() {
-        return new InvalidImageException("画像は1枚あたり " + (maxFileSizeBytes / 1024 / 1024) + "MB 以下にしてください。");
+        return new InvalidImageException(
+                "写真のファイルが大きすぎます（1枚あたり" + (maxFileSizeBytes / 1024 / 1024) + "MBまで）。" + SHRINK_HINT);
     }
 
     private static InvalidImageException unreadable() {
