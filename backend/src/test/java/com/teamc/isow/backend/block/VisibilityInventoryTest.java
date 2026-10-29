@@ -13,6 +13,7 @@ import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.HttpMethod;
@@ -103,6 +105,9 @@ class VisibilityInventoryTest {
         checked("GET /api/posts#recommended", "/api/posts?tab=recommended");
         checked("GET /api/posts/me", "/api/posts/me");
         checked("GET /api/posts/{id}", "/api/posts/{postC}");
+        // 見えてはいけない投稿の詳細を、その投稿の ID で直接開く（一覧に出ないだけでなく、ID を知っていても開けないこと）。
+        // 上の {postC}（見えてよい投稿）だけでは、詳細の確かめを外しても気づけなかった（2026-10-28、わざと外して確かめた）
+        checked("GET /api/posts/{id}#forbidden", "/api/posts/{forbiddenPost}");
         // 自分の投稿だけを編集・削除できる。ブロックの間柄にある人の投稿は 404、見えるが他人の投稿は 403
         target("PUT /api/posts/{id}");
         target("DELETE /api/posts/{id}");
@@ -209,7 +214,11 @@ class VisibilityInventoryTest {
     private RequestMappingHandlerMapping handlerMapping;
 
     private BlockFixture f;
+    private Post postOfA;
+    private Post postOfB;
     private Post postOfC;
+    /** 見る人（ユーザーの ID）ごとの、見えてはいけない投稿（{forbiddenPost} の置き換え先。テストごとに決める） */
+    private final Map<Long, Post> forbiddenPostFor = new HashMap<>();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -265,7 +274,12 @@ class VisibilityInventoryTest {
         assertThat(body(f.a, "/api/search/posts?q=BLKPOST")).contains(ImageTestSupport.key("BLKPOSTBBB.jpg"));
         assertThat(body(f.b, "/api/search/users?q=blkuser")).contains("blkuser_aaa");
 
+        // ブロックの前は、A は B の投稿の詳細を開ける（{forbiddenPost} の確かめが空振りしていないこと）
+        assertThat(body(f.a, "/api/posts/" + postOfB.getId())).contains("BLKPOSTBBB");
+
         f.block(f.a, f.b).andExpect(status().isNoContent());
+        forbiddenPostFor.put(f.a.getId(), postOfB);
+        forbiddenPostFor.put(f.b.getId(), postOfA);
 
         List<String> leaks = new ArrayList<>();
         for (Map.Entry<String, Entry> registered : REGISTRY.entrySet()) {
@@ -296,6 +310,8 @@ class VisibilityInventoryTest {
         assertThat(body(f.a, "/api/users/me/favorites")).contains(ImageTestSupport.key("BLKHIDDENPOST.jpg")).contains(card);
 
         hide(hidden);
+        forbiddenPostFor.put(f.a.getId(), hidden);
+        forbiddenPostFor.put(f.b.getId(), hidden);
 
         List<String> leaks = new ArrayList<>();
         for (Map.Entry<String, Entry> registered : REGISTRY.entrySet()) {
@@ -318,6 +334,8 @@ class VisibilityInventoryTest {
         assertThat(body(f.a, "/api/notifications")).contains("blkuser_bbb");
 
         suspend(f.b);
+        forbiddenPostFor.put(f.a.getId(), postOfB);
+        forbiddenPostFor.put(f.c.getId(), postOfB);
 
         List<String> leaks = new ArrayList<>();
         for (Map.Entry<String, Entry> registered : REGISTRY.entrySet()) {
@@ -380,8 +398,8 @@ class VisibilityInventoryTest {
      * A と B も互いにフォロー・いいね・お気に入り・相談をしている）
      */
     private void prepareRelations() throws Exception {
-        Post postOfA = f.createPost(f.a, "BLKPOSTAAA");
-        Post postOfB = f.createPost(f.b, "BLKPOSTBBB");
+        postOfA = f.createPost(f.a, "BLKPOSTAAA");
+        postOfB = f.createPost(f.b, "BLKPOSTBBB");
         postOfC = f.createPost(f.c, "BLKPOSTCCC");
         f.follow(f.a, f.c);
         f.follow(f.b, f.c);
@@ -405,30 +423,45 @@ class VisibilityInventoryTest {
     }
 
     private List<String> findLeaks(String key, User viewer, String path, String... forbidden) throws Exception {
-        String body = body(viewer, path);
+        // 見えてはいけない投稿の詳細（{forbiddenPost}）は、存在しない投稿と同じ 404 が正しい応答のため、404 の本文も確かめる
+        String body = path.contains("{forbiddenPost}") ? bodyAllowingNotFound(viewer, path) : body(viewer, path);
         List<String> leaks = new ArrayList<>();
         for (String word : forbidden) {
             if (body.contains(word)) {
-                leaks.add(key + "（" + viewer.getUsername() + " が呼んだ " + render(path) + "）に " + word + " が含まれる");
+                leaks.add(key + "（" + viewer.getUsername() + " が呼んだ " + render(path, viewer) + "）に " + word + " が含まれる");
             }
             // 投稿の写真のキーも目印にする（BlockFixture.createPost は、題名から写真のキーを作る）。一覧のカード（{id, thumbnailUrl, …}）
-            // のように、題名を持たない応答でも、漏れを見つけるため
+            // のように、題名を持たない応答でも、漏れを見つけるため（2026-10-28、わざと漏らして、この目印だけでも見つかることを確かめた）
             String photo = ImageTestSupport.key(word + ".jpg");
             if (body.contains(photo)) {
-                leaks.add(key + "（" + viewer.getUsername() + " が呼んだ " + render(path) + "）に " + word + " の写真が含まれる");
+                leaks.add(key + "（" + viewer.getUsername() + " が呼んだ " + render(path, viewer) + "）に " + word + " の写真が含まれる");
             }
         }
         return leaks;
     }
 
     private String body(User viewer, String path) throws Exception {
-        return f.as(viewer, get(render(path)))
+        return f.as(viewer, get(render(path, viewer)))
                 .andExpect(status().is2xxSuccessful())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
-    private String render(String path) {
-        return path.replace("{c}", String.valueOf(f.c.getId()))
+    private String bodyAllowingNotFound(User viewer, String path) throws Exception {
+        MockHttpServletResponse response = f.as(viewer, get(render(path, viewer))).andReturn().getResponse();
+        assertThat(response.getStatus()).as(render(path, viewer)).isIn(200, 404);
+        return response.getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    private String render(String path, User viewer) {
+        String rendered = path.replace("{c}", String.valueOf(f.c.getId()))
                 .replace("{postC}", postOfC == null ? "0" : String.valueOf(postOfC.getId()));
+        if (rendered.contains("{forbiddenPost}")) {
+            Post forbidden = forbiddenPostFor.get(viewer.getId());
+            if (forbidden == null) {
+                throw new IllegalStateException(viewer.getUsername() + " の見えてはいけない投稿（forbiddenPostFor）を決めていません: " + path);
+            }
+            rendered = rendered.replace("{forbiddenPost}", String.valueOf(forbidden.getId()));
+        }
+        return rendered;
     }
 }
