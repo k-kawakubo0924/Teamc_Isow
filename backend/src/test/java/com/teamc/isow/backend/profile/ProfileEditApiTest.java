@@ -223,6 +223,18 @@ class ProfileEditApiTest {
 
     // ---- プロフィール画像 ----
 
+    /** DB には保存先のキー（ファイル名）だけを持ち、表示の URL は応答を作るときに組み立てる（R2 の作業のステップ1） */
+    @Test
+    void プロフィール画像はDBにキーだけを保存し_応答ではキーから組み立てたURLを返す() throws Exception {
+        String body = uploadImage(png("image")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        String key = jdbcTemplate.queryForObject("SELECT profile_image_key FROM users WHERE id = ?", String.class, me.getId());
+        assertThat(key).matches("[0-9a-f]{32}\\.png");
+        String url = jsonMapper.readTree(body).get("profileImageUrl").asString();
+        assertThat(url).isEqualTo(publicBaseUrl + "/" + key);
+        Files.deleteIfExists(fileOf(url));
+    }
+
     @Test
     void プロフィール画像を保存し_変更したら前の画像を削除する() throws Exception {
         String first = uploadImage(png("image")).andExpect(status().isOk())
@@ -238,7 +250,8 @@ class ProfileEditApiTest {
         assertThat(secondUrl).isNotEqualTo(firstUrl);
         assertThat(Files.exists(fileOf(secondUrl))).isTrue();
         assertThat(Files.exists(fileOf(firstUrl))).isFalse();
-        assertThat(userRepository.findById(me.getId()).orElseThrow().getProfileImageUrl()).isEqualTo(secondUrl);
+        assertThat(userRepository.findById(me.getId()).orElseThrow().getProfileImageKey())
+                .isEqualTo(fileOf(secondUrl).getFileName().toString());
         Files.deleteIfExists(fileOf(secondUrl));
     }
 
@@ -253,7 +266,7 @@ class ProfileEditApiTest {
                 .andExpect(jsonPath("$.message").value("画像を選択してください。"));
 
         assertThat(fileCount()).isEqualTo(before);
-        assertThat(userRepository.findById(me.getId()).orElseThrow().getProfileImageUrl()).isNull();
+        assertThat(userRepository.findById(me.getId()).orElseThrow().getProfileImageKey()).isNull();
     }
 
     /** 名前だけを入れ、他は未設定にした内容 */

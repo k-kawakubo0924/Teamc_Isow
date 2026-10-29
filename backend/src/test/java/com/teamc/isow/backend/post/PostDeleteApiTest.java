@@ -141,8 +141,8 @@ class PostDeleteApiTest {
         assertThat(files).doesNotContainAnyElementsOf(fileNames(myPostUrls));
         assertThat(files).containsAll(fileNames(otherPostUrls));
         // 削除の対象は、post_images に記録されていた URL そのものだけ（1件ずつ、記録の数だけ）
-        for (String url : myPostUrls) {
-            verify(imageStorage).delete(url);
+        for (String key : fileNames(myPostUrls)) {
+            verify(imageStorage).delete(key);
         }
         verify(imageStorage, times(myPostUrls.size())).delete(anyString());
     }
@@ -179,7 +179,7 @@ class PostDeleteApiTest {
     void 写真のファイルの削除に失敗しても_DBの削除は確定し_残りの写真は削除する() throws Exception {
         // 1枚目だけ削除に失敗させる
         doThrow(new UncheckedIOException(new IOException("ファイルを消せない")))
-                .when(imageStorage).delete(eq(myPostUrls.get(0)));
+                .when(imageStorage).delete(eq(fileNames(myPostUrls).get(0)));
 
         deletePost(myToken, myPostId).andExpect(status().isNoContent());
 

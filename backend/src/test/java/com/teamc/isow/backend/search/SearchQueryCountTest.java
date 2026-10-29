@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.teamc.isow.backend.common.AgeGroup;
 import com.teamc.isow.backend.follow.Follow;
 import com.teamc.isow.backend.follow.FollowRepository;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
@@ -196,8 +197,8 @@ class SearchQueryCountTest {
         for (int i = 0; i < count; i++) {
             long n = existing + i;
             Post post = postRepository.save(new Post(other, "コート" + n, category, null, "説明", null,
-                    List.of("http://localhost/uploads/" + n + "-1.jpg", "http://localhost/uploads/" + n + "-2.jpg",
-                            "http://localhost/uploads/" + n + "-3.jpg"),
+                    List.of(ImageTestSupport.key(n + "-1.jpg"), ImageTestSupport.key(n + "-2.jpg"),
+                            ImageTestSupport.key(n + "-3.jpg")),
                     List.of(tags.get((int) (n % tags.size())), tags.get((int) ((n + 1) % tags.size())))));
             likeRepository.save(new PostLike(me, post));
             likeRepository.save(new PostLike(other, post));

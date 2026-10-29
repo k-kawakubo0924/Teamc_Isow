@@ -247,7 +247,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     @ResponseStatus(HttpStatus.CONTENT_TOO_LARGE)
     public ApiErrorResponse handleMaxUploadSize(MaxUploadSizeExceededException e) {
-        String message = "写真のファイルサイズが大きすぎます。1枚あたり10MB以下にしてください。";
+        String message = "写真のファイルが大きすぎます（1枚あたり9MBまで）。写真アプリなどで画像を小さくしてから、もう一度選択してください。";
         return new ApiErrorResponse(message, Map.of("images", message));
     }
 

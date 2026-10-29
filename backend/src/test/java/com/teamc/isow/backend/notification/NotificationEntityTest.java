@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.teamc.isow.backend.dm.Conversation;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.tag.TagRepository;
@@ -304,7 +305,7 @@ class NotificationEntityTest {
 
     private Post savePost(User author) {
         Post post = new Post(author, "題名", fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0),
-                null, "説明", null, List.of("http://localhost/uploads/notification.jpg"),
+                null, "説明", null, List.of(ImageTestSupport.key("notification.jpg")),
                 List.of(tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc().get(0)));
         entityManager.persist(post);
         entityManager.flush();

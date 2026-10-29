@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.post;
 
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.post.PostResponse.FashionCategoryResponse;
 import com.teamc.isow.backend.reaction.ReactionSummary;
 import com.teamc.isow.backend.reaction.ReactionSummaryService;
@@ -32,11 +33,14 @@ public class PostCardService {
     private final PostRepository postRepository;
     private final ReactionSummaryService reactionSummaryService;
     private final Clock clock;
+    private final ImageUrls imageUrls;
 
-    public PostCardService(PostRepository postRepository, ReactionSummaryService reactionSummaryService, Clock clock) {
+    public PostCardService(PostRepository postRepository, ReactionSummaryService reactionSummaryService, Clock clock,
+            ImageUrls imageUrls) {
         this.postRepository = postRepository;
         this.reactionSummaryService = reactionSummaryService;
         this.clock = clock;
+        this.imageUrls = imageUrls;
     }
 
     /** page は 0 から。範囲外の page・size はエラーにせず、0 以上・1〜MAX_PAGE_SIZE に丸める（自分の投稿一覧と同じ） */
@@ -58,7 +62,7 @@ public class PostCardService {
                 .collect(Collectors.toMap(Post::getId, Function.identity()));
         // 非公開の投稿（本人にだけ届く）は、サムネイルが null になる（写真を配らないため。画面は代わりの表示を出す）
         Map<Long, String> thumbnails = postRepository.findThumbnails(postIds, LocalDateTime.now(clock)).stream()
-                .collect(Collectors.toMap(PostThumbnail::postId, PostThumbnail::imageUrl));
+                .collect(Collectors.toMap(PostThumbnail::postId, thumbnail -> imageUrls.of(thumbnail.imageKey())));
         Map<Long, ReactionSummary> reactions = reactionSummaryService.summarize(viewerId, postIds);
 
         // 受け取った並び順どおりに組み立てる（1. の結果は順不同のため）

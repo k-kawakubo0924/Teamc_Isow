@@ -141,6 +141,31 @@ class PostCreateApiTest {
                 .containsExactly(1, 2);
     }
 
+    /**
+     * DB には保存先のキー（ファイル名）だけを持ち、ホスト名入りの URL は持たない（R2 の作業のステップ1）。
+     * 表示の URL は、応答を作るときにキーから組み立てる（保存先・URL の形が変わっても、DB を書き換えずに済むように）
+     */
+    @Test
+    void 写真はDBにキーだけを保存し_応答ではキーから組み立てたURLを返す() throws Exception {
+        MockMultipartHttpServletRequestBuilder request = multipart("/api/posts");
+        request.file(new MockMultipartFile("images", "first.png", "image/png", image(30, 20, "png")));
+        request.file(new MockMultipartFile("images", "second.jpg", "image/jpeg", image(40, 30, "jpg")));
+        request.param("title", "キーの確認")
+                .param("fashionCategoryId", String.valueOf(kireime.getId()))
+                .param("tags", "古着")
+                .param("description", "キーの確認")
+                .header("Authorization", "Bearer " + token);
+
+        String body = mockMvc.perform(request).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+
+        Integer postId = JsonPath.read(body, "$.id");
+        List<String> keys = jdbcTemplate.queryForList(
+                "SELECT image_key FROM post_images WHERE post_id = ? ORDER BY sort_order", String.class, postId);
+        assertThat(keys).hasSize(2).allMatch(key -> key.matches("[0-9a-f]{32}\\.(png|jpg)"));
+        List<String> imageUrls = JsonPath.read(body, "$.imageUrls");
+        assertThat(imageUrls).containsExactly("http://localhost/uploads/" + keys.get(0), "http://localhost/uploads/" + keys.get(1));
+    }
+
     @Test
     void 手入力のタグは正規化した値で検索し_なければ公式でないタグとして作り_次からは同じタグを使う() throws Exception {
         String first = mockMvc.perform(validRequest(token, kireime.getId()).param("tags", "Korea"))

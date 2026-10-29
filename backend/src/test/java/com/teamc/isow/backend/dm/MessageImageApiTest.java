@@ -93,6 +93,15 @@ class MessageImageApiTest {
         DmTestSupport.cleanUp(jdbcTemplate);
     }
 
+    /** DB には保存先のキー（ファイル名）だけを持ち、ホスト名入りの URL は持たない（R2 の作業のステップ1） */
+    @Test
+    void DMの画像はDBにキーだけを保存する() throws Exception {
+        long messageId = sendImage(userA, conversationId, png());
+
+        assertThat(jdbcTemplate.queryForObject("SELECT image_key FROM messages WHERE id = ?", String.class, messageId))
+                .matches("[0-9a-f]{32}\\.png");
+    }
+
     // ---- 当事者には配る ----
 
     @Test
@@ -252,7 +261,7 @@ class MessageImageApiTest {
 
     /** 保存先のファイル名（DB の URL の最後。応答には出さないため DB から読む） */
     private String fileName(long messageId) {
-        String url = jdbcTemplate.queryForObject("SELECT image_url FROM messages WHERE id = ?", String.class, messageId);
+        String url = jdbcTemplate.queryForObject("SELECT image_key FROM messages WHERE id = ?", String.class, messageId);
         return url.substring(url.lastIndexOf('/') + 1);
     }
 

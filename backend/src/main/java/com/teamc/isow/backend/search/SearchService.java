@@ -5,6 +5,7 @@ import com.teamc.isow.backend.common.AgeGroup;
 import com.teamc.isow.backend.common.InputValidationException;
 import com.teamc.isow.backend.common.SearchPatterns;
 import com.teamc.isow.backend.follow.FollowRepository;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.PostCardService;
 import com.teamc.isow.backend.post.PostRepository;
@@ -55,6 +56,7 @@ public class SearchService {
     private final SearchHistoryService searchHistoryService;
     private final AuthService authService;
     private final Clock clock;
+    private final ImageUrls imageUrls;
 
     public SearchService(
             PostRepository postRepository,
@@ -65,7 +67,8 @@ public class SearchService {
             FashionCategoryRepository fashionCategoryRepository,
             SearchHistoryService searchHistoryService,
             AuthService authService,
-            Clock clock) {
+            Clock clock,
+            ImageUrls imageUrls) {
         this.postRepository = postRepository;
         this.postCardService = postCardService;
         this.userRepository = userRepository;
@@ -75,6 +78,7 @@ public class SearchService {
         this.searchHistoryService = searchHistoryService;
         this.authService = authService;
         this.clock = clock;
+        this.imageUrls = imageUrls;
     }
 
     /**
@@ -135,7 +139,7 @@ public class SearchService {
                         viewerId, users.getContent().stream().map(User::getId).toList()));
         List<UserSearchResponse.Item> items = users.getContent().stream()
                 .map(user -> new UserSearchResponse.Item(user.getId(), user.getUsername(), user.getDisplayName(),
-                        user.getProfileImageUrl(), user.getHeightCm(), user.getGender(),
+                        imageUrls.of(user.getProfileImageKey()), user.getHeightCm(), user.getGender(),
                         followingIds.contains(user.getId())))
                 .toList();
         UserSearchResponse response = new UserSearchResponse(items,

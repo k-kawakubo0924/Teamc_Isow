@@ -3,6 +3,7 @@ package com.teamc.isow.backend.post;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.tag.Tag;
@@ -55,17 +56,17 @@ class PostEntityTest {
 
     @Test
     void 保存して読み直すと写真が表示順に並び_1枚目がサムネイルになる() {
-        Post saved = persistAndReload(newPost(List.of("https://example.com/a.jpg", "https://example.com/b.jpg", "https://example.com/c.jpg")));
+        Post saved = persistAndReload(newPost(List.of(ImageTestSupport.key("a.jpg"), ImageTestSupport.key("b.jpg"), ImageTestSupport.key("c.jpg"))));
 
-        assertThat(saved.getImages()).extracting(PostImage::getImageUrl)
-                .containsExactly("https://example.com/a.jpg", "https://example.com/b.jpg", "https://example.com/c.jpg");
+        assertThat(saved.getImages()).extracting(PostImage::getImageKey)
+                .containsExactly(ImageTestSupport.key("a.jpg"), ImageTestSupport.key("b.jpg"), ImageTestSupport.key("c.jpg"));
         assertThat(saved.getImages()).extracting(PostImage::getSortOrder).containsExactly(1, 2, 3);
-        assertThat(saved.getThumbnail().getImageUrl()).isEqualTo("https://example.com/a.jpg");
+        assertThat(saved.getThumbnail().getImageKey()).isEqualTo(ImageTestSupport.key("a.jpg"));
     }
 
     @Test
     void 保存して読み直すと各項目とタグが保たれる() {
-        Post saved = persistAndReload(newPost(List.of("https://example.com/a.jpg")));
+        Post saved = persistAndReload(newPost(List.of(ImageTestSupport.key("a.jpg"))));
 
         assertThat(saved.getAuthor().getId()).isEqualTo(author.getId());
         assertThat(saved.getTitle()).isEqualTo("秋の羽織りもの");
@@ -80,20 +81,20 @@ class PostEntityTest {
 
     @Test
     void 保存済みの投稿の写真を並べ替え_減らし_増やしても表示順が連番のまま保たれる() {
-        Post post = persistAndReload(newPost(List.of("https://example.com/a.jpg", "https://example.com/b.jpg", "https://example.com/c.jpg")));
+        Post post = persistAndReload(newPost(List.of(ImageTestSupport.key("a.jpg"), ImageTestSupport.key("b.jpg"), ImageTestSupport.key("c.jpg"))));
 
         // 並べ替え＋1枚減らす（表示順の一意制約に違反しないこと）
-        post.replaceImages(List.of("https://example.com/c.jpg", "https://example.com/a.jpg"));
+        post.replaceImages(List.of(ImageTestSupport.key("c.jpg"), ImageTestSupport.key("a.jpg")));
         post = reload(post);
-        assertThat(post.getImages()).extracting(PostImage::getImageUrl)
-                .containsExactly("https://example.com/c.jpg", "https://example.com/a.jpg");
+        assertThat(post.getImages()).extracting(PostImage::getImageKey)
+                .containsExactly(ImageTestSupport.key("c.jpg"), ImageTestSupport.key("a.jpg"));
         assertThat(post.getImages()).extracting(PostImage::getSortOrder).containsExactly(1, 2);
 
         // 増やす
-        post.replaceImages(List.of("https://example.com/d.jpg", "https://example.com/c.jpg", "https://example.com/a.jpg", "https://example.com/e.jpg"));
+        post.replaceImages(List.of(ImageTestSupport.key("d.jpg"), ImageTestSupport.key("c.jpg"), ImageTestSupport.key("a.jpg"), ImageTestSupport.key("e.jpg")));
         post = reload(post);
-        assertThat(post.getImages()).extracting(PostImage::getImageUrl)
-                .containsExactly("https://example.com/d.jpg", "https://example.com/c.jpg", "https://example.com/a.jpg", "https://example.com/e.jpg");
+        assertThat(post.getImages()).extracting(PostImage::getImageKey)
+                .containsExactly(ImageTestSupport.key("d.jpg"), ImageTestSupport.key("c.jpg"), ImageTestSupport.key("a.jpg"), ImageTestSupport.key("e.jpg"));
         assertThat(post.getImages()).extracting(PostImage::getSortOrder).containsExactly(1, 2, 3, 4);
     }
 

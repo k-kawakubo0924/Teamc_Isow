@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.teamc.isow.backend.follow.Follow;
 import com.teamc.isow.backend.follow.FollowRepository;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
@@ -114,7 +115,7 @@ class SearchUserHistorySuggestionApiTest {
         User haru = userRepository.save(new User(HARU_EMAIL, "09000000072", "hash", "haru_st"));
         User byDisplayName = userRepository.save(new User(HARUKA_EMAIL, "09000000073", "hash", "uh_kaori"));
         jdbcTemplate.update("UPDATE users SET display_name = 'HARUKA', height_cm = 158, gender = 'FEMALE', "
-                + "profile_image_url = 'http://localhost/uploads/k.jpg' WHERE id = ?", byDisplayName.getId());
+                + "profile_image_key = ? WHERE id = ?", ImageTestSupport.key("k.jpg"), byDisplayName.getId());
         jdbcTemplate.update("UPDATE users SET display_name = 'haru' WHERE id = ?", me.getId());
         followRepository.save(new Follow(me, haru));
 
@@ -128,7 +129,7 @@ class SearchUserHistorySuggestionApiTest {
                 .andExpect(jsonPath("$.users[0].gender").value(nullValue()))
                 .andExpect(jsonPath("$.users[0].followingByMe").value(true))
                 .andExpect(jsonPath("$.users[1].displayName").value("HARUKA"))
-                .andExpect(jsonPath("$.users[1].profileImageUrl").value("http://localhost/uploads/k.jpg"))
+                .andExpect(jsonPath("$.users[1].profileImageUrl").value(ImageTestSupport.url("k.jpg")))
                 .andExpect(jsonPath("$.users[1].heightCm").value(158))
                 .andExpect(jsonPath("$.users[1].gender").value("FEMALE"))
                 .andExpect(jsonPath("$.users[1].followingByMe").value(false))
@@ -359,7 +360,7 @@ class SearchUserHistorySuggestionApiTest {
 
     private void savePost(FashionCategory category, Tag... tags) {
         postRepository.save(new Post(other, "題名", category, null, "説明", null,
-                List.of("http://localhost/uploads/suggest.jpg"), List.of(tags)));
+                List.of(ImageTestSupport.key("suggest.jpg")), List.of(tags)));
     }
 
     private List<String> historyKeywords(User user) {

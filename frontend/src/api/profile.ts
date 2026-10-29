@@ -87,7 +87,7 @@ export function updateMyProfile(request: ProfileUpdateRequest, token: string): P
   return putJson<ProfileResponse>('/api/users/me', request, token)
 }
 
-/** プロフィール画像を変更する（JPEG・PNG、10MB まで）。応答は更新後のプロフィール */
+/** プロフィール画像を変更する（JPEG・PNG、9MB まで）。応答は更新後のプロフィール */
 export function uploadProfileImage(image: File, token: string): Promise<ProfileResponse> {
   const form = new FormData()
   form.append('image', image)

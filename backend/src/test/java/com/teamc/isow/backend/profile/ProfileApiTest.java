@@ -10,6 +10,7 @@ import com.teamc.isow.backend.common.AgeGroup;
 import com.teamc.isow.backend.common.Gender;
 import com.teamc.isow.backend.follow.Follow;
 import com.teamc.isow.backend.follow.FollowRepository;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.BodyType;
 import com.teamc.isow.backend.master.BodyTypeRepository;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
@@ -97,7 +98,7 @@ class ProfileApiTest {
         me = userRepository.save(new User(ProfileTestSupport.EMAIL_ME, "09000000030", "hash", "profile_me"));
         User o = new User(ProfileTestSupport.EMAIL_OTHER, "09000000031", "hash", "profile_other");
         o.updateProfile("ほか", Gender.FEMALE, 158, AgeGroup.EARLY_20S, bodyType, personalColor);
-        o.changeProfileImageUrl("http://localhost/uploads/icon.jpg");
+        o.changeProfileImageKey(ImageTestSupport.key("icon.jpg"));
         other = userRepository.save(o);
         third = userRepository.save(new User(ProfileTestSupport.EMAIL_THIRD, "09000000032", "hash", "profile_third"));
         token = ProfileTestSupport.token(jwtEncoder, me.getId());
@@ -142,7 +143,7 @@ class ProfileApiTest {
                 .andExpect(jsonPath("$.id").value(other.getId()))
                 .andExpect(jsonPath("$.username").value("profile_other"))
                 .andExpect(jsonPath("$.displayName").value("ほか"))
-                .andExpect(jsonPath("$.profileImageUrl").value("http://localhost/uploads/icon.jpg"))
+                .andExpect(jsonPath("$.profileImageUrl").value(ImageTestSupport.url("icon.jpg")))
                 .andExpect(jsonPath("$.gender").value("FEMALE"))
                 .andExpect(jsonPath("$.heightCm").value(158))
                 .andExpect(jsonPath("$.ageGroup").value("EARLY_20S"))
@@ -205,7 +206,7 @@ class ProfileApiTest {
                 .andExpect(jsonPath("$.size").value(20))
                 .andExpect(jsonPath("$.hasNext").value(false))
                 .andExpect(jsonPath("$.posts[0].id").value(newer.getId()))
-                .andExpect(jsonPath("$.posts[0].thumbnailUrl").value("http://localhost/uploads/new-1.jpg"))
+                .andExpect(jsonPath("$.posts[0].thumbnailUrl").value(ImageTestSupport.url("new-1.jpg")))
                 .andExpect(jsonPath("$.posts[0].fashionCategory.id").exists())
                 .andExpect(jsonPath("$.posts[0].author.id").value(other.getId()))
                 .andExpect(jsonPath("$.posts[0].author.username").value("profile_other"))

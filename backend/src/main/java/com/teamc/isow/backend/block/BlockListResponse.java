@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.block;
 
+import com.teamc.isow.backend.image.ImageUrls;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -12,9 +13,9 @@ public record BlockListResponse(List<Item> items, int page, int size, boolean ha
     public record Item(Long userId, String username, String displayName, String profileImageUrl,
             LocalDateTime blockedAt) {
 
-        static Item from(Block block) {
+        static Item from(Block block, ImageUrls imageUrls) {
             return new Item(block.getBlocked().getId(), block.getBlocked().getUsername(),
-                    block.getBlocked().getDisplayName(), block.getBlocked().getProfileImageUrl(), block.getBlockedAt());
+                    block.getBlocked().getDisplayName(), imageUrls.of(block.getBlocked().getProfileImageKey()), block.getBlockedAt());
         }
     }
 }

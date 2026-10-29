@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teamc.isow.backend.dm.Conversation;
 import com.teamc.isow.backend.dm.ConversationRepository;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
@@ -124,7 +125,7 @@ class NotificationQueryCountTest {
     private Post savePost() {
         return postRepository.save(new Post(me, "題名",
                 fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0), null, "説明", null,
-                List.of("http://localhost/uploads/1.jpg", "http://localhost/uploads/2.jpg"),
+                List.of(ImageTestSupport.key("1.jpg"), ImageTestSupport.key("2.jpg")),
                 List.of(tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc().get(0))));
     }
 

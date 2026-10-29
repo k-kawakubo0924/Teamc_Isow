@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
@@ -93,7 +94,7 @@ final class ModerationFixture {
     Post createPost(User owner, String title) {
         return postRepository.save(new Post(owner, title,
                 fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0), null, title + "の説明",
-                null, List.of("http://localhost/uploads/" + title + ".jpg"),
+                null, List.of(ImageTestSupport.key(title + ".jpg")),
                 List.of(tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc().get(0))));
     }
 

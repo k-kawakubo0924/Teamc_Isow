@@ -37,8 +37,6 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class ImageUploadServiceTest {
 
-    private static final String BASE_URL = "http://localhost/uploads/";
-
     @Autowired
     private ImageUploadService imageUploadService;
 
@@ -57,25 +55,23 @@ class ImageUploadServiceTest {
     // ---- 保存できるもの ----
 
     @Test
-    void PNGは推測できない名前で保存され_表示用のURLが返る() throws Exception {
+    void PNGは推測できない名前で保存され_その名前がキーとして返る() throws Exception {
         byte[] png = image(20, 10, "png");
 
-        String url = imageUploadService.upload(new MockMultipartFile("file", "my photo.png", "image/png", png));
+        String key = imageUploadService.upload(new MockMultipartFile("file", "my photo.png", "image/png", png));
 
-        assertThat(url).startsWith(BASE_URL).doesNotContain("my photo");
-        String fileName = url.substring(BASE_URL.length());
-        // 元のファイル名ではなく、乱数（16進数32桁）＋実際の形式の拡張子
-        assertThat(fileName).matches("[0-9a-f]{32}\\.png");
+        // 元のファイル名ではなく、乱数（16進数32桁）＋実際の形式の拡張子。URL ではない（URL は応答を作るときに ImageUrls が組み立てる）
+        assertThat(key).matches("[0-9a-f]{32}\\.png");
         // メタデータを取り除くために保存し直すため、バイト列は変わるが、PNG は画素が1つも変わらない
-        assertThat(ImageTestSupport.pixels(Files.readAllBytes(uploadDir.resolve(fileName))))
+        assertThat(ImageTestSupport.pixels(Files.readAllBytes(uploadDir.resolve(key))))
                 .isEqualTo(ImageTestSupport.pixels(png));
     }
 
     @Test
     void JPEGは拡張子jpegでも受け付け_保存時の拡張子はjpgになる() throws Exception {
-        String url = imageUploadService.upload(new MockMultipartFile("file", "photo.JPEG", "image/jpeg", image(20, 10, "jpg")));
+        String key = imageUploadService.upload(new MockMultipartFile("file", "photo.JPEG", "image/jpeg", image(20, 10, "jpg")));
 
-        assertThat(url).matches("http://localhost/uploads/[0-9a-f]{32}\\.jpg");
+        assertThat(key).matches("[0-9a-f]{32}\\.jpg");
     }
 
     @Test
@@ -136,20 +132,20 @@ class ImageUploadServiceTest {
     }
 
     @Test
-    void サイズ上限の10MBを超えるファイルは保存しない() {
-        byte[] large = new byte[10 * 1024 * 1024 + 1];
+    void サイズ上限の9MBを超えるファイルは保存しない() {
+        byte[] large = new byte[9 * 1024 * 1024 + 1];
 
         assertThatThrownBy(() -> imageUploadService.upload(new MockMultipartFile("file", "large.png", "image/png", large)))
                 .isInstanceOf(InvalidImageException.class)
-                .hasMessageContaining("10MB");
+                .hasMessageContaining("9MB");
     }
 
     @Test
     void 縦横が大きすぎる画像はファイルが小さくても保存しない() throws Exception {
         // 1辺の上限を超える（ファイル自体は数KB）
         assertRejected(new MockMultipartFile("file", "wide.png", "image/png", binaryImage(ImageUploadService.MAX_DIMENSION + 1, 1)));
-        // 1辺は上限以内だが、画素数の上限（4,000万）を超える
-        assertRejected(new MockMultipartFile("file", "huge.png", "image/png", binaryImage(7000, 6000)));
+        // 1辺は上限以内だが、画素数の上限（6,000万）を超える
+        assertRejected(new MockMultipartFile("file", "huge.png", "image/png", binaryImage(9000, 6700)));
     }
 
     // ---- 配信 ----
@@ -157,13 +153,13 @@ class ImageUploadServiceTest {
     @Test
     void 保存した画像はログインなしでブラウザから表示でき_形式の推測を禁止するヘッダーが付く() throws Exception {
         byte[] png = image(10, 10, "png");
-        String url = imageUploadService.upload(new MockMultipartFile("file", "a.png", "image/png", png));
+        String key = imageUploadService.upload(new MockMultipartFile("file", "a.png", "image/png", png));
         // 配るのは参照されている画像だけのため、プロフィール画像として参照させる（PublicImageAccessTest）
         User user = userRepository.save(new User("img-upload@example.com", "09000000323", "hash", "img_upload"));
-        jdbcTemplate.update("UPDATE users SET profile_image_url = ? WHERE id = ?", url, user.getId());
+        jdbcTemplate.update("UPDATE users SET profile_image_key = ? WHERE id = ?", key, user.getId());
 
         try {
-            mockMvc.perform(get("/uploads/" + url.substring(BASE_URL.length())))
+            mockMvc.perform(get("/uploads/" + key))
                     .andExpect(status().isOk())
                     .andExpect(header().string("Content-Type", "image/png"))
                     .andExpect(header().string("X-Content-Type-Options", "nosniff"))

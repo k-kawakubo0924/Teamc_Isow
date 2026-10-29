@@ -89,9 +89,9 @@ public class User {
     @JoinColumn(name = "personal_color_id")
     private PersonalColor personalColor;
 
-    /** プロフィール画像の URL（任意。未設定は null）。画像そのものは DB に保存しない */
-    @Column(name = "profile_image_url", length = 2048)
-    private String profileImageUrl;
+    /** プロフィール画像のキー（保存先の中での名前。任意。未設定は null）。URL は ImageUrls で組み立てる。画像そのものは DB に保存しない */
+    @Column(name = "profile_image_key", length = 100)
+    private String profileImageKey;
 
     /**
      * 権限（docs/admin.md「権限の仕組み」）。Role の定数名（USER / ADMIN）を文字列で持つ（@Enumerated を使わない理由は Role のコメント）。
@@ -256,8 +256,8 @@ public class User {
     }
 
     /** プロフィール画像を変更する（「変更」から設定する）。null で未設定に戻す */
-    public void changeProfileImageUrl(String profileImageUrl) {
-        this.profileImageUrl = profileImageUrl;
+    public void changeProfileImageKey(String profileImageKey) {
+        this.profileImageKey = profileImageKey;
     }
 
     @PrePersist
@@ -317,8 +317,8 @@ public class User {
         return personalColor;
     }
 
-    public String getProfileImageUrl() {
-        return profileImageUrl;
+    public String getProfileImageKey() {
+        return profileImageKey;
     }
 
     public LocalDateTime getCreatedAt() {

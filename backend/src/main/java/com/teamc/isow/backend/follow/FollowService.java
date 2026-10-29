@@ -3,6 +3,7 @@ package com.teamc.isow.backend.follow;
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.block.UserVisibility;
 import com.teamc.isow.backend.common.SearchPatterns;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.notification.NotificationEvents;
 import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserNotFoundException;
@@ -53,6 +54,7 @@ public class FollowService {
     private final ApplicationEventPublisher events;
     private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
+    private final ImageUrls imageUrls;
 
     public FollowService(
             FollowRepository followRepository,
@@ -61,7 +63,8 @@ public class FollowService {
             ApplicationEventPublisher events,
             UserVisibility userVisibility,
             PlatformTransactionManager transactionManager,
-            Clock clock) {
+            Clock clock,
+            ImageUrls imageUrls) {
         this.followRepository = followRepository;
         this.userRepository = userRepository;
         this.authService = authService;
@@ -69,6 +72,7 @@ public class FollowService {
         this.events = events;
         this.userVisibility = userVisibility;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.imageUrls = imageUrls;
     }
 
     /** フォローする。すでにフォロー済みでも成功として扱う。自分自身は 400、存在しないユーザーは 404 */
@@ -182,7 +186,7 @@ public class FollowService {
                             user.getId(),
                             user.getUsername(),
                             user.getDisplayName(),
-                            user.getProfileImageUrl(),
+                            imageUrls.of(user.getProfileImageKey()),
                             user.getHeightCm(),
                             user.getGender(),
                             follow.getFollowedAt(),

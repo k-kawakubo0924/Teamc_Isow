@@ -158,17 +158,17 @@ class DevDataSeederTest {
 
     @Test
     void 写真はその場で作り_本番と同じ保存の経路で保存される() throws Exception {
-        List<String> urls = jdbcTemplate.queryForList("""
-                SELECT image_url FROM post_images
-                UNION ALL SELECT profile_image_url FROM users WHERE profile_image_url IS NOT NULL
-                UNION ALL SELECT image_url FROM messages WHERE image_url IS NOT NULL
+        List<String> keys = jdbcTemplate.queryForList("""
+                SELECT image_key FROM post_images
+                UNION ALL SELECT profile_image_key FROM users WHERE profile_image_key IS NOT NULL
+                UNION ALL SELECT image_key FROM messages WHERE image_key IS NOT NULL
                 """, String.class);
 
-        assertThat(urls).hasSize(30 + 4 + 1);
-        for (String url : urls) {
-            // 保存の経路（ImageUploadService）が付ける推測できない名前で、テスト用の保存先にある
-            assertThat(url).matches("http://localhost/uploads/[0-9a-f]{32}\\.(jpg|png)");
-            Path file = Path.of("target/test-uploads").resolve(url.substring(url.lastIndexOf('/') + 1));
+        assertThat(keys).hasSize(30 + 4 + 1);
+        for (String key : keys) {
+            // 保存の経路（ImageUploadService）が付ける推測できない名前（キー）で、テスト用の保存先にある
+            assertThat(key).matches("[0-9a-f]{32}\\.(jpg|png)");
+            Path file = Path.of("target/test-uploads").resolve(key);
             byte[] content = Files.readAllBytes(file);
             assertThat(ImageIO.read(new ByteArrayInputStream(content))).isNotNull();
             assertThat(new String(content, StandardCharsets.ISO_8859_1)).doesNotContain("Exif");
@@ -230,7 +230,7 @@ class DevDataSeederTest {
     @Test
     void メッセージは進行中の会話に5通_画像付き1通_最後のrenのメッセージはaoiが未読() {
         List<Map<String, Object>> messages = jdbcTemplate.queryForList("""
-                SELECT s.username, m.body, m.image_url, m.read_at FROM messages m
+                SELECT s.username, m.body, m.image_key, m.read_at FROM messages m
                 JOIN users s ON s.id = m.sender_id
                 JOIN conversations c ON c.id = m.conversation_id
                 JOIN users r ON r.id = c.requested_by_id
@@ -239,7 +239,7 @@ class DevDataSeederTest {
                 """);
 
         assertThat(messages).hasSize(5);
-        assertThat(messages.stream().filter(m -> m.get("image_url") != null)).hasSize(1);
+        assertThat(messages.stream().filter(m -> m.get("image_key") != null)).hasSize(1);
         Map<String, Object> last = messages.get(4);
         assertThat(last.get("username")).isEqualTo("dev_ren");
         assertThat(last.get("read_at")).isNull();
@@ -350,7 +350,7 @@ class DevDataSeederTest {
 
     private Map<String, Map<String, Object>> users() {
         return jdbcTemplate.queryForList("""
-                SELECT u.username, u.display_name, u.gender, u.age_group, u.height_cm, u.profile_image_url,
+                SELECT u.username, u.display_name, u.gender, u.age_group, u.height_cm, u.profile_image_key,
                        b.name AS body_type, c.name AS personal_color
                 FROM users u
                 LEFT JOIN body_types b ON b.id = u.body_type_id
@@ -359,7 +359,7 @@ class DevDataSeederTest {
     }
 
     private static List<String> withProfileImage(Map<String, Map<String, Object>> users) {
-        return users.entrySet().stream().filter(e -> e.getValue().get("profile_image_url") != null)
+        return users.entrySet().stream().filter(e -> e.getValue().get("profile_image_key") != null)
                 .map(Map.Entry::getKey).toList();
     }
 

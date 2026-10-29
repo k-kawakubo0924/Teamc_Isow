@@ -95,14 +95,14 @@ public class MessageService {
         }
 
         // 2. 画像を保存する
-        String imageUrl = image == null ? null : imageUploadService.store(image);
+        String imageKey = image == null ? null : imageUploadService.store(image);
 
         // 3. DB に登録する。失敗したら、保存した画像を削除する
         try {
-            return transactionTemplate.execute(status -> save(userId, conversationId, body, imageUrl));
+            return transactionTemplate.execute(status -> save(userId, conversationId, body, imageKey));
         } catch (RuntimeException e) {
-            if (imageUrl != null) {
-                imageUploadService.deleteQuietly(List.of(imageUrl));
+            if (imageKey != null) {
+                imageUploadService.deleteQuietly(List.of(imageKey));
             }
             throw e;
         }
@@ -150,18 +150,18 @@ public class MessageService {
     public MessageImage image(String subject, Long conversationId, Long messageId) {
         Long userId = authService.requireCurrentUser(subject).getId();
         requireParticipant(conversationRepository.findById(conversationId), conversationId, userId);
-        String url = messageRepository.findById(messageId)
+        String key = messageRepository.findById(messageId)
                 .filter(message -> message.getConversation().getId().equals(conversationId))
-                .map(Message::getImageUrl)
+                .map(Message::getImageKey)
                 .orElseThrow(() -> new ConversationNotFoundException(conversationId));
         byte[] content;
         try {
-            content = imageStorage.read(url);
+            content = imageStorage.read(key);
         } catch (RuntimeException e) {
             log.warn("DM の画像を読めませんでした: messageId={}", messageId, e);
             throw new ConversationNotFoundException(conversationId);
         }
-        return new MessageImage(content, url.endsWith(".png") ? "image/png" : "image/jpeg");
+        return new MessageImage(content, key.endsWith(".png") ? "image/png" : "image/jpeg");
     }
 
     /** メッセージの画像の中身と、その MIME タイプ（保存するときに付けた拡張子から決める。jpg・png だけ） */
@@ -180,12 +180,12 @@ public class MessageService {
     }
 
     /** トランザクションの中で呼ぶ。会話をロックし、終了と同時に届いても終了した会話には登録しない */
-    private MessageResponse save(Long userId, Long conversationId, String body, String imageUrl) {
+    private MessageResponse save(Long userId, Long conversationId, String body, String imageKey) {
         Conversation conversation = requireParticipant(
                 conversationRepository.findByIdForUpdate(conversationId), conversationId, userId);
         requireSendable(conversation);
         Message message = messageRepository.save(
-                new Message(conversation, userRepository.getReferenceById(userId), body, imageUrl));
+                new Message(conversation, userRepository.getReferenceById(userId), body, imageKey));
         conversation.recordMessage(message.getSentAt());
         // 相手への通知（会話ごとに1件にまとめる）は、コミット後に NotificationService が作る
         events.publishEvent(new NotificationEvents.MessageSent(conversationId, userId, message.getSentAt()));

@@ -2,6 +2,7 @@ package com.teamc.isow.backend.post;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.reaction.PostFavorite;
@@ -110,10 +111,10 @@ class PostListQueryCountTest {
 
         // 写真1枚・タグ1つの投稿と、写真10枚・タグ10個の投稿（どちらも他人の投稿に、いいね・お気に入りあり）
         Post small = postRepository.save(new Post(other, "少ない", categories.get(0), null, "説明", null,
-                List.of("http://localhost/uploads/s-1.jpg"), List.of(tags.get(0))));
+                List.of(ImageTestSupport.key("s-1.jpg")), List.of(tags.get(0))));
         List<String> tenImages = new java.util.ArrayList<>();
         for (int i = 1; i <= Post.MAX_IMAGES; i++) {
-            tenImages.add("http://localhost/uploads/l-" + i + ".jpg");
+            tenImages.add(ImageTestSupport.key("l-" + i + ".jpg"));
         }
         Post large = postRepository.save(new Post(other, "多い", categories.get(0), "着用アイテム", "説明",
                 "https://example.com", tenImages, tags.subList(0, 10)));
@@ -148,8 +149,8 @@ class PostListQueryCountTest {
                     "投稿" + n,
                     categories.get((int) (n % categories.size())),
                     null, "説明", null,
-                    List.of("http://localhost/uploads/" + n + "-1.jpg", "http://localhost/uploads/" + n + "-2.jpg",
-                            "http://localhost/uploads/" + n + "-3.jpg"),
+                    List.of(ImageTestSupport.key(n + "-1.jpg"), ImageTestSupport.key(n + "-2.jpg"),
+                            ImageTestSupport.key(n + "-3.jpg")),
                     List.of(tags.get((int) (n % tags.size())), tags.get((int) ((n + 1) % tags.size())))));
             likeRepository.save(new PostLike(me, post));
             likeRepository.save(new PostLike(other, post));

@@ -144,7 +144,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
      * 非公開・投稿者が利用停止中の投稿の写真は配らないため、含めない（PublicImageAccess。見ているのが投稿者本人でも同じ）
      */
     @Query("""
-            SELECT new com.teamc.isow.backend.post.PostThumbnail(p.id, i.imageUrl)
+            SELECT new com.teamc.isow.backend.post.PostThumbnail(p.id, i.imageKey)
             FROM PostImage i JOIN i.post p
             WHERE p.id IN :postIds AND i.sortOrder = 1 AND""" + VisibilityConditions.POST_PUBLIC)
     List<PostThumbnail> findThumbnails(@Param("postIds") Collection<Long> postIds, @Param("now") LocalDateTime now);

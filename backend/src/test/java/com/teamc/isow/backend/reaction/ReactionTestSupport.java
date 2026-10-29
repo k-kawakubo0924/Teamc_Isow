@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.reaction;
 
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
@@ -28,7 +29,7 @@ final class ReactionTestSupport {
     static Post savePost(PostRepository postRepository, FashionCategoryRepository fashionCategoryRepository,
             TagRepository tagRepository, User author) {
         return postRepository.save(new Post(author, "投稿", fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0),
-                null, "説明", null, List.of("http://localhost/uploads/a.jpg"),
+                null, "説明", null, List.of(ImageTestSupport.key("a.jpg")),
                 List.of(tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc().get(0))));
     }
 

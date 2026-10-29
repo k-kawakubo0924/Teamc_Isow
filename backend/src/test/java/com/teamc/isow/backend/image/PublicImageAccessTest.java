@@ -116,8 +116,8 @@ class PublicImageAccessTest {
         List<String> photos = postPhotos(createPost(author, 2));
         String profile = setProfileImage(author);
 
-        for (String url : List.of(photos.get(0), photos.get(1), profile)) {
-            mockMvc.perform(get(path(url)))
+        for (String key : List.of(photos.get(0), photos.get(1), profile)) {
+            mockMvc.perform(get(path(key)))
                     .andExpect(status().isOk())
                     .andExpect(header().string("Content-Type", "image/png"))
                     .andExpect(header().string("Cache-Control", Matchers.containsString("no-store")));
@@ -133,16 +133,6 @@ class PublicImageAccessTest {
         as(viewer, get(path(dm))).andExpect(status().isNotFound());
     }
 
-    @Test
-    void DBのURLの先頭が今の設定と違っても_ファイル名で参照を見つけて配る() throws Exception {
-        // IMAGE_PUBLIC_BASE_URL（既定はポート番号を含む）を途中で変えた人の DB には、先頭の違う URL が残る
-        String stored = imageStorage.store(randomName(), png(), "image/png");
-        jdbcTemplate.update("UPDATE users SET profile_image_url = ? WHERE id = ?",
-                "http://localhost:8080/uploads/" + fileName(stored), author.getId());
-
-        mockMvc.perform(get(path(stored))).andExpect(status().isOk());
-    }
-
     // ---- 投稿の非公開 ----
 
     @Test
@@ -151,13 +141,13 @@ class PublicImageAccessTest {
         List<String> photos = postPhotos(postId);
         hide(postId);
 
-        for (String url : photos) {
-            mockMvc.perform(get(path(url))).andExpect(status().isNotFound());
-            as(author, get(path(url))).andExpect(status().isNotFound());
-            as(viewer, get(path(url))).andExpect(status().isNotFound());
-            as(admin, get(path(url))).andExpect(status().isNotFound());
+        for (String key : photos) {
+            mockMvc.perform(get(path(key))).andExpect(status().isNotFound());
+            as(author, get(path(key))).andExpect(status().isNotFound());
+            as(viewer, get(path(key))).andExpect(status().isNotFound());
+            as(admin, get(path(key))).andExpect(status().isNotFound());
             // ファイルは消さずに残す（公開に戻すため）
-            assertThat(uploadDir.resolve(fileName(url))).exists();
+            assertThat(uploadDir.resolve(key)).exists();
         }
     }
 
@@ -240,7 +230,7 @@ class PublicImageAccessTest {
     @Test
     void どこからも参照されていないファイルは_保存先にあっても404() throws Exception {
         String stored = imageStorage.store(randomName(), png(), "image/png");
-        assertThat(uploadDir.resolve(fileName(stored))).exists();
+        assertThat(uploadDir.resolve(stored)).exists();
 
         mockMvc.perform(get(path(stored))).andExpect(status().isNotFound());
     }
@@ -250,7 +240,7 @@ class PublicImageAccessTest {
         Files.createDirectories(uploadDir);
         Files.write(uploadDir.resolve("notes.txt"), "メモ".getBytes());
         // 参照されていても、形の違う名前は配らない（URL の一部だけが一致して配ってしまうことを防ぐ）
-        jdbcTemplate.update("UPDATE users SET profile_image_url = ? WHERE id = ?",
+        jdbcTemplate.update("UPDATE users SET profile_image_key = ? WHERE id = ?",
                 "http://localhost/uploads/notes.txt", author.getId());
 
         mockMvc.perform(get("/uploads/notes.txt")).andExpect(status().isNotFound());
@@ -276,14 +266,14 @@ class PublicImageAccessTest {
 
     private List<String> postPhotos(long postId) {
         return jdbcTemplate.queryForList(
-                "SELECT image_url FROM post_images WHERE post_id = ? ORDER BY sort_order", String.class, postId);
+                "SELECT image_key FROM post_images WHERE post_id = ? ORDER BY sort_order", String.class, postId);
     }
 
     private String setProfileImage(User user) throws Exception {
         as(user, multipart("/api/users/me/profile-image")
                 .file(new MockMultipartFile("image", "p.png", "image/png", png())))
                 .andExpect(status().isOk());
-        return jdbcTemplate.queryForObject("SELECT profile_image_url FROM users WHERE id = ?", String.class, user.getId());
+        return jdbcTemplate.queryForObject("SELECT profile_image_key FROM users WHERE id = ?", String.class, user.getId());
     }
 
     /** from が to に相談を申し込み、to が承認した会話の ID */
@@ -297,12 +287,12 @@ class PublicImageAccessTest {
         return id;
     }
 
-    /** 画像付きのメッセージを送り、その画像の保存先の URL を返す（応答には出さないため DB から読む） */
+    /** 画像付きのメッセージを送り、その画像のキーを返す（応答には出さないため DB から読む） */
     private String sendImage(User sender, long conversationId) throws Exception {
         String body = as(sender, multipart("/api/conversations/" + conversationId + "/messages")
                         .file(new MockMultipartFile("image", "m.png", "image/png", png())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return jdbcTemplate.queryForObject("SELECT image_url FROM messages WHERE id = ?", String.class,
+        return jdbcTemplate.queryForObject("SELECT image_key FROM messages WHERE id = ?", String.class,
                 ((Number) JsonPath.read(body, "$.id")).longValue());
     }
 
@@ -334,12 +324,8 @@ class PublicImageAccessTest {
                 .getTokenValue();
     }
 
-    private static String fileName(String url) {
-        return url.substring(url.lastIndexOf('/') + 1);
-    }
-
-    private static String path(String url) {
-        return "/uploads/" + fileName(url);
+    private static String path(String key) {
+        return "/uploads/" + key;
     }
 
     /** 保存するときと同じ形の名前（乱数 + 拡張子） */

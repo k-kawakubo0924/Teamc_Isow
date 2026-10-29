@@ -2,6 +2,7 @@ package com.teamc.isow.backend.notification;
 
 import com.teamc.isow.backend.announcement.AnnouncementQueryService;
 import com.teamc.isow.backend.auth.AuthService;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.post.PostCardService;
 import com.teamc.isow.backend.post.PostRepository;
 import com.teamc.isow.backend.post.PostThumbnail;
@@ -31,15 +32,17 @@ public class NotificationQueryService {
     private final AuthService authService;
     private final Clock clock;
     private final AnnouncementQueryService announcementQueryService;
+    private final ImageUrls imageUrls;
 
     public NotificationQueryService(NotificationRepository notificationRepository, PostRepository postRepository,
             AuthService authService, AnnouncementQueryService announcementQueryService,
-            Clock clock) {
+            Clock clock, ImageUrls imageUrls) {
         this.notificationRepository = notificationRepository;
         this.postRepository = postRepository;
         this.authService = authService;
         this.clock = clock;
         this.announcementQueryService = announcementQueryService;
+        this.imageUrls = imageUrls;
     }
 
     /** 自分の通知を通知日時の新しい順に返す。page は 0 から。範囲外の page・size はエラーにせず丸める（ホームの一覧と同じ） */
@@ -60,7 +63,7 @@ public class NotificationQueryService {
         Map<Long, String> thumbnails = postIds.isEmpty()
                 ? Map.of()
                 : postRepository.findThumbnails(postIds, LocalDateTime.now(clock)).stream()
-                        .collect(Collectors.toMap(PostThumbnail::postId, PostThumbnail::imageUrl));
+                        .collect(Collectors.toMap(PostThumbnail::postId, thumbnail -> imageUrls.of(thumbnail.imageKey())));
 
         List<NotificationListResponse.Item> items = notifications.getContent().stream()
                 .map(notification -> toItem(notification, thumbnails))
@@ -116,7 +119,7 @@ public class NotificationQueryService {
         }
     }
 
-    private static NotificationListResponse.Item toItem(Notification notification, Map<Long, String> thumbnails) {
+    private NotificationListResponse.Item toItem(Notification notification, Map<Long, String> thumbnails) {
         Long postId = notification.getPost() == null ? null : notification.getPost().getId();
         Long conversationId = notification.getConversation() == null ? null : notification.getConversation().getId();
         return new NotificationListResponse.Item(
@@ -126,7 +129,7 @@ public class NotificationQueryService {
                 notification.getActor() == null ? null : new NotificationListResponse.Actor(
                         notification.getActor().getId(),
                         notification.getActor().getUsername(),
-                        notification.getActor().getProfileImageUrl()),
+                        imageUrls.of(notification.getActor().getProfileImageKey())),
                 postId == null ? null : new NotificationListResponse.PostSummary(postId, thumbnails.get(postId)),
                 conversationId,
                 notification.getNotifiedAt(),

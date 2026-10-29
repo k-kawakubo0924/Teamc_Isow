@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.teamc.isow.backend.common.AgeGroup;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
@@ -315,7 +316,7 @@ class SearchApiTest {
 
     private Post save(User author, String title, FashionCategory category, String description, Tag... tags) {
         return postRepository.save(new Post(author, title, category, null, description, null,
-                List.of("http://localhost/uploads/search.jpg"), tags.length == 0 ? List.of(defaultTag) : List.of(tags)));
+                List.of(ImageTestSupport.key("search.jpg")), tags.length == 0 ? List.of(defaultTag) : List.of(tags)));
     }
 
     private void setAgeGroup(User user, AgeGroup ageGroup) {

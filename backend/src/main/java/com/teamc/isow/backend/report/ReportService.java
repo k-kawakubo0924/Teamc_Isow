@@ -157,14 +157,14 @@ public class ReportService {
     private void copyEvidenceFiles(ReportCase reportCase, List<SourceImage> images, List<String> copied) {
         int order = 1;
         for (SourceImage image : images) {
-            String extension = extensionOf(image.url());
+            String extension = extensionOf(image.key());
             if (extension == null) {
                 log.warn("証拠にする画像の形式が分かりません（コピーしません）: caseId={}", reportCase.getId());
                 continue;
             }
             byte[] content;
             try {
-                content = imageStorage.read(image.url());
+                content = imageStorage.read(image.key());
             } catch (RuntimeException e) {
                 log.warn("証拠にする画像を読めませんでした（コピーしません）: caseId={}", reportCase.getId(), e);
                 continue;
@@ -203,8 +203,8 @@ public class ReportService {
                 post.getWornItems(), post.getDescription(), post.getReferenceUrl(), post.getCreatedAt(),
                 post.getEditedAt());
         List<SourceImage> images = post.getImages().stream()
-                .map(PostImage::getImageUrl)
-                .map(url -> new SourceImage(url, null))
+                .map(PostImage::getImageKey)
+                .map(key -> new SourceImage(key, null))
                 .toList();
         return new Target(author.getId(), post.getTitle(), new EvidenceSnapshot(evidence, null, null), images);
     }
@@ -221,8 +221,8 @@ public class ReportService {
         requireNotBlockedBy(user.getId(), reporterId);
         EvidenceSnapshot.UserEvidence evidence =
                 new EvidenceSnapshot.UserEvidence(user.getId(), user.getUsername(), user.getDisplayName());
-        List<SourceImage> images = user.getProfileImageUrl() == null
-                ? List.of() : List.of(new SourceImage(user.getProfileImageUrl(), null));
+        List<SourceImage> images = user.getProfileImageKey() == null
+                ? List.of() : List.of(new SourceImage(user.getProfileImageKey(), null));
         return new Target(user.getId(), "@" + user.getUsername(), new EvidenceSnapshot(null, evidence, null), images);
     }
 
@@ -250,10 +250,10 @@ public class ReportService {
         List<SourceImage> images = new ArrayList<>();
         for (Message m : window) {
             messages.add(new EvidenceSnapshot.MessageEvidence(m.getId(), m.getSender().getId(),
-                    m.getSender().getUsername(), m.getBody(), m.getImageUrl() != null, m.getSentAt(),
+                    m.getSender().getUsername(), m.getBody(), m.getImageKey() != null, m.getSentAt(),
                     m.getId().equals(messageId)));
-            if (m.getImageUrl() != null) {
-                images.add(new SourceImage(m.getImageUrl(), m.getId()));
+            if (m.getImageKey() != null) {
+                images.add(new SourceImage(m.getImageKey(), m.getId()));
             }
         }
         return new Target(sender.getId(), "@" + sender.getUsername() + " のメッセージ",
@@ -304,9 +304,9 @@ public class ReportService {
         return reason;
     }
 
-    /** URL の拡張子（jpg・png）。それ以外は null */
-    private static String extensionOf(String url) {
-        String lower = url.toLowerCase(Locale.ROOT);
+    /** キーの拡張子（jpg・png）。それ以外は null */
+    private static String extensionOf(String key) {
+        String lower = key.toLowerCase(Locale.ROOT);
         if (lower.endsWith(".png")) {
             return "png";
         }
@@ -330,7 +330,7 @@ public class ReportService {
     private record Target(Long ownerId, String summary, EvidenceSnapshot snapshot, List<SourceImage> images) {
     }
 
-    /** 複製する写真（保存先の URL と、DM の画像ならメッセージの ID） */
-    private record SourceImage(String url, Long messageId) {
+    /** 複製する写真（保存先のキーと、DM の画像ならメッセージの ID） */
+    private record SourceImage(String key, Long messageId) {
     }
 }

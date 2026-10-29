@@ -122,7 +122,7 @@ class MessageApiTest {
                 .andExpect(jsonPath("$.hasImage").value(true));
 
         // 応答には保存先を出さないため、DB から読む（MessageImageApiTest）
-        String url = jdbcTemplate.queryForObject("SELECT image_url FROM messages WHERE id = ?", String.class,
+        String url = jdbcTemplate.queryForObject("SELECT image_key FROM messages WHERE id = ?", String.class,
                 ((Number) JsonPath.read(imageOnly, "$.id")).longValue());
         // メタデータを取り除くために保存し直すため、バイト列は変わるが、PNG は画素が1つも変わらない
         assertThat(ImageTestSupport.pixels(Files.readAllBytes(uploadDir.resolve(url.substring(url.lastIndexOf('/') + 1)))))

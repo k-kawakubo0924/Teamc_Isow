@@ -33,6 +33,26 @@ public final class ImageTestSupport {
     }
 
     /**
+     * テストで DB に入れる画像のキー（保存するときの名前の形「乱数32桁 + 拡張子」）。name ごとに決まった値になる。
+     * DB にはキーしか入らない（URL を入れると、応答を作るときに ImageUrls が断る）ため、テストでは読みやすい名前からキーを作る
+     *
+     * @param name 読みやすい名前（例：first.jpg）。拡張子が .png なら png、それ以外は jpg のキーになる
+     */
+    public static String key(String name) {
+        try {
+            byte[] digest = java.security.MessageDigest.getInstance("MD5").digest(name.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest) + (name.endsWith(".png") ? ".png" : ".jpg");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** key(name) の画像を、応答で返す URL（テストの設定 app.image.local.public-base-url の下） */
+    public static String url(String name) {
+        return "http://localhost/uploads/" + key(name);
+    }
+
+    /**
      * 左上の4分の1だけ赤く、残りを青く塗った画像（回転・反転したときに、どの角がどこへ移ったかを色で確かめるため）。
      * JPEG の圧縮でも色が崩れないよう、単色の大きな領域にしている
      */

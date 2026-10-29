@@ -6,6 +6,7 @@ import com.teamc.isow.backend.auth.UnknownTokenUserException;
 import com.teamc.isow.backend.common.InputValidationException;
 import com.teamc.isow.backend.image.ImageUploadService;
 import com.teamc.isow.backend.image.ImageUploadService.PreparedImage;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
@@ -64,6 +65,7 @@ public class PostService {
     private final ReactionSummaryService reactionSummaryService;
     private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
+    private final ImageUrls imageUrls;
 
     public PostService(
             PostRepository postRepository,
@@ -74,7 +76,8 @@ public class PostService {
             AuthService authService,
             ReactionSummaryService reactionSummaryService,
             UserVisibility userVisibility,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager,
+            ImageUrls imageUrls) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.fashionCategoryRepository = fashionCategoryRepository;
@@ -84,6 +87,7 @@ public class PostService {
         this.reactionSummaryService = reactionSummaryService;
         this.userVisibility = userVisibility;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.imageUrls = imageUrls;
     }
 
     /**
@@ -121,27 +125,27 @@ public class PostService {
         }
 
         // 2. 画像を保存する
-        List<String> imageUrls = storeImages(images);
+        List<String> imageKeys = storeImages(images);
 
         // 3. DB に登録する。失敗したら、保存した画像を削除する
         try {
-            return saveWithRetry(authorId, request, tagNames, imageUrls);
+            return saveWithRetry(authorId, request, tagNames, imageKeys);
         } catch (RuntimeException e) {
-            imageUploadService.deleteQuietly(imageUrls);
+            imageUploadService.deleteQuietly(imageKeys);
             throw e;
         }
     }
 
     /** 画像をすべて保存する。途中で失敗したら、それまでに保存した画像を削除する */
     private List<String> storeImages(List<PreparedImage> images) {
-        List<String> urls = new ArrayList<>();
+        List<String> keys = new ArrayList<>();
         try {
             for (PreparedImage image : images) {
-                urls.add(imageUploadService.store(image));
+                keys.add(imageUploadService.store(image));
             }
-            return urls;
+            return keys;
         } catch (RuntimeException e) {
-            imageUploadService.deleteQuietly(urls);
+            imageUploadService.deleteQuietly(keys);
             throw e;
         }
     }
@@ -150,17 +154,17 @@ public class PostService {
      * 同じ新しいタグが別の投稿で同時に作られると、一意制約違反になる。
      * その場合は1回だけやり直す（やり直すと、相手が作ったタグが既存のタグとして見つかる）
      */
-    private PostResponse saveWithRetry(Long authorId, PostCreateRequest request, List<String> tagNames, List<String> imageUrls) {
+    private PostResponse saveWithRetry(Long authorId, PostCreateRequest request, List<String> tagNames, List<String> imageKeys) {
         try {
-            return transactionTemplate.execute(status -> save(authorId, request, tagNames, imageUrls));
+            return transactionTemplate.execute(status -> save(authorId, request, tagNames, imageKeys));
         } catch (DataIntegrityViolationException e) {
             log.info("投稿の登録で一意制約違反が発生したため、やり直します: {}", e.getMostSpecificCause().getMessage());
-            return transactionTemplate.execute(status -> save(authorId, request, tagNames, imageUrls));
+            return transactionTemplate.execute(status -> save(authorId, request, tagNames, imageKeys));
         }
     }
 
     /** トランザクションの中で呼ぶ。確認の後に状態が変わっている場合（選択肢が無効にされたなど）は、ここでエラーにする */
-    private PostResponse save(Long authorId, PostCreateRequest request, List<String> tagNames, List<String> imageUrls) {
+    private PostResponse save(Long authorId, PostCreateRequest request, List<String> tagNames, List<String> imageKeys) {
         User author = userRepository.findById(authorId).orElseThrow(UnknownTokenUserException::new);
         FashionCategory fashionCategory = findActiveFashionCategory(request.fashionCategoryId())
                 .orElseThrow(() -> InputValidationException.of("fashionCategoryId", FASHION_CATEGORY_MESSAGE));
@@ -173,10 +177,10 @@ public class PostService {
                 request.wornItems(),
                 request.description(),
                 request.referenceUrl(),
-                imageUrls,
+                imageKeys,
                 tags));
         // 作成した直後のため、いいね・お気に入りはまだない
-        return PostResponse.from(post, ReactionSummary.NONE, authorId);
+        return PostResponse.from(post, ReactionSummary.NONE, authorId, imageUrls);
     }
 
     /**
@@ -194,7 +198,7 @@ public class PostService {
         Post post = postRepository.findDetailById(id).orElseThrow(() -> new PostNotFoundException(id));
         // 投稿者とブロックの間柄にある投稿は、存在しない投稿と同じ 404（docs/profile.md「ブロック」）
         userVisibility.requireVisiblePost(userId, post);
-        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId);
+        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId, imageUrls);
     }
 
     /**
@@ -253,7 +257,7 @@ public class PostService {
         post.edit(request.title(), fashionCategory, request.wornItems(), request.description(), request.referenceUrl(),
                 tags, LocalDateTime.now());
         postRepository.flush();
-        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId);
+        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId, imageUrls);
     }
 
     /**
@@ -261,10 +265,10 @@ public class PostService {
      *
      * <p>次の順に進める。写真のファイルは DB のようにロールバックできないため、DB の削除が確定してから消す。
      * <ol>
-     *   <li>1つのトランザクションで、投稿を読み、投稿者を確かめ、写真の URL を控えてから投稿を削除する。
+     *   <li>1つのトランザクションで、投稿を読み、投稿者を確かめ、写真のキーを控えてから投稿を削除する。
      *       写真・タグとのつながりは JPA が、いいね・お気に入り・通知は DB の外部キー（ON DELETE CASCADE）が一緒に削除する</li>
-     *   <li>コミットの後に、控えた URL の写真のファイルを1件ずつ削除する。
-     *       対象は post_images に記録されていた URL そのものだけ（パターンやワイルドカードで探して消すことはしない）。
+     *   <li>コミットの後に、控えたキーの写真のファイルを1件ずつ削除する。
+     *       対象は post_images に記録されていたキーそのものだけ（パターンやワイルドカードで探して消すことはしない）。
      *       削除に失敗しても DB は戻さない（投稿は削除済みとして扱い、残ったファイルはログに残す）</li>
      * </ol>
      *
@@ -274,25 +278,25 @@ public class PostService {
      */
     public void delete(String subject, Long id) {
         Long userId = authService.requireCurrentUser(subject).getId();
-        List<String> imageUrls;
+        List<String> imageKeys;
         try {
-            imageUrls = transactionTemplate.execute(status -> {
+            imageKeys = transactionTemplate.execute(status -> {
                 Post post = postRepository.findById(id).orElseThrow(() -> new PostNotFoundException(id));
                 // 編集と同じく、ブロックの間柄にある人の投稿は 404、見えるが他人の投稿なら 403
                 userVisibility.requireVisiblePost(userId, post);
                 if (!post.getAuthor().getId().equals(userId)) {
                     throw new PostDeleteForbiddenException(id);
                 }
-                List<String> urls = post.getImages().stream().map(PostImage::getImageUrl).toList();
+                List<String> keys = post.getImages().stream().map(PostImage::getImageKey).toList();
                 postRepository.delete(post);
-                return urls;
+                return keys;
             });
         } catch (ObjectOptimisticLockingFailureException e) {
             // 同じ投稿の削除がほぼ同時に届き、先に届いた方で削除済みになった
             throw new PostNotFoundException(id);
         }
-        log.info("投稿を削除しました: postId={}, userId={}, images={}", id, userId, imageUrls.size());
-        imageUploadService.deleteQuietly(imageUrls);
+        log.info("投稿を削除しました: postId={}, userId={}, images={}", id, userId, imageKeys.size());
+        imageUploadService.deleteQuietly(imageKeys);
     }
 
     /**
@@ -310,7 +314,8 @@ public class PostService {
         Map<Long, ReactionSummary> reactions = reactionSummaryService.summarize(
                 authorId, posts.getContent().stream().map(Post::getId).toList());
         return new PostListResponse(
-                posts.getContent().stream().map(post -> PostResponse.from(post, reactions.get(post.getId()), authorId)).toList(),
+                posts.getContent().stream()
+                        .map(post -> PostResponse.from(post, reactions.get(post.getId()), authorId, imageUrls)).toList(),
                 safePage,
                 safeSize,
                 posts.hasNext());
