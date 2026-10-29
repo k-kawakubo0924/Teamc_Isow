@@ -89,21 +89,21 @@ public class ProfileEditService {
      */
     public ProfileResponse changeImage(String subject, MultipartFile image) {
         Long userId = authService.requireCurrentUser(subject).getId();
-        String newUrl = imageUploadService.store(imageUploadService.prepare(image));
-        String oldUrl;
+        String newKey = imageUploadService.store(imageUploadService.prepare(image));
+        String oldKey;
         try {
-            oldUrl = transactionTemplate.execute(status -> {
+            oldKey = transactionTemplate.execute(status -> {
                 User user = userRepository.findById(userId).orElseThrow(UnknownTokenUserException::new);
-                String previous = user.getProfileImageUrl();
-                user.changeProfileImageUrl(newUrl);
+                String previous = user.getProfileImageKey();
+                user.changeProfileImageKey(newKey);
                 return previous;
             });
         } catch (RuntimeException e) {
-            imageUploadService.deleteQuietly(List.of(newUrl));
+            imageUploadService.deleteQuietly(List.of(newKey));
             throw e;
         }
-        if (oldUrl != null) {
-            imageUploadService.deleteQuietly(List.of(oldUrl));
+        if (oldKey != null) {
+            imageUploadService.deleteQuietly(List.of(oldKey));
         }
         return profileService.getMine(subject);
     }

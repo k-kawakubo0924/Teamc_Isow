@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 /**
- * 投稿の写真（docs/post.md）。画像そのものは DB に保存せず、保存先の URL のみを持つ。
+ * 投稿の写真（docs/post.md）。画像そのものは DB に保存せず、保存先のキー（保存先の中での名前）のみを持つ（URL は ImageUrls で組み立てる）。
  * 作成・並び替えは Post.replaceImages() からのみ行い、表示順が連番になるようにする。
  */
 @Entity
@@ -35,23 +35,23 @@ public class PostImage {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
-    /** 画像の保存先 URL（開発中はローカル、本番はクラウドストレージを想定） */
-    @Column(name = "image_url", nullable = false, length = 2048)
-    private String imageUrl;
+    /** 画像のキー（保存先の中での名前。URL は ImageUrls で組み立てる） */
+    @Column(name = "image_key", nullable = false, length = 100)
+    private String imageKey;
 
     protected PostImage() {
         // JPA 用
     }
 
-    PostImage(Post post, int sortOrder, String imageUrl) {
+    PostImage(Post post, int sortOrder, String imageKey) {
         this.post = post;
         this.sortOrder = sortOrder;
-        this.imageUrl = imageUrl;
+        this.imageKey = imageKey;
     }
 
     /** 表示順はそのままで、画像だけを差し替える（Post.replaceImages() から使う） */
-    void changeImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    void changeImageKey(String imageKey) {
+        this.imageKey = imageKey;
     }
 
     public Long getId() {
@@ -66,7 +66,7 @@ public class PostImage {
         return sortOrder;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public String getImageKey() {
+        return imageKey;
     }
 }

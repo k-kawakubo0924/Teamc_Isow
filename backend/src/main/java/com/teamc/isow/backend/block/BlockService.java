@@ -4,6 +4,7 @@ import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.dm.Conversation;
 import com.teamc.isow.backend.dm.ConversationRepository;
 import com.teamc.isow.backend.follow.FollowRepository;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.notification.NotificationRepository;
 import com.teamc.isow.backend.post.PostCardService;
 import com.teamc.isow.backend.reaction.PostFavoriteRepository;
@@ -47,12 +48,13 @@ public class BlockService {
     private final NotificationRepository notificationRepository;
     private final AuthService authService;
     private final TransactionTemplate transactionTemplate;
+    private final ImageUrls imageUrls;
 
     public BlockService(BlockRepository blockRepository, UserRepository userRepository,
             FollowRepository followRepository, ConversationRepository conversationRepository,
             PostLikeRepository likeRepository, PostFavoriteRepository favoriteRepository,
             NotificationRepository notificationRepository, AuthService authService,
-            PlatformTransactionManager transactionManager) {
+            PlatformTransactionManager transactionManager, ImageUrls imageUrls) {
         this.blockRepository = blockRepository;
         this.userRepository = userRepository;
         this.followRepository = followRepository;
@@ -62,6 +64,7 @@ public class BlockService {
         this.notificationRepository = notificationRepository;
         this.authService = authService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.imageUrls = imageUrls;
     }
 
     /**
@@ -126,7 +129,8 @@ public class BlockService {
         Long blockerId = authService.requireCurrentUser(subject).getId();
         Pageable pageable = PostCardService.pageRequest(page, size);
         Slice<Block> blocks = blockRepository.findPageByBlockerId(blockerId, pageable);
-        return new BlockListResponse(blocks.getContent().stream().map(BlockListResponse.Item::from).toList(),
+        return new BlockListResponse(
+                blocks.getContent().stream().map(block -> BlockListResponse.Item.from(block, imageUrls)).toList(),
                 pageable.getPageNumber(), pageable.getPageSize(), blocks.hasNext());
     }
 }

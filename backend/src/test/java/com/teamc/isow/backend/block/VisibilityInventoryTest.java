@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
@@ -261,7 +262,7 @@ class VisibilityInventoryTest {
         prepareRelations();
         // 確かめる意味があるか：ブロックの前は、C の一覧・検索に A と B の両方が出ている
         assertThat(body(f.c, "/api/users/{c}/followers")).contains("blkuser_aaa", "blkuser_bbb");
-        assertThat(body(f.a, "/api/search/posts?q=BLKPOST")).contains("BLKPOSTBBB");
+        assertThat(body(f.a, "/api/search/posts?q=BLKPOST")).contains(ImageTestSupport.key("BLKPOSTBBB.jpg"));
         assertThat(body(f.b, "/api/search/users?q=blkuser")).contains("blkuser_aaa");
 
         f.block(f.a, f.b).andExpect(status().isNoContent());
@@ -286,13 +287,13 @@ class VisibilityInventoryTest {
         Post hidden = f.createPost(f.c, "BLKHIDDENPOST");
         f.like(f.a, hidden);
         f.favorite(f.a, hidden);
-        // 一覧のカード・通知の投稿は、題名を持たず、目印（BLKHIDDENPOST）はサムネイルの URL にしか出ない。
+        // 一覧のカード・通知の投稿は、題名を持たず、目印は、題名から作った写真のキー（サムネイルの URL）にしか出ない。
         // 非公開の投稿はサムネイルが null になる（写真を配らないため）ので、漏れても目印が出ない。そのため、カードの形
         // （{"id":…,"thumbnailUrl":…}。通知の投稿も同じ形）でも探す
         String card = "\"id\":" + hidden.getId() + ",\"thumbnailUrl\"";
         // 確かめる意味があるか：非公開にする前は、A の一覧・検索に出ている（カードの形でも見つかる）
-        assertThat(body(f.a, "/api/search/posts?q=BLKHIDDEN")).contains("BLKHIDDENPOST").contains(card);
-        assertThat(body(f.a, "/api/users/me/favorites")).contains("BLKHIDDENPOST").contains(card);
+        assertThat(body(f.a, "/api/search/posts?q=BLKHIDDEN")).contains(ImageTestSupport.key("BLKHIDDENPOST.jpg")).contains(card);
+        assertThat(body(f.a, "/api/users/me/favorites")).contains(ImageTestSupport.key("BLKHIDDENPOST.jpg")).contains(card);
 
         hide(hidden);
 
@@ -409,6 +410,12 @@ class VisibilityInventoryTest {
         for (String word : forbidden) {
             if (body.contains(word)) {
                 leaks.add(key + "（" + viewer.getUsername() + " が呼んだ " + render(path) + "）に " + word + " が含まれる");
+            }
+            // 投稿の写真のキーも目印にする（BlockFixture.createPost は、題名から写真のキーを作る）。一覧のカード（{id, thumbnailUrl, …}）
+            // のように、題名を持たない応答でも、漏れを見つけるため
+            String photo = ImageTestSupport.key(word + ".jpg");
+            if (body.contains(photo)) {
+                leaks.add(key + "（" + viewer.getUsername() + " が呼んだ " + render(path) + "）に " + word + " の写真が含まれる");
             }
         }
         return leaks;

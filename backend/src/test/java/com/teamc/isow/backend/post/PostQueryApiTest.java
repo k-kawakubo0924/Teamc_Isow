@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.tag.Tag;
@@ -87,7 +88,7 @@ class PostQueryApiTest {
         Tag outer = tagRepository.save(Tag.userInput("アウター"));
         // タグは付けた順ではなく ID 順に並ぶ
         Post post = postRepository.save(new Post(me, "秋の羽織りもの", kireime, "アウター：古着屋で購入", "説明",
-                "https://example.com/item", List.of("http://localhost/uploads/a.jpg", "http://localhost/uploads/b.png"),
+                "https://example.com/item", List.of(ImageTestSupport.key("a.jpg"), ImageTestSupport.key("b.png")),
                 List.of(outer, furugi)));
 
         getWithToken("/api/posts/" + post.getId())
@@ -101,7 +102,7 @@ class PostQueryApiTest {
                 .andExpect(jsonPath("$.wornItems").value("アウター：古着屋で購入"))
                 .andExpect(jsonPath("$.description").value("説明"))
                 .andExpect(jsonPath("$.referenceUrl").value("https://example.com/item"))
-                .andExpect(jsonPath("$.imageUrls").value(contains("http://localhost/uploads/a.jpg", "http://localhost/uploads/b.png")))
+                .andExpect(jsonPath("$.imageUrls").value(contains(ImageTestSupport.url("a.jpg"), ImageTestSupport.url("b.png"))))
                 .andExpect(jsonPath("$.author.id").value(me.getId()))
                 .andExpect(jsonPath("$.author.username").value("post_query_me"))
                 .andExpect(jsonPath("$.createdAt").isNotEmpty());
@@ -118,13 +119,13 @@ class PostQueryApiTest {
 
     @Test
     void 詳細の投稿者にはアイコンと身長も含まれ_未設定ならnull_個人情報は返さない() throws Exception {
-        jdbcTemplate.update("UPDATE users SET profile_image_url = 'http://localhost/uploads/icon.jpg', height_cm = 165 "
-                + "WHERE id = ?", other.getId());
+        jdbcTemplate.update("UPDATE users SET profile_image_key = ?, height_cm = 165 "
+                + "WHERE id = ?", ImageTestSupport.key("icon.jpg"), other.getId());
         Post withProfile = save(other, "アイコンと身長あり");
         Post withoutProfile = save(me, "アイコンと身長なし");
 
         getWithToken("/api/posts/" + withProfile.getId())
-                .andExpect(jsonPath("$.author.profileImageUrl").value("http://localhost/uploads/icon.jpg"))
+                .andExpect(jsonPath("$.author.profileImageUrl").value(ImageTestSupport.url("icon.jpg")))
                 .andExpect(jsonPath("$.author.heightCm").value(165))
                 .andExpect(jsonPath("$.author.email").doesNotExist())
                 .andExpect(jsonPath("$.author.phoneNumber").doesNotExist());
@@ -224,7 +225,7 @@ class PostQueryApiTest {
 
     private Post save(User author, String title) {
         return postRepository.save(new Post(author, title, kireime, null, "説明", null,
-                List.of("http://localhost/uploads/" + title + ".jpg"), List.of(furugi)));
+                List.of(ImageTestSupport.key(title + ".jpg")), List.of(furugi)));
     }
 
     private void setCreatedAt(Post post, LocalDateTime createdAt) {

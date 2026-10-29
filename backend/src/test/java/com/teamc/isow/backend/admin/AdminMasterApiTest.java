@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
@@ -237,7 +238,7 @@ class AdminMasterApiTest {
         jdbcTemplate.update("UPDATE users SET personal_color_id = ? WHERE id = ?", colorId, user.getId());
         var category = fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0);
         Post post = postRepository.save(new Post(user, "題名", category, null, "説明", null,
-                List.of("http://localhost/uploads/a.jpg"),
+                List.of(ImageTestSupport.key("a.jpg")),
                 List.of(tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc().get(0))));
 
         asAdmin(post("/api/admin/masters/personal-colors/" + colorId + "/deactivate")).andExpect(status().isOk());

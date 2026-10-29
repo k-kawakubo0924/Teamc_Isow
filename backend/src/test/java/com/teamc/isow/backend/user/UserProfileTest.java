@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teamc.isow.backend.common.AgeGroup;
 import com.teamc.isow.backend.common.Gender;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.BodyType;
 import com.teamc.isow.backend.master.BodyTypeRepository;
 import com.teamc.isow.backend.master.PersonalColor;
@@ -49,7 +50,7 @@ class UserProfileTest {
         assertThat(user.getAgeGroup()).isNull();
         assertThat(user.getBodyType()).isNull();
         assertThat(user.getPersonalColor()).isNull();
-        assertThat(user.getProfileImageUrl()).isNull();
+        assertThat(user.getProfileImageKey()).isNull();
     }
 
     @Test
@@ -59,7 +60,7 @@ class UserProfileTest {
         User user = userRepository.save(newUser());
 
         user.updateProfile("ユウ", Gender.MALE, 172, AgeGroup.EARLY_20S, wave, summer);
-        user.changeProfileImageUrl("http://localhost/uploads/icon.png");
+        user.changeProfileImageKey(ImageTestSupport.key("icon.png"));
         user = reload(user);
 
         assertThat(user.getDisplayName()).isEqualTo("ユウ");
@@ -68,7 +69,7 @@ class UserProfileTest {
         assertThat(user.getAgeGroup()).isEqualTo(AgeGroup.EARLY_20S);
         assertThat(user.getBodyType().getName()).isEqualTo(wave.getName());
         assertThat(user.getPersonalColor().getName()).isEqualTo(summer.getName());
-        assertThat(user.getProfileImageUrl()).isEqualTo("http://localhost/uploads/icon.png");
+        assertThat(user.getProfileImageKey()).isEqualTo(ImageTestSupport.key("icon.png"));
 
         // DB には順番の数値ではなく定数名で入っている（表示文言を変えても既存データが壊れない）
         Map<String, Object> row = jdbcTemplate.queryForMap(
@@ -84,18 +85,18 @@ class UserProfileTest {
         BodyType wave = bodyTypeRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(1);
         User user = userRepository.save(newUser());
         user.updateProfile("ユウ", Gender.FEMALE, 160, AgeGroup.TEENS, wave, null);
-        user.changeProfileImageUrl("http://localhost/uploads/icon.png");
+        user.changeProfileImageKey(ImageTestSupport.key("icon.png"));
         user = reload(user);
 
         user.updateProfile("ユウ", null, null, null, null, null);
-        user.changeProfileImageUrl(null);
+        user.changeProfileImageKey(null);
         user = reload(user);
 
         assertThat(user.getGender()).isNull();
         assertThat(user.getHeightCm()).isNull();
         assertThat(user.getAgeGroup()).isNull();
         assertThat(user.getBodyType()).isNull();
-        assertThat(user.getProfileImageUrl()).isNull();
+        assertThat(user.getProfileImageKey()).isNull();
     }
 
     @Test

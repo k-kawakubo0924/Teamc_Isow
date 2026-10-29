@@ -31,7 +31,7 @@ public record MessageResponse(
                 senderId,
                 senderId.equals(viewerId),
                 message.getBody(),
-                message.getImageUrl() != null,
+                message.getImageKey() != null,
                 message.getSentAt(),
                 message.getReadAt());
     }

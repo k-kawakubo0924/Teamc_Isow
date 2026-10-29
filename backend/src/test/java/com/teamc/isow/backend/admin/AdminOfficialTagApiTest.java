@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
@@ -127,7 +128,7 @@ class AdminOfficialTagApiTest {
         Tag userTag = tagRepository.save(Tag.userInput("管理テストY2K"));
         Post post = postRepository.save(new Post(user, "題名",
                 fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0), null, "説明", null,
-                List.of("http://localhost/uploads/a.jpg"), List.of(userTag)));
+                List.of(ImageTestSupport.key("a.jpg")), List.of(userTag)));
         int tagCount = jdbcTemplate.queryForObject("SELECT count(*) FROM tags", Integer.class);
 
         add("管理テストｙ２ｋ")

@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.teamc.isow.backend.follow.Follow;
 import com.teamc.isow.backend.follow.FollowRepository;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.reaction.PostFavorite;
@@ -106,7 +107,7 @@ class TimelineApiTest {
     @Test
     void 一覧の1件には1枚目の写真_投稿者_身長_いいね数_自分のいいねとお気に入りの状態が含まれる() throws Exception {
         jdbcTemplate.update("UPDATE users SET height_cm = 172 WHERE id = ?", other1.getId());
-        Post post = save(other1, "http://localhost/uploads/first.jpg", "http://localhost/uploads/second.jpg");
+        Post post = save(other1, ImageTestSupport.key("first.jpg"), ImageTestSupport.key("second.jpg"));
         likeRepository.save(new PostLike(me, post));
         likeRepository.save(new PostLike(other2, post));
         favoriteRepository.save(new PostFavorite(me, post));
@@ -115,7 +116,7 @@ class TimelineApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.posts", hasSize(1)))
                 .andExpect(jsonPath("$.posts[0].id").value(post.getId()))
-                .andExpect(jsonPath("$.posts[0].thumbnailUrl").value("http://localhost/uploads/first.jpg"))
+                .andExpect(jsonPath("$.posts[0].thumbnailUrl").value(ImageTestSupport.url("first.jpg")))
                 .andExpect(jsonPath("$.posts[0].fashionCategory.name").value(fashion.getName()))
                 .andExpect(jsonPath("$.posts[0].author.id").value(other1.getId()))
                 .andExpect(jsonPath("$.posts[0].author.username").value("timeline_other1"))
@@ -131,7 +132,7 @@ class TimelineApiTest {
 
     @Test
     void 身長が未設定ならnull_他人のいいねやお気に入りは自分の状態にならない() throws Exception {
-        Post post = save(other1, "http://localhost/uploads/a.jpg");
+        Post post = save(other1, ImageTestSupport.key("a.jpg"));
         likeRepository.save(new PostLike(other2, post));
         favoriteRepository.save(new PostFavorite(other2, post));
 
@@ -146,9 +147,9 @@ class TimelineApiTest {
 
     @Test
     void 新着は投稿日時の新しい順() throws Exception {
-        Post oldest = save(other1, "http://localhost/uploads/1.jpg");
-        Post newest = save(other1, "http://localhost/uploads/2.jpg");
-        Post middle = save(other2, "http://localhost/uploads/3.jpg");
+        Post oldest = save(other1, ImageTestSupport.key("1.jpg"));
+        Post newest = save(other1, ImageTestSupport.key("2.jpg"));
+        Post middle = save(other2, ImageTestSupport.key("3.jpg"));
         // 作成した順（ID 順）とは違う投稿日時にして、投稿日時で並ぶことを確かめる
         setCreatedAt(oldest, LocalDateTime.of(2026, 1, 1, 0, 0));
         setCreatedAt(newest, LocalDateTime.of(2026, 3, 1, 0, 0));
@@ -161,10 +162,10 @@ class TimelineApiTest {
 
     @Test
     void おすすめはいいね数の多い順で_同じなら新しい順() throws Exception {
-        Post noLikes = save(other1, "http://localhost/uploads/1.jpg");
-        Post twoLikes = save(other1, "http://localhost/uploads/2.jpg");
-        Post oneLikeOld = save(other1, "http://localhost/uploads/3.jpg");
-        Post oneLikeNew = save(other1, "http://localhost/uploads/4.jpg");
+        Post noLikes = save(other1, ImageTestSupport.key("1.jpg"));
+        Post twoLikes = save(other1, ImageTestSupport.key("2.jpg"));
+        Post oneLikeOld = save(other1, ImageTestSupport.key("3.jpg"));
+        Post oneLikeNew = save(other1, ImageTestSupport.key("4.jpg"));
         likeRepository.save(new PostLike(me, twoLikes));
         likeRepository.save(new PostLike(other2, twoLikes));
         likeRepository.save(new PostLike(me, oneLikeOld));
@@ -192,12 +193,12 @@ class TimelineApiTest {
         Follow unfollowed = followRepository.save(new Follow(me, other2));
         jdbcTemplate.update("UPDATE follows SET active = NULL, unfollowed_at = CURRENT_TIMESTAMP WHERE id = ?",
                 unfollowed.getId());
-        Post older = save(other1, "http://localhost/uploads/older.jpg");
-        Post newer = save(other1, "http://localhost/uploads/newer.jpg");
+        Post older = save(other1, ImageTestSupport.key("older.jpg"));
+        Post newer = save(other1, ImageTestSupport.key("newer.jpg"));
         setCreatedAt(older, LocalDateTime.of(2026, 1, 1, 0, 0));
         setCreatedAt(newer, LocalDateTime.of(2026, 2, 1, 0, 0));
-        save(other2, "http://localhost/uploads/unfollowed.jpg");
-        save(me, "http://localhost/uploads/mine.jpg");
+        save(other2, ImageTestSupport.key("unfollowed.jpg"));
+        save(me, ImageTestSupport.key("mine.jpg"));
 
         getWithToken("/api/posts?tab=following")
                 .andExpect(status().isOk())
@@ -208,7 +209,7 @@ class TimelineApiTest {
 
     @Test
     void フォロー中のユーザーがいなければフォロー中は空() throws Exception {
-        save(other1, "http://localhost/uploads/1.jpg");
+        save(other1, ImageTestSupport.key("1.jpg"));
         getWithToken("/api/posts?tab=following")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.posts", hasSize(0)));
@@ -218,9 +219,9 @@ class TimelineApiTest {
 
     @Test
     void ページごとに取得でき_次のページの有無が分かる() throws Exception {
-        Post first = save(other1, "http://localhost/uploads/1.jpg");
-        Post second = save(other1, "http://localhost/uploads/2.jpg");
-        Post third = save(other1, "http://localhost/uploads/3.jpg");
+        Post first = save(other1, ImageTestSupport.key("1.jpg"));
+        Post second = save(other1, ImageTestSupport.key("2.jpg"));
+        Post third = save(other1, ImageTestSupport.key("3.jpg"));
 
         getWithToken("/api/posts?tab=latest&size=2")
                 .andExpect(jsonPath("$.posts[*].id").value(contains(id(third), id(second))))
@@ -250,7 +251,7 @@ class TimelineApiTest {
 
     @Test
     void 詳細と自分の投稿一覧にもいいね数と自分のいいね_お気に入りの状態が含まれる() throws Exception {
-        Post mine = save(me, "http://localhost/uploads/mine.jpg");
+        Post mine = save(me, ImageTestSupport.key("mine.jpg"));
         likeRepository.save(new PostLike(other1, mine));
         likeRepository.save(new PostLike(other2, mine));
         favoriteRepository.save(new PostFavorite(me, mine));
@@ -268,7 +269,7 @@ class TimelineApiTest {
     @Test
     void 他人のお気に入りは詳細と自分の投稿一覧でも漏れない() throws Exception {
         // 自分の投稿を他人がお気に入りにしている（投稿者本人にも見せない）
-        Post mine = save(me, "http://localhost/uploads/mine.jpg");
+        Post mine = save(me, ImageTestSupport.key("mine.jpg"));
         favoriteRepository.save(new PostFavorite(other1, mine));
         favoriteRepository.save(new PostFavorite(other2, mine));
 

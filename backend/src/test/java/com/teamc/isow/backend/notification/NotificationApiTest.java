@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.teamc.isow.backend.dm.Conversation;
 import com.teamc.isow.backend.dm.ConversationRepository;
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
 import com.teamc.isow.backend.post.PostRepository;
@@ -101,9 +102,9 @@ class NotificationApiTest {
 
     @Test
     void 自分の通知だけを通知日時の新しい順に返し_文面は返さず種類と相手を返す() throws Exception {
-        jdbcTemplate.update("UPDATE users SET profile_image_url = 'http://localhost/uploads/b.jpg' WHERE id = ?",
-                b.getId());
-        Post post = savePost(me, "http://localhost/uploads/first.jpg", "http://localhost/uploads/second.jpg");
+        jdbcTemplate.update("UPDATE users SET profile_image_key = ? WHERE id = ?",
+                ImageTestSupport.key("b.jpg"), b.getId());
+        Post post = savePost(me, ImageTestSupport.key("first.jpg"), ImageTestSupport.key("second.jpg"));
         Conversation conversation = conversationRepository.save(new Conversation(b, me));
         Notification liked = notificationRepository.save(Notification.liked(post, b));
         Notification followed = notificationRepository.save(Notification.followed(me, c));
@@ -124,9 +125,9 @@ class NotificationApiTest {
                 .andExpect(jsonPath("$.notifications[1].type").value("LIKED"))
                 .andExpect(jsonPath("$.notifications[1].actor.id").value(b.getId()))
                 .andExpect(jsonPath("$.notifications[1].actor.username").value("notif_api_b"))
-                .andExpect(jsonPath("$.notifications[1].actor.profileImageUrl").value("http://localhost/uploads/b.jpg"))
+                .andExpect(jsonPath("$.notifications[1].actor.profileImageUrl").value(ImageTestSupport.url("b.jpg")))
                 .andExpect(jsonPath("$.notifications[1].post.id").value(post.getId()))
-                .andExpect(jsonPath("$.notifications[1].post.thumbnailUrl").value("http://localhost/uploads/first.jpg"))
+                .andExpect(jsonPath("$.notifications[1].post.thumbnailUrl").value(ImageTestSupport.url("first.jpg")))
                 .andExpect(jsonPath("$.notifications[1].conversationId").value(nullValue()))
                 .andExpect(jsonPath("$.notifications[1].notifiedAt").isNotEmpty())
                 .andExpect(jsonPath("$.notifications[1].read").value(false))
@@ -270,7 +271,7 @@ class NotificationApiTest {
     }
 
     private Post savePost(User author, String... imageUrls) {
-        List<String> urls = imageUrls.length == 0 ? List.of("http://localhost/uploads/n.jpg") : List.of(imageUrls);
+        List<String> urls = imageUrls.length == 0 ? List.of(ImageTestSupport.key("n.jpg")) : List.of(imageUrls);
         return postRepository.save(new Post(author, "題名",
                 fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0), null, "説明", null,
                 urls, List.of(tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc().get(0))));

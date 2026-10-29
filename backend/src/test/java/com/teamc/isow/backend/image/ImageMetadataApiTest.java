@@ -136,7 +136,7 @@ class ImageMetadataApiTest {
                 .andReturn().getResponse().getContentAsString();
 
         // DM の画像の保存先は応答に出さないため、DB から読む（docs/dm.md「画像」）
-        assertStrippedAndUpright(jdbcTemplate.queryForObject("SELECT image_url FROM messages WHERE id = ?", String.class,
+        assertStrippedAndUpright(jdbcTemplate.queryForObject("SELECT image_key FROM messages WHERE id = ?", String.class,
                 ((Number) JsonPath.read(body, "$.id")).longValue()));
     }
 

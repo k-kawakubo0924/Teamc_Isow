@@ -4,6 +4,7 @@ import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.block.BlockRepository;
 import com.teamc.isow.backend.block.UserVisibility;
 import com.teamc.isow.backend.follow.FollowRepository;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.post.PostCardListResponse;
 import com.teamc.isow.backend.post.PostCardService;
 import com.teamc.isow.backend.post.PostRepository;
@@ -36,6 +37,7 @@ public class ProfileService {
     private final Clock clock;
     private final BlockRepository blockRepository;
     private final UserVisibility userVisibility;
+    private final ImageUrls imageUrls;
 
     public ProfileService(
             UserRepository userRepository,
@@ -46,7 +48,8 @@ public class ProfileService {
             AuthService authService,
             BlockRepository blockRepository,
             UserVisibility userVisibility,
-            Clock clock) {
+            Clock clock,
+            ImageUrls imageUrls) {
         this.userRepository = userRepository;
         this.followRepository = followRepository;
         this.postRepository = postRepository;
@@ -56,6 +59,7 @@ public class ProfileService {
         this.clock = clock;
         this.blockRepository = blockRepository;
         this.userVisibility = userVisibility;
+        this.imageUrls = imageUrls;
     }
 
     /** ログイン中のユーザー自身のプロフィール */
@@ -135,7 +139,8 @@ public class ProfileService {
                 followRepository.countVisibleFollowings(userId, viewerId, now),
                 followRepository.countVisibleFollowers(userId, viewerId, now),
                 me ? null : followRepository.existsActive(viewerId, userId),
-                blockedByMe);
+                blockedByMe,
+                imageUrls);
     }
 
     /** 存在して、viewerId から見えるユーザーであること。どちらでもなければ同じ UserNotFoundException（404） */

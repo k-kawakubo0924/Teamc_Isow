@@ -132,37 +132,37 @@ public class Post {
     /**
      * 入力値は API 側で入力チェック済みであること。写真の枚数とタグの有無はここでも確認する。
      *
-     * @param imageUrls 写真の保存先 URL。並びがそのまま表示順になる（先頭がサムネイル）
+     * @param imageKeys 写真のキー（保存先の中での名前）。並びがそのまま表示順になる（先頭がサムネイル）
      */
     public Post(User author, String title, FashionCategory fashionCategory, String wornItems,
-            String description, String referenceUrl, List<String> imageUrls, Collection<Tag> tags) {
+            String description, String referenceUrl, List<String> imageKeys, Collection<Tag> tags) {
         this.author = author;
         this.title = title;
         this.fashionCategory = fashionCategory;
         this.wornItems = wornItems;
         this.description = description;
         this.referenceUrl = referenceUrl;
-        replaceImages(imageUrls);
+        replaceImages(imageKeys);
         replaceTags(tags);
     }
 
     /**
-     * 写真を、渡した URL の並びに置き換える（並びがそのまま表示順になる）。
+     * 写真を、渡したキーの並びに置き換える（並びがそのまま表示順になる）。
      * 既存の行は表示順を変えずに URL だけを差し替え、余った分は削除・足りない分は追加する。
      * 全件を消して入れ直すと、Hibernate は削除より先に追加を実行するため、表示順の一意制約に違反してしまう
      */
-    public void replaceImages(List<String> imageUrls) {
-        if (imageUrls == null || imageUrls.size() < MIN_IMAGES || imageUrls.size() > MAX_IMAGES) {
+    public void replaceImages(List<String> imageKeys) {
+        if (imageKeys == null || imageKeys.size() < MIN_IMAGES || imageKeys.size() > MAX_IMAGES) {
             throw new IllegalArgumentException("写真は" + MIN_IMAGES + "枚以上" + MAX_IMAGES + "枚以下にしてください");
         }
-        for (int i = 0; i < imageUrls.size(); i++) {
+        for (int i = 0; i < imageKeys.size(); i++) {
             if (i < images.size()) {
-                images.get(i).changeImageUrl(imageUrls.get(i));
+                images.get(i).changeImageKey(imageKeys.get(i));
             } else {
-                images.add(new PostImage(this, i + 1, imageUrls.get(i)));
+                images.add(new PostImage(this, i + 1, imageKeys.get(i)));
             }
         }
-        while (images.size() > imageUrls.size()) {
+        while (images.size() > imageKeys.size()) {
             images.remove(images.size() - 1);
         }
     }

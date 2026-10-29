@@ -2,6 +2,7 @@ package com.teamc.isow.backend.dm;
 
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.common.SearchPatterns;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.user.User;
 import java.util.List;
 import java.util.Map;
@@ -37,16 +38,19 @@ public class ConversationListService {
     private final MessageRepository messageRepository;
     private final ConversationUserSettingRepository settingRepository;
     private final AuthService authService;
+    private final ImageUrls imageUrls;
 
     public ConversationListService(
             ConversationRepository conversationRepository,
             MessageRepository messageRepository,
             ConversationUserSettingRepository settingRepository,
-            AuthService authService) {
+            AuthService authService,
+            ImageUrls imageUrls) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.settingRepository = settingRepository;
         this.authService = authService;
+        this.imageUrls = imageUrls;
     }
 
     /**
@@ -139,7 +143,7 @@ public class ConversationListService {
      * latest はメッセージがなければ null。latestUnread は相手から届いた最新の未読（unreadOnly のときだけ。なければ null）。
      * setting は自分の設定（なければ null）
      */
-    private static ConversationListResponse.Item toItem(Conversation conversation, User me, Message latest, long unread,
+    private ConversationListResponse.Item toItem(Conversation conversation, User me, Message latest, long unread,
             Message latestUnread, ConversationUserSetting setting) {
         return new ConversationListResponse.Item(
                 conversation.getId(),
@@ -147,21 +151,21 @@ public class ConversationListService {
                 conversation.getRequestedBy().getId().equals(me.getId()),
                 partner(conversation, me),
                 latest == null ? null : latest.getBody(),
-                latest != null && latest.getImageUrl() != null,
+                latest != null && latest.getImageKey() != null,
                 latest == null ? null : latest.getSentAt(),
                 unread,
                 conversation.getRequestedAt(),
                 latestUnread == null
                         ? null
                         : new ConversationListResponse.UnreadMessage(
-                                latestUnread.getBody(), latestUnread.getImageUrl() != null, latestUnread.getSentAt()),
+                                latestUnread.getBody(), latestUnread.getImageKey() != null, latestUnread.getSentAt()),
                 setting != null && setting.isPinned(),
                 setting != null && setting.isMuted());
     }
 
-    private static ConversationListResponse.Partner partner(Conversation conversation, User me) {
+    private ConversationListResponse.Partner partner(Conversation conversation, User me) {
         User partner = conversation.otherParticipant(me);
         return new ConversationListResponse.Partner(
-                partner.getId(), partner.getUsername(), partner.getDisplayName(), partner.getProfileImageUrl());
+                partner.getId(), partner.getUsername(), partner.getDisplayName(), imageUrls.of(partner.getProfileImageKey()));
     }
 }

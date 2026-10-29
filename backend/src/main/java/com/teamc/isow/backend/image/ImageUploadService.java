@@ -64,7 +64,7 @@ public class ImageUploadService {
     }
 
     /**
-     * 画像を検証して保存し、ブラウザから表示できる URL を返す（prepare() と store() をまとめて行う）。
+     * 画像を検証して保存し、キーを返す（prepare() と store() をまとめて行う。URL は ImageUrls で組み立てる）。
      *
      * @throws InvalidImageException 画像の条件を満たさない場合（message は画面にそのまま表示できる）
      */
@@ -118,7 +118,7 @@ public class ImageUploadService {
     }
 
     /**
-     * prepare() で検証済みの画像を保存し、ブラウザから表示できる URL を返す。
+     * prepare() で検証済みの画像を保存し、キーを返す（DB にはこのキーだけを保存する）。
      * ファイル名は元の名前を使わず、推測できない名前（乱数）に実際の形式の拡張子を付けたものにする。
      */
     public String store(PreparedImage image) {
@@ -127,16 +127,16 @@ public class ImageUploadService {
     }
 
     /**
-     * 保存済みの画像を、渡された URL ごとに1件ずつ削除する
+     * 保存済みの画像を、渡されたキーごとに1件ずつ削除する
      * （登録が途中で失敗したときの後始末、プロフィール画像の差し替え、投稿の削除に使う）。
      * 元の処理の結果を優先するため、削除に失敗しても例外は投げず、ログに残して残りの削除を続ける
      */
-    public void deleteQuietly(List<String> urls) {
-        for (String url : urls) {
+    public void deleteQuietly(List<String> keys) {
+        for (String key : keys) {
             try {
-                storage.delete(url);
+                storage.delete(key);
             } catch (RuntimeException e) {
-                log.warn("画像を削除できませんでした（手動で削除が必要）: {}", url, e);
+                log.warn("画像を削除できませんでした（手動で削除が必要）: {}", key, e);
             }
         }
     }

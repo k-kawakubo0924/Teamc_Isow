@@ -9,8 +9,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * 開発用：画像をサーバーのローカルフォルダに保存する。
- * 保存した画像は LocalImageWebConfig の設定で /uploads/** から配信する。
+ * 開発用：画像をサーバーのローカルフォルダに、キーをファイル名にして保存する。
+ * 保存した画像は LocalImageWebConfig の設定で /uploads/** から配信する（URL は ImageUrls が組み立てる）。
  * app.image.storage が local（未設定を含む）のときだけ有効になる。
  */
 @Component
@@ -18,11 +18,9 @@ import org.springframework.stereotype.Component;
 public class LocalImageStorage implements ImageStorage {
 
     private final Path baseDir;
-    private final String publicBaseUrl;
 
     public LocalImageStorage(ImageProperties properties) {
         this.baseDir = properties.local().dir().toAbsolutePath().normalize();
-        this.publicBaseUrl = properties.local().publicBaseUrl().replaceAll("/+$", "");
         try {
             Files.createDirectories(baseDir);
         } catch (IOException e) {
@@ -31,49 +29,40 @@ public class LocalImageStorage implements ImageStorage {
     }
 
     @Override
-    public String store(String fileName, byte[] content, String contentType) {
-        Path target = resolve(fileName);
+    public String store(String key, byte[] content, String contentType) {
+        Path target = resolve(key);
         try {
             // 同じ名前のファイルがあっても上書きしない（名前は乱数なので通常は起こらない）
             Files.write(target, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
         } catch (IOException e) {
             throw new UncheckedIOException("画像を保存できませんでした", e);
         }
-        return publicBaseUrl + "/" + fileName;
+        return key;
     }
 
     @Override
-    public byte[] read(String url) {
+    public byte[] read(String key) {
         try {
-            return Files.readAllBytes(resolveUrl(url));
+            return Files.readAllBytes(resolve(key));
         } catch (IOException e) {
-            throw new UncheckedIOException("画像を読めませんでした: " + url, e);
+            throw new UncheckedIOException("画像を読めませんでした: " + key, e);
         }
     }
 
     @Override
-    public void delete(String url) {
+    public void delete(String key) {
         try {
-            Files.deleteIfExists(resolveUrl(url));
+            Files.deleteIfExists(resolve(key));
         } catch (IOException e) {
-            throw new UncheckedIOException("画像を削除できませんでした: " + url, e);
+            throw new UncheckedIOException("画像を削除できませんでした: " + key, e);
         }
     }
 
-    /** store() が返した形の URL から、保存先フォルダ直下のファイルを求める */
-    private Path resolveUrl(String url) {
-        String prefix = publicBaseUrl + "/";
-        if (url == null || !url.startsWith(prefix)) {
-            throw new IllegalArgumentException("この保存先の URL ではありません: " + url);
-        }
-        return resolve(url.substring(prefix.length()));
-    }
-
-    /** 保存先フォルダ直下のファイルを指していることを確認する（../ などでフォルダの外を指させない） */
-    private Path resolve(String fileName) {
-        Path target = baseDir.resolve(fileName).normalize();
+    /** キーの形であり、保存先フォルダ直下のファイルを指していることを確認する（../ などでフォルダの外を指させない） */
+    private Path resolve(String key) {
+        Path target = baseDir.resolve(ImageKeys.require(key)).normalize();
         if (!baseDir.equals(target.getParent())) {
-            throw new IllegalArgumentException("不正なファイル名です: " + fileName);
+            throw new IllegalArgumentException("不正なファイル名です: " + key);
         }
         return target;
     }

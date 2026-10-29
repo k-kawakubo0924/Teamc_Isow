@@ -114,7 +114,7 @@ final class ReportFixture {
     /** 投稿の写真の URL（表示順） */
     List<String> postImageUrls(long postId) {
         return jdbcTemplate.queryForList(
-                "SELECT image_url FROM post_images WHERE post_id = ? ORDER BY sort_order", String.class, postId);
+                "SELECT image_key FROM post_images WHERE post_id = ? ORDER BY sort_order", String.class, postId);
     }
 
     /** from が to に相談を申し込み、to が承認した会話の ID を返す */

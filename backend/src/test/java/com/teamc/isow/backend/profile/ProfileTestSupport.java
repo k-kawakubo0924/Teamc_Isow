@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.profile;
 
+import com.teamc.isow.backend.image.ImageTestSupport;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
 import com.teamc.isow.backend.post.Post;
@@ -43,8 +44,8 @@ final class ProfileTestSupport {
         List<FashionCategory> categories = fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc();
         List<Tag> tags = tagRepository.findByOfficialTrueAndActiveTrueOrderByDisplayOrderAscIdAsc();
         return postRepository.save(new Post(author, title, categories.get(0), null, "説明", null,
-                List.of("http://localhost/uploads/" + title + "-1.jpg", "http://localhost/uploads/" + title + "-2.jpg",
-                        "http://localhost/uploads/" + title + "-3.jpg"),
+                List.of(ImageTestSupport.key(title + "-1.jpg"), ImageTestSupport.key(title + "-2.jpg"),
+                        ImageTestSupport.key(title + "-3.jpg")),
                 List.of(tags.get(0), tags.get(1))));
     }
 

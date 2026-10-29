@@ -1,5 +1,6 @@
 package com.teamc.isow.backend.post;
 
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.reaction.ReactionSummary;
 import com.teamc.isow.backend.tag.Tag;
 import java.time.LocalDateTime;
@@ -41,9 +42,9 @@ public record PostResponse(
     /**
      * 遅延読み込みの項目を使うため、トランザクションの中で呼ぶこと。
      * reactions は ReactionSummaryService でまとめて調べたもの（一覧で投稿ごとに SQL を発行しないため）
-     * viewerId はログイン中のユーザーの ID（ownedByMe の判定に使う）
+     * viewerId はログイン中のユーザーの ID（ownedByMe の判定に使う）。写真・プロフィール画像の URL は urls でキーから組み立てる
      */
-    public static PostResponse from(Post post, ReactionSummary reactions, Long viewerId) {
+    public static PostResponse from(Post post, ReactionSummary reactions, Long viewerId, ImageUrls urls) {
         return new PostResponse(
                 post.getId(),
                 post.getTitle(),
@@ -57,9 +58,9 @@ public record PostResponse(
                 post.getDescription(),
                 post.getReferenceUrl(),
                 // 非公開の投稿（受け取るのは投稿者本人だけ）の写真は、本人にも配らないため、URL を返さない（PublicImageAccess）
-                post.isHidden() ? List.of() : post.getImages().stream().map(PostImage::getImageUrl).toList(),
+                post.isHidden() ? List.of() : urls.of(post.getImages().stream().map(PostImage::getImageKey).toList()),
                 new AuthorResponse(post.getAuthor().getId(), post.getAuthor().getUsername(),
-                        post.getAuthor().getProfileImageUrl(), post.getAuthor().getHeightCm()),
+                        urls.of(post.getAuthor().getProfileImageKey()), post.getAuthor().getHeightCm()),
                 reactions.likeCount(),
                 reactions.likedByMe(),
                 reactions.favoritedByMe(),

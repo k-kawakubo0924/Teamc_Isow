@@ -2,6 +2,8 @@ package com.teamc.isow.backend.profile;
 
 import com.teamc.isow.backend.common.AgeGroup;
 import com.teamc.isow.backend.common.Gender;
+import com.teamc.isow.backend.image.ImageUrls;
+import com.teamc.isow.backend.image.ImageUrls;
 import com.teamc.isow.backend.master.MastersResponse.MasterOption;
 import com.teamc.isow.backend.user.User;
 
@@ -40,16 +42,16 @@ public record ProfileResponse(
 
     /**
      * bodyType・personalColor は読み込み済みであること（UserRepository.findWithProfileById）。
-     * followingByMe は自分のプロフィールなら null を渡す
+     * followingByMe は自分のプロフィールなら null を渡す。プロフィール画像の URL は imageUrls でキーから組み立てる
      */
     static ProfileResponse of(
             User user, long postCount, long followingCount, long followerCount, Boolean followingByMe,
-            boolean blockedByMe) {
+            boolean blockedByMe, ImageUrls imageUrls) {
         return new ProfileResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getDisplayName(),
-                user.getProfileImageUrl(),
+                imageUrls.of(user.getProfileImageKey()),
                 user.getGender(),
                 user.getHeightCm(),
                 user.getAgeGroup(),
