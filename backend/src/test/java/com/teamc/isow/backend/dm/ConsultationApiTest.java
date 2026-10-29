@@ -11,6 +11,7 @@ import com.teamc.isow.backend.user.User;
 import com.teamc.isow.backend.user.UserRepository;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -201,13 +202,16 @@ class ConsultationApiTest {
     void 拒否されてから24時間以内は申し込めず_いつから申し込めるかを返す() throws Exception {
         long id = applyAndGetId(userA, userB);
         change(id, Conversation::reject);
-        LocalDateTime rejectedAt = LocalDateTime.now().minusHours(23).withNano(0);
+        // 秒はあえて 00 にする。LocalDateTime.toString() は秒が 00 だと秒を省く（13:12）が、応答の JSON は省かない（13:12:00）。
+        // 期待値を応答と同じ書き方（ISO_LOCAL_DATE_TIME）で作ることを、いちばん食い違いやすい時刻で毎回確かめる
+        // （以前は toString() で作っていて、秒がちょうど 00 のときだけ落ちていた）
+        LocalDateTime rejectedAt = LocalDateTime.now().minusHours(23).withSecond(0).withNano(0);
         setRespondedAt(id, rejectedAt);
 
         expectUnavailable(userA, userB, 409, "REJECTED_RECENTLY",
                 "前回の申し込みから24時間は、この相手に再度申し込めません。");
         checkStatus(userA, userB)
-                .andExpect(jsonPath("$.availableAt").value(rejectedAt.plusHours(24).toString()))
+                .andExpect(jsonPath("$.availableAt").value(rejectedAt.plusHours(24).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
                 .andExpect(jsonPath("$.conversationId").isEmpty());
         assertThat(conversationCount()).isEqualTo(1);
     }

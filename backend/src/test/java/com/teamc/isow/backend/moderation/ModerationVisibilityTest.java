@@ -14,6 +14,7 @@ import com.teamc.isow.backend.post.PostRepository;
 import com.teamc.isow.backend.tag.TagRepository;
 import com.teamc.isow.backend.user.UserRepository;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -158,13 +159,16 @@ class ModerationVisibilityTest {
 
     @Test
     void 利用停止中は_持っているトークンで何をしても403で_理由と期限を返す() throws Exception {
-        LocalDateTime until = LocalDateTime.now().plusDays(7).withNano(0);
+        // 秒はあえて 00 にする。LocalDateTime.toString() は秒が 00 だと秒を省く（12:16）が、応答の JSON は省かない（12:16:00）。
+        // 期待値を応答と同じ書き方（ISO_LOCAL_DATE_TIME）で作ることを、いちばん食い違いやすい時刻で毎回確かめる
+        // （以前は toString() で作っていて、秒がちょうど 00 のときだけ落ちていた）
+        LocalDateTime until = LocalDateTime.now().plusDays(7).withSecond(0).withNano(0);
         f.suspend(f.author, until);
 
         f.as(f.author, get("/api/users/me"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.reason").value("ACCOUNT_SUSPENDED"))
-                .andExpect(jsonPath("$.suspendedUntil").value(until.toString()))
+                .andExpect(jsonPath("$.suspendedUntil").value(until.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
                 .andExpect(jsonPath("$.suspensionReason").value("HARASSMENT"))
                 .andExpect(jsonPath("$.suspensionReasonLabel").value("嫌がらせ・誹謗中傷"));
     }
