@@ -1,10 +1,40 @@
 package com.teamc.isow.backend.common;
 
+import com.teamc.isow.backend.admin.AnnouncementAlreadyWithdrawnException;
+import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
+import com.teamc.isow.backend.block.SelfBlockException;
+import com.teamc.isow.backend.contact.AdminContactConflictException;
+import com.teamc.isow.backend.contact.AppealTokenInvalidException;
+import com.teamc.isow.backend.contact.ContactLimitExceededException;
+import com.teamc.isow.backend.contact.SuspensionChangedException;
+import com.teamc.isow.backend.auth.InvalidAccountLinkException;
 import com.teamc.isow.backend.auth.InvalidCredentialsException;
 import com.teamc.isow.backend.auth.UnknownTokenUserException;
+import com.teamc.isow.backend.dm.ConsultationUnavailableException;
+import com.teamc.isow.backend.dm.ConsultationUnavailableReason;
+import com.teamc.isow.backend.dm.ConversationNotFoundException;
+import com.teamc.isow.backend.dm.ConversationOperationError;
+import com.teamc.isow.backend.dm.ConversationOperationException;
+import com.teamc.isow.backend.dm.DmErrorResponse;
+import com.teamc.isow.backend.follow.SelfFollowException;
+import com.teamc.isow.backend.image.InvalidImageException;
+import com.teamc.isow.backend.moderation.AccountSuspendedException;
+import com.teamc.isow.backend.moderation.ModerationConflictException;
+import com.teamc.isow.backend.moderation.SuspendedErrorResponse;
+import com.teamc.isow.backend.moderation.SuspensionAppealTokens;
+import com.teamc.isow.backend.notification.NotificationNotFoundException;
+import com.teamc.isow.backend.post.PostDeleteForbiddenException;
+import com.teamc.isow.backend.post.PostEditForbiddenException;
+import com.teamc.isow.backend.post.PostNotFoundException;
+import com.teamc.isow.backend.report.AdminReportConflictException;
+import com.teamc.isow.backend.report.ReportLimitExceededException;
+import com.teamc.isow.backend.report.ReportTargetNotFoundException;
+import com.teamc.isow.backend.user.UserNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -13,6 +43,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /** エラー応答の形式を ApiErrorResponse にそろえる */
 @RestControllerAdvice
@@ -20,17 +51,204 @@ public class GlobalExceptionHandler {
 
     private static final String INVALID_INPUT_MESSAGE = "入力内容に誤りがあります。赤い欄を修正してください。";
 
+    /** 未入力を表すチェック。1項目に複数のエラーがある場合は、これを優先して返す */
+    private static final Set<String> REQUIRED_CODES = Set.of("NotBlank", "NotEmpty", "NotNull");
+
+    private final SuspensionAppealTokens appealTokens;
+
+    public GlobalExceptionHandler(SuspensionAppealTokens appealTokens) {
+        this.appealTokens = appealTokens;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleValidation(MethodArgumentNotValidException e) {
         Map<String, String> errors = new LinkedHashMap<>();
         for (FieldError error : e.getBindingResult().getFieldErrors()) {
+            // 数値の欄に文字が入っているなど、型が合わない場合の既定の文言は技術的な英語のため置き換える
+            String message = error.isBindingFailure() ? "入力内容の形式が正しくありません" : error.getDefaultMessage();
             // 1項目に複数のエラーがある場合は1つだけ返す。未入力のエラーを優先する
-            if ("NotBlank".equals(error.getCode()) || !errors.containsKey(error.getField())) {
-                errors.put(error.getField(), error.getDefaultMessage());
+            if (REQUIRED_CODES.contains(error.getCode()) || !errors.containsKey(error.getField())) {
+                errors.put(error.getField(), message);
             }
         }
         return new ApiErrorResponse(INVALID_INPUT_MESSAGE, errors);
+    }
+
+    @ExceptionHandler(InputValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleInputValidation(InputValidationException e) {
+        return new ApiErrorResponse(INVALID_INPUT_MESSAGE, e.getErrors());
+    }
+
+    @ExceptionHandler(PostNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handlePostNotFound(PostNotFoundException e) {
+        return new ApiErrorResponse("投稿が見つかりません。", Map.of());
+    }
+
+    /**
+     * 他人の投稿を削除しようとした。会話・通知・管理画面と違い 404 で隠さず、素直に 403 を返す
+     * （投稿はもともと誰でも見られるため、隠しても得るものがない。docs/post.md「投稿の削除」）
+     */
+    @ExceptionHandler(PostDeleteForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiErrorResponse handlePostDeleteForbidden(PostDeleteForbiddenException e) {
+        return new ApiErrorResponse("この投稿は削除できません。", Map.of());
+    }
+
+    /** 他人の投稿を編集しようとした。削除と同じ理由で 404 で隠さず 403 を返す（docs/post.md「投稿の編集」） */
+    @ExceptionHandler(PostEditForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiErrorResponse handlePostEditForbidden(PostEditForbiddenException e) {
+        return new ApiErrorResponse("この投稿は編集できません。", Map.of());
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleUserNotFound(UserNotFoundException e) {
+        return new ApiErrorResponse("ユーザーが見つかりません。", Map.of());
+    }
+
+    /** 通知が存在しない、または自分の通知でない（他人の通知の有無が分からないよう、どちらも同じ応答にする） */
+    @ExceptionHandler(NotificationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleNotificationNotFound(NotificationNotFoundException e) {
+        return new ApiErrorResponse("通知が見つかりません。", Map.of());
+    }
+
+    /** お知らせが存在しない、または取り消されている（利用者からは、どちらも同じ応答にする） */
+    @ExceptionHandler(AnnouncementNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleAnnouncementNotFound(AnnouncementNotFoundException e) {
+        return new ApiErrorResponse("お知らせが見つかりません。", Map.of());
+    }
+
+    /** 管理画面で、すでに取り消したお知らせを取り消そうとした（ほかの管理者が先に取り消した場合など） */
+    @ExceptionHandler(AnnouncementAlreadyWithdrawnException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleAnnouncementAlreadyWithdrawn(AnnouncementAlreadyWithdrawnException e) {
+        return new ApiErrorResponse("このお知らせはすでに取り消されています。", Map.of());
+    }
+
+    /** 通報する対象が存在しない・見えない・当事者でない会話のメッセージ（どれも同じ応答にする。docs/admin.md「通報」） */
+    @ExceptionHandler(ReportTargetNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleReportTargetNotFound(ReportTargetNotFoundException e) {
+        return new ApiErrorResponse("通報する対象が見つかりません。", Map.of());
+    }
+
+    /** 1人1日の通報の上限を超えた */
+    @ExceptionHandler(ReportLimitExceededException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ApiErrorResponse handleReportLimitExceeded(ReportLimitExceededException e) {
+        return new ApiErrorResponse("通報の上限に達しました。時間をおいて再度お試しください。", Map.of());
+    }
+
+    /** 管理画面で、通報の状態を変えられない（すでにその状態など）。理由は例外の message */
+    @ExceptionHandler(AdminReportConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleAdminReportConflict(AdminReportConflictException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
+    /**
+     * 回数の上限に達した（メールアドレスの変更の申し込み・ログインの失敗など。RetryLaterException）。
+     * 「時間をおいて」ではなく、もう一度できるまでの時間を文言（あと約N分）と Retry-After ヘッダー（秒）で伝える
+     */
+    @ExceptionHandler(RetryLaterException.class)
+    public ResponseEntity<ApiErrorResponse> handleRetryLater(RetryLaterException e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.retryAfterSeconds()))
+                .body(new ApiErrorResponse(e.userMessage(), Map.of()));
+    }
+
+    /** メールのリンクの鍵が使えない（期限切れ・使用済みなど。docs/auth.md「リンクの鍵」）。文言は例外の message */
+    @ExceptionHandler(InvalidAccountLinkException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleInvalidAccountLink(InvalidAccountLinkException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
+    /** 1人1日のお問い合わせの上限を超えた（docs/settings.md「お問い合わせ」） */
+    @ExceptionHandler(ContactLimitExceededException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ApiErrorResponse handleContactLimitExceeded(ContactLimitExceededException e) {
+        return new ApiErrorResponse("お問い合わせの上限に達しました。時間をおいて再度お試しください。", Map.of());
+    }
+
+    /**
+     * 申し立て用の鍵が正しくない・期限切れ。トークンなし・不正なトークンの 401 と違い、画面に出す文言を返す
+     * （申し立てはトークンを付けずに送るため、画面はログアウトの処理をしない）
+     */
+    @ExceptionHandler(AppealTokenInvalidException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiErrorResponse handleAppealTokenInvalid(AppealTokenInvalidException e) {
+        return new ApiErrorResponse("受付の期限が切れました。もう一度ログインしてから送ってください。", Map.of());
+    }
+
+    /** 申し立て用の鍵を受け取った後に、利用停止が解除された・別の利用停止になった */
+    @ExceptionHandler(SuspensionChangedException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleSuspensionChanged(SuspensionChangedException e) {
+        return new ApiErrorResponse("利用停止の状態が変わったため、送信できませんでした。もう一度ログインしてください。", Map.of());
+    }
+
+    /** 管理画面で、お問い合わせの状態を変えられない（すでにその状態）。理由は例外の message */
+    @ExceptionHandler(AdminContactConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleAdminContactConflict(AdminContactConflictException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
+    /** 措置ができない（すでに非公開など）。理由は例外の message */
+    @ExceptionHandler(ModerationConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiErrorResponse handleModerationConflict(ModerationConflictException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
+    @ExceptionHandler(SelfBlockException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleSelfBlock(SelfBlockException e) {
+        return new ApiErrorResponse("自分自身はブロックできません。", Map.of());
+    }
+
+    @ExceptionHandler(SelfFollowException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleSelfFollow(SelfFollowException e) {
+        return new ApiErrorResponse("自分自身はフォローできません。", Map.of());
+    }
+
+    /** 相談を申し込めない。HTTP ステータスと文言は理由ごとに決まる。画面が出し分けられるよう reason も返す */
+    @ExceptionHandler(ConsultationUnavailableException.class)
+    public ResponseEntity<DmErrorResponse> handleConsultationUnavailable(ConsultationUnavailableException e) {
+        ConsultationUnavailableReason reason = e.getReason();
+        return ResponseEntity.status(reason.getHttpStatus())
+                .body(new DmErrorResponse(reason.getMessage(), Map.of(), reason.name()));
+    }
+
+    /** 会話が存在しない、または当事者でない（会話の有無が分からないよう、どちらも同じ応答にする） */
+    @ExceptionHandler(ConversationNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiErrorResponse handleConversationNotFound(ConversationNotFoundException e) {
+        return new ApiErrorResponse("会話が見つかりません。", Map.of());
+    }
+
+    /** 会話の承認・拒否・終了ができない。HTTP ステータスは理由ごとに決まり、文言は例外の message */
+    @ExceptionHandler(ConversationOperationException.class)
+    public ResponseEntity<DmErrorResponse> handleConversationOperation(ConversationOperationException e) {
+        ConversationOperationError error = e.getError();
+        return ResponseEntity.status(error.getHttpStatus())
+                .body(new DmErrorResponse(e.getMessage(), Map.of(), error.name()));
+    }
+
+    /** multipart の上限（spring.servlet.multipart.*）を超えた。画面側でも送信前にサイズを確認すること */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.CONTENT_TOO_LARGE)
+    public ApiErrorResponse handleMaxUploadSize(MaxUploadSizeExceededException e) {
+        String message = "写真のファイルが大きすぎます（1枚あたり9MBまで）。写真アプリなどで画像を小さくしてから、もう一度選択してください。";
+        return new ApiErrorResponse(message, Map.of("images", message));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -49,6 +267,21 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiErrorResponse handleInvalidCredentials(InvalidCredentialsException e) {
         return new ApiErrorResponse("メールアドレスまたはパスワードが正しくありません。入力内容をご確認ください。", Map.of());
+    }
+
+    /** 画像の形式・サイズなどが条件を満たさない。理由は例外の message（画面にそのまま表示できる文言） */
+    @ExceptionHandler(InvalidImageException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleInvalidImage(InvalidImageException e) {
+        return new ApiErrorResponse(e.getMessage(), Map.of());
+    }
+
+    /** 利用停止中（ログイン・API）。画面が利用停止の画面を出せるよう、理由と期限を返す（docs/admin.md「6. 措置」） */
+    @ExceptionHandler(AccountSuspendedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public SuspendedErrorResponse handleAccountSuspended(AccountSuspendedException e) {
+        // ログイン（パスワードが正しい）・有効なトークンの本人なので、申し立て用の鍵も渡す（docs/settings.md「お問い合わせ」）
+        return SuspendedErrorResponse.of(e.getUser(), appealTokens.issue(e.getUser()));
     }
 
     /** トークンなし・不正なトークンと同じく、本文なしの 401 を返す */

@@ -1,0 +1,380 @@
+/* 投稿の詳細画面（/posts/{id}。画面画像はないため、design/Check post content.png の確認画面に合わせる） */
+
+.post-detail-page {
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ---- 見出し ---- */
+
+.post-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.post-detail-back {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-detail-heading {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* ---- 本文 ---- */
+
+.post-detail-body {
+  padding: 16px;
+}
+
+.post-detail-author-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.post-detail-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.post-detail-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.post-detail-avatar-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2d9cc;
+  color: var(--color-text-muted);
+}
+
+.post-detail-author-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.post-detail-username {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-detail-height {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.post-detail-reactions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.post-detail-like,
+.post-detail-favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.post-detail-active {
+  color: var(--color-accent);
+}
+
+.post-detail-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* 項目の一覧（確認画面と同じく、ラベル付きの行で並べる） */
+.post-detail-list {
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.post-detail-row {
+  padding: 12px 14px;
+}
+
+.post-detail-row + .post-detail-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.post-detail-label {
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.post-detail-value {
+  margin: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+/* 着用アイテム・投稿説明の改行をそのまま表示する（dangerouslySetInnerHTML は使わない） */
+.post-detail-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+.post-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.post-detail-tag {
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  font-size: 12px;
+}
+
+.post-detail-link {
+  color: var(--color-accent);
+  word-break: break-all;
+}
+
+/* ---- 読み込み中・見つからない・失敗 ---- */
+
+.post-detail-status {
+  margin: 48px 16px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.post-detail-status-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.post-detail-action {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 8px 20px;
+  border: 1px solid var(--color-accent);
+  border-radius: 3px;
+  background: #fff;
+  font-size: 13px;
+  color: var(--color-accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.post-detail-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 88px;
+  left: 16px;
+  z-index: 20;
+  max-width: 358px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  border-radius: 4px;
+  background: var(--color-text);
+  font-size: 13px;
+  color: #fff;
+}
+
+/* ---- 自分の投稿のメニューと、削除の確認（docs/post.md「投稿の削除」） ---- */
+
+.post-detail-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.post-detail-menu-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-detail-menu-list {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  z-index: 10;
+  min-width: 120px;
+  padding: 4px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+}
+
+.post-detail-menu-edit {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-detail-menu-delete {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--color-error);
+  cursor: pointer;
+}
+
+/* 投稿日の横の「編集済み」 */
+.post-detail-edited {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.post-detail-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 35%);
+}
+
+.post-detail-confirm {
+  width: 100%;
+  max-width: 340px;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.post-detail-confirm-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.post-detail-confirm-text {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.post-detail-confirm-error {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--color-error);
+}
+
+.post-detail-confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.post-detail-confirm-cancel,
+.post-detail-confirm-ok {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.post-detail-confirm-ok {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+.post-detail-confirm-cancel:disabled,
+.post-detail-confirm-ok:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 運営が非公開にした投稿の知らせ（投稿者本人にだけ出る。docs/admin.md「6. 措置」） */
+.post-detail-hidden {
+  margin: 12px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.post-detail-hidden-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.post-detail-hidden-text {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}

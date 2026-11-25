@@ -22,9 +22,13 @@ public class JwtTokenService {
         this.properties = properties;
     }
 
+    /** トークンの世代のクレーム（docs/auth.md「トークンの世代（全端末のログアウト）」） */
+    public static final String VERSION_CLAIM = "ver";
+
     /**
      * sub にユーザーIDを入れたトークンを発行する。
      * メールアドレスは変更されうるうえ、トークンの中身は誰でも読めるため入れない。
+     * トークンの世代（ver）を入れ、世代が進んだら使えなくする（SuspendedUserFilter）
      */
     public LoginResponse issue(User user) {
         Instant now = Instant.now();
@@ -33,6 +37,7 @@ public class JwtTokenService {
                 .subject(String.valueOf(user.getId()))
                 .issuedAt(now)
                 .expiresAt(expiresAt)
+                .claim(VERSION_CLAIM, user.getTokenVersion())
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

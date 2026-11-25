@@ -1,0 +1,422 @@
+/* ホーム画面（design/home.png） */
+
+.home-page {
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ---- 見出し ---- */
+
+.home-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  background: var(--color-bg);
+}
+
+.home-bell {
+  position: absolute;
+  left: 16px;
+  display: inline-flex;
+  padding: 4px;
+  color: var(--color-text);
+}
+
+/* 通知の未読件数（下部ナビの DM のバッジと同じ見た目） */
+.home-bell-badge {
+  position: absolute;
+  top: -2px;
+  left: 16px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--color-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  color: #fff;
+}
+
+.home-logo {
+  margin: 0;
+}
+
+/* ロゴの画像（323×100）。縦横比が崩れないよう高さだけで大きさを決める */
+.home-logo-image {
+  display: block;
+  height: 22px;
+  width: auto;
+}
+
+/* ---- 新着メッセージ（新着がなければ表示しない） ---- */
+
+.home-messages {
+  padding: 12px 16px 6px;
+  border-top: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.home-messages-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.home-messages-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.home-messages-all {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.home-messages-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.home-message-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.home-message-avatar-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2d8cb;
+  color: var(--color-text-muted);
+}
+
+.home-message-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.home-message-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.home-message-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.home-message-time {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* 本文は1行に収め、はみ出す分は「…」にする */
+.home-message-preview {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-message-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--color-text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  color: #fff;
+}
+
+/* ---- タブ ---- */
+
+/* タブと表示列の切り替えを並べた行。スクロールしても画面上部に残す */
+.home-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.home-tabs {
+  display: flex;
+  gap: 20px;
+}
+
+.home-columns {
+  display: flex;
+  gap: 2px;
+}
+
+.home-columns-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.home-columns-active {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.home-tab {
+  padding: 12px 0 10px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.home-tab-active {
+  border-bottom-color: var(--color-text);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* ---- 一覧 ---- */
+
+.home-panel {
+  padding: 16px;
+}
+
+.home-grid {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 表示列（1列・3列は写真のみ） */
+.home-grid-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.home-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.home-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.home-card {
+  overflow: hidden;
+  border-radius: 3px;
+  background: #fff;
+}
+
+/* 写真を押すと投稿の詳細画面へ */
+.home-card-photo-link {
+  display: block;
+}
+
+.home-card-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  background: #e6dfd5;
+}
+
+/* 運営が非公開にした自分の投稿（写真が届かない）。写真と同じ大きさの枠に文言を出す */
+.home-card-photo-hidden {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.home-card-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px;
+}
+
+.home-card-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-card-username,
+.home-card-meta {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 投稿者のプロフィールへのリンク */
+.home-card-username {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.home-card-username:hover {
+  text-decoration: underline;
+}
+
+.home-card-meta {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.home-card-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+
+.home-card-like,
+.home-card-favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 11px;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* いいね済み・お気に入り済みは塗りつぶしたアイコンにする */
+.home-card-active {
+  color: var(--color-text);
+}
+
+/* ---- 読み込みの状態・空の表示 ---- */
+
+.home-status {
+  margin: 20px 0 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.home-status p {
+  margin: 0 0 10px;
+  color: var(--color-error);
+}
+
+.home-retry {
+  height: 36px;
+  padding: 0 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* いいね・お気に入りに失敗したときの通知。下部ナビゲーションの上に数秒だけ出す */
+.home-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 84px;
+  left: 16px;
+  z-index: 20;
+  max-width: 358px;
+  margin: 0 auto;
+  padding: 10px 14px;
+  border-radius: 3px;
+  background: rgba(43, 39, 36, 0.92);
+  font-size: 12px;
+  line-height: 1.6;
+  color: #fff;
+}
+
+/* 無限スクロールの目印。見えなくてよいが、画面内に入ったことを判定できるよう高さを持たせる */
+.home-sentinel {
+  height: 1px;
+}
+
+.home-empty {
+  padding: 64px 16px;
+  text-align: center;
+}
+
+.home-empty-title {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.home-empty-action {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 24px;
+  border-radius: 3px;
+  background: var(--color-accent);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-decoration: none;
+}

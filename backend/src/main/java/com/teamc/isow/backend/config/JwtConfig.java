@@ -7,9 +7,11 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -35,9 +37,21 @@ public class JwtConfig {
         return new NimbusJwtEncoder(new ImmutableSecret<>(secretKey));
     }
 
+    /**
+     * 普通の API（Authorization: Bearer）の検証。署名・有効期限に加えて、purpose があるトークン（申し立て用の鍵など、
+     * 用途を限ったもの）を断る（JwtPurpose。docs/settings.md「お問い合わせ」）。この確かめは外さないこと
+     */
     @Bean
     public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefault(), JwtPurpose.rejectAny()));
+        return decoder;
+    }
+
+    /** 用途を限ったトークンの検証（申し立て用の鍵。PurposeJwtDecoder） */
+    @Bean
+    public PurposeJwtDecoder purposeJwtDecoder() {
+        return new PurposeJwtDecoder(secretKey);
     }
 
     /** 鍵が未設定・短すぎる場合は起動を止める（弱い鍵のまま動かさない） */

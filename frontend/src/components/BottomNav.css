@@ -1,0 +1,73 @@
+/* 画面下部のナビゲーション（design/Post screen.png） */
+
+/* ナビゲーションに隠れないよう、画面の下に余白を取る */
+.tab-layout {
+  padding-bottom: 72px;
+}
+
+.bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  border-top: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.bottom-nav-list {
+  display: flex;
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.bottom-nav-list > li {
+  flex: 1;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0 12px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.bottom-nav-item-active {
+  color: var(--color-accent);
+}
+
+/* アイコンの右上にバッジを重ねるための枠 */
+.bottom-nav-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+/* DM の未読件数（やり取り中の未読メッセージ ＋ 受け取った申請） */
+.bottom-nav-badge {
+  position: absolute;
+  top: -5px;
+  left: 14px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--color-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  color: #fff;
+}
+
+.bottom-nav-item-disabled {
+  opacity: 0.45;
+  cursor: default;
+}

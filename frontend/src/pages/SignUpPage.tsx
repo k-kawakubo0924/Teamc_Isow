@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { register } from '../api/auth'
 import { ApiError } from '../api/client'
@@ -12,7 +12,9 @@ import {
   type SignUpField,
   type SignUpForm,
 } from '../validation/authRules'
+import { AuthLogo } from './AuthLogo'
 import { ErrorBanner } from './ErrorBanner'
+import { PasswordInput } from './PasswordInput'
 import './auth.css'
 
 const EMPTY_FORM: SignUpForm = { email: '', phoneNumber: '', password: '', username: '' }
@@ -85,7 +87,7 @@ function SignUpPage() {
 
   return (
     <main className="auth-page">
-      <h1 className="auth-logo">ISHO</h1>
+      <AuthLogo />
       <p className="auth-subtitle">{step === 'input' ? '新規登録' : '入力内容の確認'}</p>
 
       {bannerMessage && <ErrorBanner message={bannerMessage} />}
@@ -95,22 +97,26 @@ function SignUpPage() {
           {FIELDS.map((field) => {
             const error = fieldErrors[field.name]
             const inputId = `signup-${field.name}`
+            const inputProps = {
+              id: inputId,
+              className: `auth-input${error ? ' auth-input-error' : ''}`,
+              placeholder: field.placeholder,
+              autoComplete: field.autoComplete,
+              value: form[field.name],
+              onChange: (e: ChangeEvent<HTMLInputElement>) => handleChange(field.name, e.target.value),
+              'aria-invalid': error ? true : undefined,
+              'aria-describedby': error ? `${inputId}-error` : undefined,
+            }
             return (
               <div className="auth-field" key={field.name}>
                 <label className="auth-label" htmlFor={inputId}>
                   {field.label}
                 </label>
-                <input
-                  id={inputId}
-                  className={`auth-input${error ? ' auth-input-error' : ''}`}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  autoComplete={field.autoComplete}
-                  value={form[field.name]}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? `${inputId}-error` : undefined}
-                />
+                {field.type === 'password' ? (
+                  <PasswordInput {...inputProps} />
+                ) : (
+                  <input {...inputProps} type={field.type} />
+                )}
                 {error && (
                   <p className="auth-field-error" id={`${inputId}-error`}>
                     {error}

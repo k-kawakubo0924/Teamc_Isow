@@ -10,14 +10,14 @@
 
 .auth-logo {
   margin: 0;
-  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', serif;
-  font-size: 30px;
-  font-weight: 400;
-  letter-spacing: 0.45em;
-  /* letter-spacing は最後の文字の後ろにも付くため、その分だけ左に寄せて中央をそろえる */
-  text-indent: 0.45em;
-  text-align: center;
-  color: var(--color-text);
+}
+
+/* ロゴの画像（323×100。文字が画像いっぱいに入っている）。縦横比が崩れないよう高さだけで大きさを決める */
+.auth-logo-image {
+  display: block;
+  height: 28px;
+  width: auto;
+  margin: 0 auto;
 }
 
 .auth-subtitle {
@@ -69,6 +69,40 @@
 
 .auth-input-error {
   border-color: var(--color-error);
+}
+
+/* パスワード欄（右端に表示・非表示の切り替えボタンを重ねる） */
+.auth-password {
+  position: relative;
+}
+
+.auth-password .auth-input {
+  padding-right: 44px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.auth-password-toggle:hover {
+  color: var(--color-text);
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -4px;
 }
 
 .auth-field-error {
@@ -272,8 +306,7 @@
   text-decoration: none;
 }
 
-/* ---- 仮のホーム画面（HomePage.tsx。ホーム機能の実装時に削除する） ---- */
-
-.auth-home-actions {
-  margin-top: 48px;
+/* 「パスワードをお忘れですか？」はリンク（docs/auth.md「パスワードの再設定」）。ボタンと同じ見た目にする */
+a.auth-text-button {
+  text-decoration: none;
 }

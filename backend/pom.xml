@@ -50,6 +50,17 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
+		<!-- メールの送信（パスワードの再設定・メールアドレスの変更。docs/auth.md「メールの送信」）。開発中は Mailpit に SMTP で送る -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+		<!-- 画像の EXIF から写真の向き（Orientation）を読む（ImageMetadataStripper）。Java 標準には EXIF の項目を読む部品がないため -->
+		<dependency>
+			<groupId>com.drewnoakes</groupId>
+			<artifactId>metadata-extractor</artifactId>
+			<version>2.21.0</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -76,6 +87,13 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- テスト用に、位置情報・撮影日時・端末情報・向きを書き込んだ JPEG を作る（本番のコードでは使わない。正式版はまだ alpha のみ） -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-imaging</artifactId>
+			<version>1.0.0-alpha6</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -83,6 +101,31 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<!--
+				JDK の版を、ビルドの最初に確かめる（docs/setup.md「必要なもの」）。21 より古い JDK（17 など）では、
+				分かりにくいコンパイルのエラーになるため、先にはっきり止める。22 以降は止めない（21 以上なら動く）。
+				版は spring-boot-starter-parent が固定している
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>require-java-21</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>[21,)</version>
+									<message>JDK 21 or later is required. Check with: java -version (mvnw uses JAVA_HOME, or java on PATH). / JDK 21 以上が必要です。今使われている JDK の版は「java -version」で確かめられます（mvnw は JAVA_HOME、なければ PATH の java を使います）。JDK 21 以上を入れて、JAVA_HOME をそちらに向けてください（docs/setup.md「必要なもの」）。</message>
+								</requireJavaVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

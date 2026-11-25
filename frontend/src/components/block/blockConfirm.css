@@ -1,0 +1,75 @@
+/* ブロック・解除の確認（BlockConfirmDialog）。チャット画面の確認と同じ見た目にする */
+
+.block-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.block-confirm {
+  width: 100%;
+  max-width: 320px;
+  padding: 20px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.block-confirm-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.block-confirm-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.block-confirm-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+.block-confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.block-confirm-cancel,
+.block-confirm-ok {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.block-confirm-cancel {
+  border: 1px solid var(--color-border-strong);
+  background: #fff;
+  color: var(--color-text);
+}
+
+.block-confirm-ok {
+  border: 1px solid var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+.block-confirm-cancel:disabled,
+.block-confirm-ok:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

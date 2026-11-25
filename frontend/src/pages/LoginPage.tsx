@@ -4,7 +4,9 @@ import { login } from '../api/auth'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/authContext'
 import { INVALID_INPUT_MESSAGE, normalizeEmail, validateLogin, type LoginForm } from '../validation/authRules'
+import { AuthLogo } from './AuthLogo'
 import { ErrorBanner } from './ErrorBanner'
+import { PasswordInput } from './PasswordInput'
 import './auth.css'
 
 type LoginField = keyof LoginForm
@@ -17,14 +19,16 @@ function LoginPage() {
   const navigate = useNavigate()
   const { login: saveLogin } = useAuth()
   const location = useLocation()
-  const registered = (location.state as { registered?: boolean } | null)?.registered === true
+  const state = location.state as { registered?: boolean; notice?: string } | null
+  const registered = state?.registered === true
+  // ほかの画面から移ってきたときの知らせ（パスワードを再設定した・メールアドレスを変更した など）
+  const notice = typeof state?.notice === 'string' ? state.notice : null
 
   const [form, setForm] = useState<LoginForm>({ email: '', password: '' })
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<LoginField, string>>>({})
   // 認証失敗時は、どちらが違うかを明かさないため両方の欄を赤くする（欄の下の警告文は出さない）
   const [credentialsRejected, setCredentialsRejected] = useState(false)
   const [bannerMessage, setBannerMessage] = useState<string | null>(null)
-  const [showForgotNotice, setShowForgotNotice] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleChange = (name: LoginField, value: string) => {
@@ -71,14 +75,14 @@ function LoginPage() {
 
   return (
     <main className="auth-page">
-      <h1 className="auth-logo auth-logo-spaced">ISHO</h1>
+      <AuthLogo spaced />
 
       {bannerMessage ? (
-        <ErrorBanner message={bannerMessage} />
+        <ErrorBanner message={bannerMessage} scrollIntoView />
       ) : (
-        registered && (
+        (registered || notice) && (
           <div className="auth-banner auth-banner-success" role="status">
-            <p>登録が完了しました。ログインしてください。</p>
+            <p>{registered ? '登録が完了しました。ログインしてください。' : notice}</p>
           </div>
         )
       )}
@@ -110,10 +114,9 @@ function LoginPage() {
           <label className="auth-label" htmlFor="login-password">
             パスワード
           </label>
-          <input
+          <PasswordInput
             id="login-password"
             className={inputClassName('password')}
-            type="password"
             placeholder="パスワードを入力"
             autoComplete="current-password"
             value={form.password}
@@ -128,16 +131,11 @@ function LoginPage() {
           )}
         </div>
 
-        {/* パスワードリセットは未実装（docs/auth.md「未確定・要確認」参照） */}
+        {/* パスワードの再設定（docs/auth.md「パスワードの再設定」） */}
         <div className="auth-forgot">
-          <button type="button" className="auth-text-button" onClick={() => setShowForgotNotice(true)}>
+          <Link to="/forgot-password" className="auth-text-button">
             パスワードをお忘れですか？
-          </button>
-          {showForgotNotice && (
-            <p className="auth-forgot-notice" role="status">
-              この機能は準備中です
-            </p>
-          )}
+          </Link>
         </div>
 
         <div className="auth-actions">

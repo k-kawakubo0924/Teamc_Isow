@@ -80,6 +80,18 @@ export function formatPhoneNumber(value: string): string {
   return digits
 }
 
+/** パスワードの規則（バックエンドの PasswordRules と同じ。登録・再設定・変更で使う）。合っていなければ文言、合っていれば null */
+export function passwordRuleError(password: string): string | null {
+  if (password.trim() === '') return 'パスワードを入力してください'
+  return /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/.test(password) ? null : '8文字以上、英字と数字を含めてください'
+}
+
+/** メールアドレスの形式（登録と同じ）。そろえた後の値を渡す。合っていなければ文言、合っていれば null */
+export function emailRuleError(email: string): string | null {
+  if (email === '') return 'メールアドレスを入力してください'
+  return email.length > 255 || !/^[^\s@]+@[^\s@]+$/.test(email) ? 'メールアドレスの形式が正しくありません' : null
+}
+
 export type LoginForm = {
   email: string
   password: string

@@ -1,0 +1,149 @@
+import { getJson, postForm, putJson, sendWithToken } from './client'
+
+/** 投稿作成で送る内容。images は表示順（1枚目がサムネイル） */
+export type CreatePostRequest = {
+  images: File[]
+  title: string
+  fashionCategoryId: number
+  /** タグ名（公式タグ・手入力のタグとも名前で送る） */
+  tags: string[]
+  /** 未入力なら送らない */
+  wornItems: string
+  description: string
+  /** 未入力なら送らない */
+  referenceUrl: string
+}
+
+/** バックエンドの PostResponse */
+export type PostResponse = {
+  id: number
+  title: string
+  fashionCategory: { id: number; name: string }
+  tags: { id: number; name: string; official: boolean }[]
+  wornItems: string | null
+  description: string
+  referenceUrl: string | null
+  /** 表示順。1枚目がサムネイル */
+  imageUrls: string[]
+  /** profileImageUrl・heightCm は未設定なら null（画面では表示を省く） */
+  author: { id: number; username: string; profileImageUrl: string | null; heightCm: number | null }
+  /** いいね件数（公開情報） */
+  likeCount: number
+  /** ログイン中のユーザーがいいねしているか */
+  likedByMe: boolean
+  /** ログイン中のユーザーがお気に入りにしているか（本人にだけ返る） */
+  favoritedByMe: boolean
+  /** ログイン中のユーザーの投稿か（削除のメニューを出すかの判断だけに使う。削除できるかはサーバーが確かめる） */
+  ownedByMe: boolean
+  createdAt: string
+  /** 投稿者が最後に編集した日時。編集していなければ null（詳細画面の「編集済み」の表示に使う） */
+  editedAt: string | null
+  /**
+   * 運営が非公開にしているか（docs/admin.md「6. 措置」）。非公開の投稿を見られるのは投稿者本人だけなので、
+   * true になるのは自分の投稿のときだけ
+   */
+  hidden: boolean
+  /** 非公開にした理由（通報の理由の定数名）。投稿者本人にだけ返り、それ以外は null */
+  hiddenReason: string | null
+}
+
+/** ホームの投稿一覧のタブ */
+export type TimelineTab = 'recommended' | 'following' | 'latest'
+
+/** ホームの投稿一覧の1件（バックエンドの TimelineResponse.Item） */
+export type TimelineItem = {
+  id: number
+  /**
+   * 1枚目の写真。運営が非公開にした投稿（本人にだけ届く）では null。
+   * 非公開にした投稿の写真は本人にも配らないため（docs/admin.md「6. 措置」）。カードは写真の代わりに文言を出す
+   */
+  thumbnailUrl: string | null
+  fashionCategory: { id: number; name: string }
+  /** heightCm は身長（cm）。未設定は null で、表示を省く */
+  author: { id: number; username: string; heightCm: number | null }
+  likeCount: number
+  likedByMe: boolean
+  favoritedByMe: boolean
+  createdAt: string
+}
+
+/** バックエンドの TimelineResponse（1ページ分） */
+export type TimelineResponse = {
+  posts: TimelineItem[]
+  tab: TimelineTab
+  page: number
+  size: number
+  hasNext: boolean
+}
+
+/**
+ * ホームの投稿一覧（GET /api/posts）。page は 0 から。
+ * ページ番号で区切るため、読み込みの途中で投稿やいいねが増えると、同じ投稿が次のページにも出ることがある。
+ * 呼び出し側で id が重複したものを省くこと
+ */
+export function fetchTimeline(
+  tab: TimelineTab,
+  page: number,
+  token: string,
+  signal?: AbortSignal,
+): Promise<TimelineResponse> {
+  return getJson<TimelineResponse>(`/api/posts?tab=${tab}&page=${page}&size=${TIMELINE_PAGE_SIZE}`, token, signal)
+}
+
+/** ホームの一覧で1回に読み込む件数（docs/home.md） */
+export const TIMELINE_PAGE_SIZE = 20
+
+/**
+ * 投稿1件の詳細（GET /api/posts/{id}）。存在しない投稿は ApiError（404）を投げる
+ */
+export function fetchPost(id: number, token: string, signal?: AbortSignal): Promise<PostResponse> {
+  return getJson<PostResponse>(`/api/posts/${id}`, token, signal)
+}
+
+/**
+ * 自分の投稿を削除する（DELETE /api/posts/{id}）。
+ * 失敗時は ApiError（403: 他人の投稿 / 404: 存在しない・削除済み）を投げる
+ */
+export function deletePost(id: number, token: string): Promise<void> {
+  return sendWithToken<void>('DELETE', `/api/posts/${id}`, token)
+}
+
+/**
+ * 投稿を作成する（POST /api/posts、multipart/form-data）。
+ * 失敗時は ApiError（400: 入力エラー / 413: ファイルが大きすぎる）を投げる
+ */
+export function createPost(request: CreatePostRequest, token: string): Promise<PostResponse> {
+  const form = new FormData()
+  // 同じ名前で追加した順が、そのまま写真の表示順になる
+  for (const image of request.images) {
+    form.append('images', image)
+  }
+  form.append('title', request.title)
+  form.append('fashionCategoryId', String(request.fashionCategoryId))
+  for (const tag of request.tags) {
+    form.append('tags', tag)
+  }
+  if (request.wornItems !== '') form.append('wornItems', request.wornItems)
+  form.append('description', request.description)
+  if (request.referenceUrl !== '') form.append('referenceUrl', request.referenceUrl)
+  return postForm<PostResponse>('/api/posts', form, token)
+}
+
+/** 投稿の編集で送る内容（文字の情報だけ。写真は編集できない。docs/post.md「投稿の編集」） */
+export type UpdatePostRequest = {
+  title: string
+  fashionCategoryId: number
+  /** タグ名（公式タグ・手入力のタグとも名前で送る） */
+  tags: string[]
+  wornItems: string
+  description: string
+  referenceUrl: string
+}
+
+/**
+ * 自分の投稿の文字の情報を編集する（PUT /api/posts/{id}、JSON）。編集した後の投稿を返す。
+ * 失敗時は ApiError（400: 入力エラー / 403: 他人の投稿 / 404: 存在しない・削除済み）を投げる
+ */
+export function updatePost(id: number, request: UpdatePostRequest, token: string): Promise<PostResponse> {
+  return putJson<PostResponse>(`/api/posts/${id}`, request, token)
+}
