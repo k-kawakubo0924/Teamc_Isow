@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgres:16
+    # 版は細かい番号まで固定する（postgres:16 だと、時期によって 16 の中の別の版になる。docs/setup.md）
+    image: postgres:16.15
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-teamc_isow}

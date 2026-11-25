@@ -102,6 +102,31 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!--
+				JDK の版を、ビルドの最初に確かめる（docs/setup.md「必要なもの」）。21 より古い JDK（17 など）では、
+				分かりにくいコンパイルのエラーになるため、先にはっきり止める。22 以降は止めない（21 以上なら動く）。
+				版は spring-boot-starter-parent が固定している
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>require-java-21</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>[21,)</version>
+									<message>JDK 21 or later is required. Check with: java -version (mvnw uses JAVA_HOME, or java on PATH). / JDK 21 以上が必要です。今使われている JDK の版は「java -version」で確かめられます（mvnw は JAVA_HOME、なければ PATH の java を使います）。JDK 21 以上を入れて、JAVA_HOME をそちらに向けてください（docs/setup.md「必要なもの」）。</message>
+								</requireJavaVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 
