@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# テストの結果を書き出したファイル（docs/setup.md「5. 動作確認」の、落ちたテストの名前を残す流し方）
+test-results
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -7,7 +7,7 @@
   box-sizing: border-box;
 }
 
-/* ---- DM一覧の見出し（ロゴのみ。左上のピン留めのマークは未実装のため置かない。docs/dm.md） ---- */
+/* ---- DM一覧の見出し（中央にロゴ、左上にピン留めした相談の一覧を開くマーク。docs/dm.md「DM一覧の見出し」） ---- */
 
 .dm-header {
   position: relative;

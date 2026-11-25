@@ -6,96 +6,29 @@
 
 - バックエンド: Java 21 / Spring Boot 4.1.1 / Spring Data JPA / Spring Security
 - フロントエンド: React + TypeScript（Vite）
-- データベース: PostgreSQL 16（docker-compose で起動）
+- データベース: PostgreSQL 16（16.15。docker-compose で起動）
 
-## 必要なツール・バージョン
+## 環境構築（はじめに読む）
 
-| ツール | バージョン | 備考 |
-| --- | --- | --- |
-| Java (JDK) | 21 | Temurin 推奨 |
-| Node.js | 24系 | 20以上であれば動作見込み |
-| npm | 11系 | Node.js に同梱 |
-| Docker / Docker Compose | Docker 28系 / Compose v2 | PostgreSQL をローカルで起動するために使用 |
+**clone してから画面を開くまでの手順は [`docs/setup.md`](docs/setup.md) にまとめています。** 必要なツールと版、`.env` の作り方、起動の順番、動作の確かめ方、止め方、詰まったときの一覧があります。
 
-Maven はインストール不要です（`backend/mvnw` に Maven Wrapper を同梱しています）。
+最短の流れ（詳しくは `docs/setup.md`）：
 
-## セットアップ
+1. `git clone -b develop …`（`main` は古い）
+2. `.env.example` と `frontend/.env.example` を `.env` に写し、`JWT_SECRET` を作って書く
+3. Docker Desktop を起動して `docker compose up -d`
+4. `cd backend` → `./mvnw spring-boot:run`（Windows は `mvnw.cmd spring-boot:run`）
+5. `cd frontend` → `npm ci` → `npm run dev` → `http://localhost:5173` を開く（`127.0.0.1` ではなく `localhost`）
 
-### 1. 環境変数の設定
+## ドキュメント
 
-```bash
-cp .env.example .env
-cp frontend/.env.example frontend/.env
-```
-
-必要に応じて値を変更してください（ローカル開発では、`JWT_SECRET` 以外はデフォルト値のままで動作します）。
-
-`JWT_SECRET` は空のままだとバックエンドが起動しません。以下のコマンドで生成した値を `.env` の `JWT_SECRET=` の後ろに設定してください（値は各自で生成し、共有・コミットしないでください）。
-
-```bash
-# Git Bash / macOS / Linux
-openssl rand -base64 48
-```
-
-```powershell
-# PowerShell
-$b = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
-```
-
-> **ポートが競合する場合**
-> `5432`（PostgreSQL）や `8080`（backend）を他のアプリ・コンテナが既に使用している場合、起動時にエラーになります。その場合は以下を変更してください（`.env.example` などコミット対象のファイルは変更不要です）。
-> 1. `.env` の `DB_PORT` を空いているポート（例: `5433`）に変更
-> 2. `.env` の `SERVER_PORT` を空いているポート（例: `8081`）に変更
-> 3. `frontend/.env` の `VITE_API_BASE_URL` を変更後の backend ポートに合わせる（例: `http://localhost:8081`）
->
-> 何が該当ポートを使用しているか分からない場合は `docker ps` や `netstat -ano | findstr <ポート番号>` で確認できます。
-
-### 2. PostgreSQL と開発用のメール受信の起動（Docker）
-
-```bash
-docker compose up -d
-```
-
-- PostgreSQL と、開発用のメール受信（Mailpit）が立ち上がります。
-- アプリが送ったメール（パスワードの再設定・メールアドレスの変更など）は、外へは送られず Mailpit に届きます。
-  **`http://localhost:8025` をブラウザで開くと、届いたメールを読めます**（アカウントの作成・設定は不要です）。
-- 届いたメールは Mailpit のコンテナを止めると消えます。
-- ポートが他と重なる場合は、`.env` の `MAIL_PORT`（SMTP。既定 1025）・`MAILPIT_UI_PORT`（画面。既定 8025）を変えてください。
-
-### 3. バックエンドの起動
-
-```bash
-cd backend
-./mvnw spring-boot:run
-```
-
-- Windows (コマンドプロンプト/PowerShell) では `mvnw.cmd spring-boot:run` を使用してください。
-- ルートの `.env` は起動時に自動で読み込まれます（`backend/` から起動してください）。
-- 起動後、`http://localhost:8080/api/health` にアクセスすると `{"status":"ok"}` が返ります。
-
-### 4. フロントエンドの起動
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-- `http://localhost:5173/health` を開くと、バックエンドの `/api/health` を呼び出した結果が画面に表示されます（疎通確認用）。
-- `http://localhost:5173/register` で新規会員登録、`http://localhost:5173/login` でログインができます。
-- 管理画面（`http://localhost:5173/admin`）を使う場合は、下記「管理者の用意（管理画面）」を参照してください。
-
-### テスト
-
-```bash
-# バックエンド
-cd backend
-./mvnw test
-
-# フロントエンド（画面の部品のテスト。Vitest + Testing Library で、ブラウザの代わりに jsdom で描画する）
-cd frontend
-npm test
-```
+| ファイル | 内容 |
+| --- | --- |
+| `docs/setup.md` | 環境構築の手順（開発環境） |
+| `docs/deploy.md` | 公開（デプロイ）のときにやること（今は公開しないため使わない） |
+| `docs/README.md` と、`docs/` の機能ごとのファイル（`auth.md`・`home.md`・`post.md`・`profile.md`・`search.md`・`notification.md`・`dm.md`・`settings.md`・`admin.md`） | 機能ごとの仕様と、決めたことの理由 |
+| `docs/image-storage.md` | 画像の保存先（キーで持つ。クラウドへの移行はステップ1で止めた） |
+| `CLAUDE.md` | 開発の決まり |
 
 ## 環境変数一覧
 
@@ -110,7 +43,7 @@ npm test
 | `DB_PASSWORD` | DBパスワード | `teamc_password` |
 | `SERVER_PORT` | backend の待受ポート | `8080` |
 | `FRONTEND_ORIGIN` | CORS許可オリジン（frontend の URL） | `http://localhost:5173` |
-| `JWT_SECRET` | JWT の署名用秘密鍵。32バイト以上のランダム値を Base64 で指定（生成方法は「1. 環境変数の設定」参照） | なし（必須） |
+| `JWT_SECRET` | JWT の署名用秘密鍵。32バイト以上のランダム値を Base64 で指定（作り方は `docs/setup.md`「3-2. `JWT_SECRET` を作る」） | なし（必須） |
 | `IMAGE_STORAGE` | 画像の保存先。`local` はサーバーのローカルフォルダ（開発用）。公開時はクラウドストレージ（R2 など）の実装を追加して切り替える | `local` |
 | `IMAGE_LOCAL_DIR` | `local` の場合の保存先フォルダ（`backend/` からの相対パス。`backend/uploads/` は .gitignore 済み） | `./uploads` |
 | `IMAGE_PUBLIC_BASE_URL` | `local` の場合に、ブラウザから画像を表示する URL の先頭部分（`/uploads/**` で配信） | `http://localhost:<SERVER_PORT>/uploads` |
@@ -304,9 +237,30 @@ ADMIN_EMAIL=dev_aoi@example.com
 
 - 投入の後に管理者の指定が行われるため、両方を書いておけば最初の起動から管理者になります
 
-## 現段階でやっていないこと
+## 今の状態
 
-- 投稿・一覧・通知などの機能（認証は `feature/auth` で実装中）
+### できていること
+
+`docs/` の仕様のうち「仕様」として決まったものは、画面と API の両方で作ってある（細かい点は各仕様書）。
+
+| 機能 | 内容 | 仕様書 |
+| --- | --- | --- |
+| 認証 | 新規会員登録・ログイン（失敗の回数の上限つき）・パスワードの再設定（メール）・メールアドレスの変更（メールで確かめる） | `auth.md`・`settings.md` |
+| ホーム | 投稿の一覧（タイムライン）・いいね・お気に入り・お知らせ | `home.md` |
+| 投稿 | 写真つきの投稿の作成（位置情報などのメタデータを削除して保存）・詳細・編集・削除・タグ | `post.md` |
+| 検索 | 投稿・ユーザーの検索・検索履歴・候補ワード | `search.md` |
+| 通知 | 通知の一覧・既読 | `notification.md` |
+| DM・相談 | 相談の申請・承認・拒否・終了（自動終了あり）・メッセージ（画像つき。やり取りしている2人にだけ見せる）・ピン留め・相談ごとの通知オフ | `dm.md` |
+| プロフィール | プロフィールの表示・編集・フォロー・フォロー中／フォロワーの一覧・ブロック | `profile.md` |
+| 詳細設定 | パスワードの変更・お問い合わせ・利用停止中の申し立て | `settings.md` |
+| 管理画面 | マスタ・お知らせ・通報と措置（投稿の非公開化・利用停止）・お問い合わせ・管理操作のログ | `admin.md` |
+| 開発用 | テストデータの投入（上記「開発用のテストデータ」） | — |
+
+### やっていないこと
+
+- 公開（デプロイ）。今は公開しない（公開するときにやることは `docs/deploy.md`）
+  - 画像の保存先のクラウド（Cloudflare R2）への移行は、ステップ1で止めている（`docs/image-storage.md`）
+- 仕様が決まっていないもの（各仕様書の「未確定・要確認」。例：投稿の下書き保存、退会）
 - マイグレーション（開発中は `spring.jpa.hibernate.ddl-auto=update` でテーブルを自動作成している）
   - 導入時に行うこと：`users.display_name`（表示名）は、列を追加する前に登録したユーザーが NULL のため、
     `UPDATE users SET display_name = username WHERE display_name IS NULL` で値を埋めてから NOT NULL にする
