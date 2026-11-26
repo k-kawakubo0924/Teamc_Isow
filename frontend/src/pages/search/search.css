@@ -176,6 +176,13 @@
   list-style: none;
 }
 
+/* 検索履歴の「もっと見る」「閉じる」（6件以上のときだけ出す） */
+.search-histories-toggle {
+  display: block;
+  margin: 8px auto 0;
+  padding: 8px 16px;
+}
+
 .search-tags,
 .search-words {
   display: flex;

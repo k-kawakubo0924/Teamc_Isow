@@ -322,9 +322,19 @@ function Suggestions({
 }
 
 /** 検索履歴（新しい順）。押すとその語で検索し、× で1件ずつ・「すべて削除」でまとめて削除できる */
+/** 検索履歴を畳んだときに出す件数 */
+const HISTORY_COLLAPSED_COUNT = 5
+
+/**
+ * 検索履歴（新しい順、最大20件）。
+ * HISTORY_COLLAPSED_COUNT 件を超えるときだけ畳み、「もっと見る」「閉じる」で切り替える（docs/search.md「検索画面」）。
+ * - ボタンに件数は出さない（絞り込みボタンの数を消したのと揃える）
+ * - 開いた・閉じたは覚えない（画面を移ると、畳んだ状態に戻る）
+ */
 function SearchHistory({ token, onSelect }: { token: string; onSelect: (item: SearchHistoryItem) => void }) {
   const [histories, setHistories] = useState<SearchHistoryItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   const load = useCallback(() => {
     return fetchSearchHistory(token)
@@ -339,8 +349,14 @@ function SearchHistory({ token, onSelect }: { token: string; onSelect: (item: Se
     void load()
   }, [load])
 
+  const collapsible = histories !== null && histories.length > HISTORY_COLLAPSED_COUNT
+  const shown = histories === null || !collapsible || expanded ? histories : histories.slice(0, HISTORY_COLLAPSED_COUNT)
+
   // 削除は先に画面から消し、失敗したら読み込み直して元に戻す
   const handleDelete = (id: number) => {
+    const remaining = histories?.filter((item) => item.id !== id) ?? null
+    // 5件以下になったら畳む必要がないため、開いた状態も解く（後で読み込み直して増えたときに、開いたまま始めないため）
+    if (remaining !== null && remaining.length <= HISTORY_COLLAPSED_COUNT) setExpanded(false)
     setHistories((prev) => prev?.filter((item) => item.id !== id) ?? prev)
     deleteSearchHistory(id, token).catch((err: unknown) => {
       setError(err instanceof Error ? err.message : String(err))
@@ -349,6 +365,7 @@ function SearchHistory({ token, onSelect }: { token: string; onSelect: (item: Se
   }
 
   const handleDeleteAll = () => {
+    setExpanded(false)
     setHistories([])
     deleteAllSearchHistory(token).catch((err: unknown) => {
       setError(err instanceof Error ? err.message : String(err))
@@ -372,13 +389,13 @@ function SearchHistory({ token, onSelect }: { token: string; onSelect: (item: Se
           {error}
         </p>
       )}
-      {histories === null ? (
+      {shown === null ? (
         !error && <p className="search-message">読み込み中...</p>
-      ) : histories.length === 0 ? (
+      ) : shown.length === 0 ? (
         <p className="search-message">検索履歴はありません</p>
       ) : (
         <ul className="search-histories">
-          {histories.map((item) => (
+          {shown.map((item) => (
             <li key={item.id} className="search-history">
               <button type="button" className="search-history-keyword" onClick={() => onSelect(item)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
@@ -398,6 +415,16 @@ function SearchHistory({ token, onSelect }: { token: string; onSelect: (item: Se
             </li>
           ))}
         </ul>
+      )}
+      {collapsible && (
+        <button
+          type="button"
+          className="search-text-button search-histories-toggle"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((prev) => !prev)}
+        >
+          {expanded ? '閉じる' : 'もっと見る'}
+        </button>
       )}
     </div>
   )
