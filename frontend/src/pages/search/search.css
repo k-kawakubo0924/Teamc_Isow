@@ -114,18 +114,6 @@
   letter-spacing: 0.04em;
 }
 
-.search-filter-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--color-accent);
-  font-size: 11px;
-  color: #fff;
-}
-
 .search-filter-value {
   max-width: 100%;
   overflow: hidden;

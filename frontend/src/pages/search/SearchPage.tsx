@@ -195,7 +195,11 @@ function SearchPage() {
   )
 }
 
-/** 検索項目のボタン（ジャンル別・年代別）。選んでいれば件数のバッジと、選んだものの名前を出す */
+/**
+ * 検索項目のボタン（ジャンル別・年代別）。選んでいれば、選んだものの名前を出し、枠を濃くする（search-filter-active）。
+ * 選んだ数のバッジは出さない（枠の変化と重複するため）。枠の変化が「絞り込み中」の手がかりになるため、
+ * 消さないこと（SearchFilterButton.test.tsx で、計算された見た目が変わることを確かめている）
+ */
 function FilterButton({
   label,
   value,
@@ -215,14 +219,7 @@ function FilterButton({
       disabled={disabled}
       onClick={onClick}
     >
-      <span className="search-filter-label">
-        {label}
-        {value !== null && (
-          <span className="search-filter-badge" aria-label="1件選択中">
-            1
-          </span>
-        )}
-      </span>
+      <span className="search-filter-label">{label}</span>
       <span className="search-filter-value">
         {value ?? '選択する'}
         <span aria-hidden="true"> ▾</span>
