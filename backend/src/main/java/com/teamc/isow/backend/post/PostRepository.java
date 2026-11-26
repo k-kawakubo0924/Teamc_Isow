@@ -1,6 +1,7 @@
 package com.teamc.isow.backend.post;
 
 import com.teamc.isow.backend.block.VisibilityConditions;
+import com.teamc.isow.backend.mute.MuteConditions;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -23,9 +24,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     // ---- ホームの投稿一覧（TimelineService）。ID だけを並び順どおりに取り、中身は別の SQL でまとめて読む ----
     // 一覧は、見ている人（viewerId）とブロックの間柄にある人・利用停止中の人の投稿と、非公開の投稿を除く
     // （VisibilityConditions。docs/profile.md「ブロック」・docs/admin.md「6. 措置」）
+    // 流れてくる一覧（ホームの3つのタブ・投稿の検索・「フォロー中の投稿」）は、見ている人がミュートした人の投稿も除く
+    // （MuteConditions。docs/profile.md「ミュート（投稿の非表示）」）。プロフィールの投稿一覧・投稿数には付けない
 
     /** 新着：投稿日時の新しい順（同じなら ID の大きい順） */
-    @Query("SELECT p.id FROM Post p WHERE" + VisibilityConditions.POST_VISIBLE + "ORDER BY p.createdAt DESC, p.id DESC")
+    @Query("SELECT p.id FROM Post p WHERE" + VisibilityConditions.POST_VISIBLE + "AND" + MuteConditions.POST_AUTHOR_NOT_MUTED + "ORDER BY p.createdAt DESC, p.id DESC")
     Slice<Long> findLatestIds(@Param("viewerId") Long viewerId, @Param("now") LocalDateTime now, Pageable pageable);
 
     /**
@@ -36,7 +39,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             SELECT p.id FROM Post p
             WHERE p.author.id IN (
                 SELECT f.followee.id FROM Follow f WHERE f.follower.id = :viewerId AND f.active = true)
-              AND""" + VisibilityConditions.POST_VISIBLE + """
+              AND""" + VisibilityConditions.POST_VISIBLE + "AND" + MuteConditions.POST_AUTHOR_NOT_MUTED + """
             ORDER BY p.createdAt DESC, p.id DESC
             """)
     Slice<Long> findFollowingIds(@Param("viewerId") Long viewerId, @Param("now") LocalDateTime now, Pageable pageable);
@@ -67,7 +70,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             SELECT p.id FROM Post p
             WHERE p.author.id IN (
                 SELECT f.followee.id FROM Follow f WHERE f.follower.id = :userId AND f.active = true)
-              AND""" + VisibilityConditions.POST_VISIBLE + """
+              AND""" + VisibilityConditions.POST_VISIBLE + "AND" + MuteConditions.POST_AUTHOR_NOT_MUTED + """
             ORDER BY MOD(p.id * :seed, 2147483647), p.id
             """)
     Slice<Long> findIdsByFollowedAuthorsShuffled(@Param("userId") Long userId, @Param("viewerId") Long viewerId, @Param("now") LocalDateTime now,
@@ -83,7 +86,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("""
             SELECT p.id FROM Post p
             LEFT JOIN PostLike l ON l.post = p
-            WHERE""" + VisibilityConditions.POST_VISIBLE + """
+            WHERE""" + VisibilityConditions.POST_VISIBLE + "AND" + MuteConditions.POST_AUTHOR_NOT_MUTED + """
             GROUP BY p.id, p.createdAt
             ORDER BY COUNT(l) DESC, p.createdAt DESC, p.id DESC
             """)
@@ -100,7 +103,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query(value = """
             SELECT p.id FROM Post p
             LEFT JOIN PostLike l ON l.post = p
-            WHERE""" + VisibilityConditions.POST_VISIBLE + """
+            WHERE""" + VisibilityConditions.POST_VISIBLE + "AND" + MuteConditions.POST_AUTHOR_NOT_MUTED + """
               AND (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
               AND (:ageGroup IS NULL OR p.author.ageGroup = :ageGroup)
               AND (:pattern IS NULL
@@ -112,7 +115,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             """,
             countQuery = """
             SELECT COUNT(p) FROM Post p
-            WHERE""" + VisibilityConditions.POST_VISIBLE + """
+            WHERE""" + VisibilityConditions.POST_VISIBLE + "AND" + MuteConditions.POST_AUTHOR_NOT_MUTED + """
               AND (:categoryId IS NULL OR p.fashionCategory.id = :categoryId)
               AND (:ageGroup IS NULL OR p.author.ageGroup = :ageGroup)
               AND (:pattern IS NULL

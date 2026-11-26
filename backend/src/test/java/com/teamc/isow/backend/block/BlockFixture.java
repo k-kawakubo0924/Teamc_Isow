@@ -29,13 +29,14 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 /**
  * ブロックのテストで使う登場人物と操作（docs/profile.md「ブロック」）。
  * A がブロックする人、B がブロックされる人、C はどちらとも関係のない第三者。
+ * ミュートのテスト（mute パッケージ）でも使うため public にしている。
  * ユーザー名・投稿の題名は、応答の本文に含まれていないかを文字列で確かめられるよう、ほかと重ならない値にしている
  */
-final class BlockFixture {
+public final class BlockFixture {
 
-    static final String EMAIL_PATTERN = "blk-%@example.com";
+    public static final String EMAIL_PATTERN = "blk-%@example.com";
 
-    final MockMvc mockMvc;
+    public final MockMvc mockMvc;
     private final JwtEncoder jwtEncoder;
     private final UserRepository userRepository;
     private final PostRepository postRepository;
@@ -43,11 +44,11 @@ final class BlockFixture {
     private final TagRepository tagRepository;
     private final JdbcTemplate jdbcTemplate;
 
-    User a;
-    User b;
-    User c;
+    public User a;
+    public User b;
+    public User c;
 
-    BlockFixture(MockMvc mockMvc, JwtEncoder jwtEncoder, UserRepository userRepository, PostRepository postRepository,
+    public BlockFixture(MockMvc mockMvc, JwtEncoder jwtEncoder, UserRepository userRepository, PostRepository postRepository,
             FashionCategoryRepository fashionCategoryRepository, TagRepository tagRepository, JdbcTemplate jdbcTemplate) {
         this.mockMvc = mockMvc;
         this.jwtEncoder = jwtEncoder;
@@ -58,14 +59,14 @@ final class BlockFixture {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    void createUsers() {
+    public void createUsers() {
         a = userRepository.save(new User("blk-a@example.com", "09000000190", "hash", "blkuser_aaa"));
         b = userRepository.save(new User("blk-b@example.com", "09000000191", "hash", "blkuser_bbb"));
         c = userRepository.save(new User("blk-c@example.com", "09000000192", "hash", "blkuser_ccc"));
     }
 
     /** テストで作ったものを消す（参照している側から消す。ブロックの行はユーザーの削除で一緒に消える） */
-    void cleanUp() {
+    public void cleanUp() {
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM messages");
         jdbcTemplate.update("DELETE FROM conversation_user_settings");
@@ -81,7 +82,7 @@ final class BlockFixture {
     }
 
     /** 投稿を作る（写真1枚・公式タグ1つ）。題名は応答に含まれていないかの確認に使う */
-    Post createPost(User author, String title) {
+    public Post createPost(User author, String title) {
         return postRepository.save(new Post(author, title,
                 fashionCategoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc().get(0), null,
                 title + "の説明", null,
@@ -91,20 +92,20 @@ final class BlockFixture {
 
     // ---- API の操作（画面と同じ API で作る） ----
 
-    void follow(User from, User to) throws Exception {
+    public void follow(User from, User to) throws Exception {
         as(from, post("/api/users/" + to.getId() + "/follow")).andExpect(status().isOk());
     }
 
-    void like(User user, Post post) throws Exception {
+    public void like(User user, Post post) throws Exception {
         as(user, post("/api/posts/" + post.getId() + "/like")).andExpect(status().is2xxSuccessful());
     }
 
-    void favorite(User user, Post post) throws Exception {
+    public void favorite(User user, Post post) throws Exception {
         as(user, post("/api/posts/" + post.getId() + "/favorite")).andExpect(status().is2xxSuccessful());
     }
 
     /** 相談を申し込み、会話の ID を返す */
-    long requestConsultation(User from, User to) throws Exception {
+    public long requestConsultation(User from, User to) throws Exception {
         String body = as(from, post("/api/conversations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"recipientId\": " + to.getId() + ", \"message\": \"よろしくお願いします\"}"))
@@ -113,23 +114,23 @@ final class BlockFixture {
         return ((Number) JsonPath.read(body, "$.conversationId")).longValue();
     }
 
-    void accept(User user, long conversationId) throws Exception {
+    public void accept(User user, long conversationId) throws Exception {
         as(user, post("/api/conversations/" + conversationId + "/accept")).andExpect(status().isOk());
     }
 
-    ResultActions block(User from, User to) throws Exception {
+    public ResultActions block(User from, User to) throws Exception {
         return as(from, post("/api/users/" + to.getId() + "/block"));
     }
 
-    ResultActions unblock(User from, User to) throws Exception {
+    public ResultActions unblock(User from, User to) throws Exception {
         return as(from, delete("/api/users/" + to.getId() + "/block"));
     }
 
-    <B extends AbstractMockHttpServletRequestBuilder<B>> ResultActions as(User user, B request) throws Exception {
+    public <B extends AbstractMockHttpServletRequestBuilder<B>> ResultActions as(User user, B request) throws Exception {
         return mockMvc.perform(request.header("Authorization", bearer(user)));
     }
 
-    String bearer(User user) {
+    public String bearer(User user) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .subject(String.valueOf(user.getId()))
@@ -140,7 +141,7 @@ final class BlockFixture {
                 .getTokenValue();
     }
 
-    long count(String sql, Object... args) {
+    public long count(String sql, Object... args) {
         Long value = jdbcTemplate.queryForObject(sql, Long.class, args);
         return value == null ? 0 : value;
     }
