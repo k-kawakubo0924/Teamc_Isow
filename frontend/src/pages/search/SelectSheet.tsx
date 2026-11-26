@@ -84,8 +84,9 @@ export function SelectSheet({ title, options, selected, onApply, onClose }: Prop
         </div>
 
         <div className="search-sheet-footer">
+          {/* 選んだ数は出さない（選んだ項目は、上の一覧で選択された見た目になる） */}
           <button type="button" className="search-sheet-apply" onClick={() => onApply(draft)}>
-            {draft === null ? '決定' : '決定（1件）'}
+            決定
           </button>
         </div>
       </div>
