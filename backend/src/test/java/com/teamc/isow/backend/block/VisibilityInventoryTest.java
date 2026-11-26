@@ -479,6 +479,100 @@ class VisibilityInventoryTest {
         assertThat(problems).as("ミュートの扱いが登録と違う API").isEmpty();
     }
 
+    /**
+     * B の画面に A が出る場所（A が B をミュートしたときに、何かが変わるとしたらここ）。
+     * {@code true} は「ミュートの前に A が出ている」ことも確かめる場所（A の名前・投稿が応答に入る API）
+     */
+    private static final Map<String, Boolean> PLACES_WHERE_B_SEES_A = new LinkedHashMap<>();
+
+    static {
+        PLACES_WHERE_B_SEES_A.put("/api/users/{b}/followers", true);           // B のフォロワー一覧に A がいる
+        PLACES_WHERE_B_SEES_A.put("/api/users/{b}", false);                     // B のフォロワー数（A を含む）
+        PLACES_WHERE_B_SEES_A.put("/api/notifications", true);                  // A からのいいね・フォロー・相談の申請の通知
+        PLACES_WHERE_B_SEES_A.put("/api/notifications/summary", false);
+        PLACES_WHERE_B_SEES_A.put("/api/users/{a}", true);                      // B が A のプロフィールを開く
+        PLACES_WHERE_B_SEES_A.put("/api/users/{a}/posts", true);
+        PLACES_WHERE_B_SEES_A.put("/api/users/{a}/followings", false);
+        PLACES_WHERE_B_SEES_A.put("/api/users/{a}/followers", false);
+        PLACES_WHERE_B_SEES_A.put("/api/users/{a}/following-posts?seed=7", false);
+        PLACES_WHERE_B_SEES_A.put("/api/posts/{postA}", true);                  // A の投稿の詳細（いいね数・お気に入りを含む）
+        PLACES_WHERE_B_SEES_A.put("/api/posts?tab=following", true);           // B は A をフォローしている
+        PLACES_WHERE_B_SEES_A.put("/api/users/me/favorites", true);            // B は A の投稿をお気に入りにしている
+        PLACES_WHERE_B_SEES_A.put("/api/search/users?q=blkuser_aaa", true);
+        PLACES_WHERE_B_SEES_A.put("/api/conversations", true);                  // B と A の進行中の相談
+        PLACES_WHERE_B_SEES_A.put("/api/conversations/{conversationAB}", true);
+        PLACES_WHERE_B_SEES_A.put("/api/conversations/{conversationAB}/messages", false);
+        PLACES_WHERE_B_SEES_A.put("/api/conversations/summary", false);
+        PLACES_WHERE_B_SEES_A.put("/api/users/{a}/consultation-status", false);
+        PLACES_WHERE_B_SEES_A.put("/api/users/consultation-statuses?ids={a}", false);
+    }
+
+    /**
+     * A が B をミュートしても、B には分からない（docs/profile.md「ミュート（投稿の非表示）」の「相手に分かるか」）。
+     * B の画面に A が出る場所と、登録したすべての GET の API を、ミュートの前後で B として呼び、応答がまったく同じであることを確かめる
+     */
+    @Test
+    void ミュートされた人から見た応答は_ミュートの前後でまったく同じ() throws Exception {
+        prepareRelations();
+        long conversationAB = jdbcTemplate.queryForObject(
+                "SELECT id FROM conversations WHERE requested_by_id = ?", Long.class, f.a.getId());
+        // B の画面に A が出る場所に、A を出しておく（A が B の投稿にいいね・お気に入り・フォロー・相談の申請をしている。prepareRelations）
+        Map<String, String> paths = new LinkedHashMap<>();
+        PLACES_WHERE_B_SEES_A.keySet().forEach(path -> paths.put(path, withIds(path, conversationAB)));
+        for (Map.Entry<String, Entry> registered : REGISTRY.entrySet()) {
+            String path = registered.getValue().pathOrReason();
+            if (registered.getValue().kind() == Kind.CHECKED && !path.contains("{forbiddenPost}")) {
+                paths.putIfAbsent(registered.getKey(), path);
+            }
+        }
+
+        // B が呼ぶこと自体で変わるもの（メッセージを開くと既読になり、相談の一覧の未読の数が0になる、など）があるため、
+        // 一度すべて呼んで落ち着かせてから、ミュートの前の応答を取る（2026-11-26、これをしないと未読の数の違いで失敗した。ミュートとは関係ない）
+        for (String path : paths.values()) {
+            body(f.b, path);
+        }
+
+        Map<String, String> before = new LinkedHashMap<>();
+        List<String> problems = new ArrayList<>();
+        for (Map.Entry<String, String> path : paths.entrySet()) {
+            String body = normalized(body(f.b, path.getValue()));
+            before.put(path.getKey(), body);
+            if (Boolean.TRUE.equals(PLACES_WHERE_B_SEES_A.get(path.getKey())) && !containsA(body)) {
+                problems.add(path.getKey() + "：ミュートの前に A が出ていない（確かめる場面を作れていない）");
+            }
+        }
+
+        f.as(f.a, MockMvcRequestBuilders.post("/api/users/" + f.b.getId() + "/mute")).andExpect(status().isNoContent());
+
+        for (Map.Entry<String, String> path : paths.entrySet()) {
+            String after = normalized(body(f.b, path.getValue()));
+            if (!after.equals(before.get(path.getKey()))) {
+                problems.add(path.getKey() + "：A にミュートされた後、B への応答が変わった（相手に分かってしまう）\n  前: "
+                        + before.get(path.getKey()) + "\n  後: " + after);
+            }
+        }
+        assertThat(problems).as("ミュートされたことが相手に分かる API").isEmpty();
+    }
+
+    private String withIds(String path, long conversationAB) {
+        return path.replace("{postA}", String.valueOf(postOfA.getId()))
+                .replace("{conversationAB}", String.valueOf(conversationAB));
+    }
+
+    /** A のユーザー名・投稿の題名・投稿の写真のキーのどれかが含まれるか */
+    private static boolean containsA(String body) {
+        return body.contains("blkuser_aaa") || body.contains("BLKPOSTAAA")
+                || body.contains(ImageTestSupport.key("BLKPOSTAAA.jpg"));
+    }
+
+    /**
+     * 前後で比べるために、呼ぶたびに変わる値を除く。検索の API を呼ぶと検索履歴の日時が更新されるため、
+     * 検索履歴の日時（searchedAt）だけを除く（ミュートとは関係なく、呼んだ時刻で変わる）
+     */
+    private static String normalized(String body) {
+        return body.replaceAll("\"searchedAt\":\"[^\"]*\"", "\"searchedAt\":\"-\"");
+    }
+
     /** ミュートの確かめをする登録（CHECKED で、NOT_RELATED でないもの） */
     private List<Map.Entry<String, Entry>> muteChecked() {
         return REGISTRY.entrySet().stream()

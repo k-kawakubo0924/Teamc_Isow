@@ -287,6 +287,29 @@ class MuteApiTest {
                 .isEqualTo("REQUESTED");
     }
 
+    // ---- 相手に分からない（応答が変わらないことは VisibilityInventoryTest で確かめる） ----
+
+    @Test
+    void ミュートされた人からした人への操作は_ミュートで断られない() throws Exception {
+        Post postOfA = f.createPost(a, "ミュート確認Aの投稿");
+        mute(a, b).andExpect(status().isNoContent());
+
+        // 断られる・応答が変わると、その違いからミュートされたことが分かってしまう
+        f.follow(b, a);
+        f.like(b, postOfA);
+        f.favorite(b, postOfA);
+        long conversationId = f.requestConsultation(b, a);
+        f.accept(a, conversationId);
+        f.as(b, multipart("/api/conversations/" + conversationId + "/messages").param("body", "ミュートされていても送れる"))
+                .andExpect(status().is2xxSuccessful());
+
+        // A への通知も、ミュートと関係なく届く（通知はミュートで変えない。案A）
+        assertThat(f.count("SELECT count(*) FROM notifications WHERE recipient_id = ? AND actor_id = ? AND type = 'LIKED'",
+                a.getId(), b.getId())).isEqualTo(1);
+        assertThat(f.count("SELECT count(*) FROM notifications WHERE recipient_id = ? AND actor_id = ? AND type = 'FOLLOWED'",
+                a.getId(), b.getId())).isEqualTo(1);
+    }
+
     // ---- ミュートしている人の一覧 ----
 
     @Test
