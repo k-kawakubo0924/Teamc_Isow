@@ -7,6 +7,7 @@ import com.teamc.isow.backend.common.InputValidationException;
 import com.teamc.isow.backend.image.ImageUploadService;
 import com.teamc.isow.backend.image.ImageUploadService.PreparedImage;
 import com.teamc.isow.backend.image.ImageUrls;
+import com.teamc.isow.backend.mute.UserMuteRepository;
 import com.teamc.isow.backend.image.InvalidImageException;
 import com.teamc.isow.backend.master.FashionCategory;
 import com.teamc.isow.backend.master.FashionCategoryRepository;
@@ -66,6 +67,7 @@ public class PostService {
     private final UserVisibility userVisibility;
     private final TransactionTemplate transactionTemplate;
     private final ImageUrls imageUrls;
+    private final UserMuteRepository muteRepository;
 
     public PostService(
             PostRepository postRepository,
@@ -77,7 +79,8 @@ public class PostService {
             ReactionSummaryService reactionSummaryService,
             UserVisibility userVisibility,
             PlatformTransactionManager transactionManager,
-            ImageUrls imageUrls) {
+            ImageUrls imageUrls,
+            UserMuteRepository muteRepository) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.fashionCategoryRepository = fashionCategoryRepository;
@@ -88,6 +91,7 @@ public class PostService {
         this.userVisibility = userVisibility;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.imageUrls = imageUrls;
+        this.muteRepository = muteRepository;
     }
 
     /**
@@ -187,8 +191,8 @@ public class PostService {
      * 投稿1件の詳細（docs/post.md「投稿の詳細画面」）。ログインしていれば誰の投稿でも取得できる
      * （公開範囲は docs/post.md で未確定のため全体公開として扱う）。
      *
-     * <p>写真の枚数・タグの数に関係なく、決まった本数（8本）の SQL で取得する：ログイン確認1、
-     * 投稿・投稿者・ファッションの種類1、ブロックの確認1、写真1、タグ1、いいね・お気に入り3
+     * <p>写真の枚数・タグの数に関係なく、決まった本数（9本）の SQL で取得する：ログイン確認1、
+     * 投稿・投稿者・ファッションの種類1、ブロックの確認1、写真1、タグ1、いいね・お気に入り3、投稿者をミュートしているかの確認1
      *
      * @throws PostNotFoundException 投稿が存在しない場合
      */
@@ -198,7 +202,11 @@ public class PostService {
         Post post = postRepository.findDetailById(id).orElseThrow(() -> new PostNotFoundException(id));
         // 投稿者とブロックの間柄にある投稿は、存在しない投稿と同じ 404（docs/profile.md「ブロック」）
         userVisibility.requireVisiblePost(userId, post);
-        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId, imageUrls);
+        Long authorId = post.getAuthor().getId();
+        // 投稿者をミュートしていても、詳細は見える（自分から探しに行った場所。docs/profile.md「ミュート（投稿の非表示）」）
+        boolean authorMutedByMe = !authorId.equals(userId) && muteRepository.existsByMuterIdAndMutedId(userId, authorId);
+        return PostResponse.from(post, reactionSummaryService.summarize(userId, List.of(id)).get(id), userId, imageUrls,
+                authorMutedByMe);
     }
 
     /**

@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../auth/authContext'
 import { ConsultButton } from '../../components/consult/ConsultButton'
 import { consultNote } from '../../components/consult/consultLabels'
+import { MUTED_PROFILE_NOTE } from '../../components/mute/muteText'
 import { formatHeight } from '../../utils/height'
 import { PROFILE_COLUMNS, loadColumns, saveColumns, type Columns } from '../home/columnSetting'
 import { ColumnsSwitcher, EmptyMessage, PostGrid, type FetchPostPage } from '../home/PostGrid'
@@ -143,11 +144,20 @@ function ProfileView({ userId }: { userId: number | null }) {
             <ProfileBlockMenu
               profile={profile}
               onBlocked={() => setProfile((prev) => (prev ? { ...prev, blockedByMe: true, followingByMe: false } : prev))}
+              onMutedChange={(mutedByMe) => setProfile((prev) => (prev ? { ...prev, mutedByMe } : prev))}
             />
           )
         }
       />
       <ProfileSummary profile={profile} masters={masters} />
+      {/* ミュートしている相手（docs/profile.md「ミュート（投稿の非表示）」）。出ていないと、ミュートしたこと自体を忘れて
+          「あの人の投稿を見ない」と悩むことになるため、プロフィールに出す。解除は右上の⋮か、詳細設定の一覧から */}
+      {!profile.me && profile.mutedByMe && (
+        <div className="profile-muted">
+          <p className="profile-muted-title">{MUTED_PROFILE_NOTE}</p>
+          <p className="profile-muted-text">ホームや検索には出ません。ここからは、これまでどおり見られます。</p>
+        </div>
+      )}
       {!profile.me && (
         <ProfileActions
           profile={profile}

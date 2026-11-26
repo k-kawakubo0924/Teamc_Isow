@@ -33,6 +33,7 @@ import SearchResultsPage from './pages/search/SearchResultsPage'
 import ProfileEditPage from './pages/settings/ProfileEditPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import BlockListPage from './pages/settings/BlockListPage'
+import MuteListPage from './pages/settings/MuteListPage'
 import ContactPage from './pages/settings/ContactPage'
 import EmailSettingsPage from './pages/settings/EmailSettingsPage'
 import PasswordSettingsPage from './pages/settings/PasswordSettingsPage'
@@ -76,6 +77,8 @@ function App() {
         <Route path="/settings/profile" element={<ProfileEditPage />} />
         {/* ブロック中のアカウント（docs/profile.md「ブロック」）。詳細設定と同じく、下部ナビゲーションを表示しない */}
         <Route path="/settings/blocks" element={<BlockListPage />} />
+        {/* 投稿を非表示にしている人（docs/profile.md「ミュート（投稿の非表示）」）。詳細設定と同じく、下部ナビゲーションを表示しない */}
+        <Route path="/settings/mutes" element={<MuteListPage />} />
         {/* お問い合わせ（docs/settings.md「お問い合わせ」）。詳細設定と同じく、下部ナビゲーションを表示しない */}
         <Route path="/settings/contact" element={<ContactPage />} />
         {/* パスワード再設定（ログイン中の変更）・メールアドレス再設定（docs/settings.md） */}

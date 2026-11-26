@@ -19,6 +19,9 @@ import java.util.List;
  * @param editedAt 投稿者が最後に編集した日時。編集していなければ null（画面の「編集済み」の表示に使う）
  * @param hidden 管理者が非公開にしているか（docs/admin.md「6. 措置」）。非公開の投稿を受け取るのは投稿者本人だけ
  * @param hiddenReason 非公開にした理由（ReportReason の定数名）。投稿者本人にだけ返し、それ以外は null
+ * @param authorMutedByMe ログイン中のユーザーが投稿者をミュート（投稿の非表示）しているか（docs/profile.md「ミュート（投稿の非表示）」）。
+ *     詳細の画面の「…」で「この人の投稿を非表示にする／表示する」を出し分けるために使う。詳細（GET /api/posts/{id}）でだけ値を入れ、
+ *     それ以外（作成・編集の応答、自分の投稿の一覧）は自分の投稿のため false
  */
 public record PostResponse(
         Long id,
@@ -37,7 +40,8 @@ public record PostResponse(
         LocalDateTime createdAt,
         LocalDateTime editedAt,
         boolean hidden,
-        String hiddenReason) {
+        String hiddenReason,
+        boolean authorMutedByMe) {
 
     /**
      * 遅延読み込みの項目を使うため、トランザクションの中で呼ぶこと。
@@ -45,6 +49,12 @@ public record PostResponse(
      * viewerId はログイン中のユーザーの ID（ownedByMe の判定に使う）。写真・プロフィール画像の URL は urls でキーから組み立てる
      */
     public static PostResponse from(Post post, ReactionSummary reactions, Long viewerId, ImageUrls urls) {
+        return from(post, reactions, viewerId, urls, false);
+    }
+
+    /** 投稿の詳細用。authorMutedByMe は、見ている人が投稿者をミュートしているか */
+    public static PostResponse from(Post post, ReactionSummary reactions, Long viewerId, ImageUrls urls,
+            boolean authorMutedByMe) {
         return new PostResponse(
                 post.getId(),
                 post.getTitle(),
@@ -68,7 +78,8 @@ public record PostResponse(
                 post.getCreatedAt(),
                 post.getEditedAt(),
                 post.isHidden(),
-                post.getAuthor().getId().equals(viewerId) ? post.getHiddenReason() : null);
+                post.getAuthor().getId().equals(viewerId) ? post.getHiddenReason() : null,
+                authorMutedByMe);
     }
 
     public record FashionCategoryResponse(Long id, String name) {

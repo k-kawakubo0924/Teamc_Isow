@@ -22,6 +22,8 @@ import com.teamc.isow.backend.user.User;
  * @param followingByMe ログイン中のユーザーがこのユーザーをフォローしているか。自分のプロフィールでは null
  * @param blockedByMe ログイン中のユーザーがこのユーザーをブロックしているか（docs/profile.md「ブロック」）。
  *     true なら、画面はプロフィールの代わりに「ブロック中のユーザーです」と解除のボタンを出す
+ * @param mutedByMe ログイン中のユーザーがこのユーザーをミュート（投稿の非表示）しているか（docs/profile.md「ミュート（投稿の非表示）」）。
+ *     本人から見たときだけ true になる（ミュートされた側には分からない）。自分のプロフィールでは false
  */
 public record ProfileResponse(
         Long id,
@@ -38,7 +40,8 @@ public record ProfileResponse(
         long followerCount,
         boolean me,
         Boolean followingByMe,
-        boolean blockedByMe) {
+        boolean blockedByMe,
+        boolean mutedByMe) {
 
     /**
      * bodyType・personalColor は読み込み済みであること（UserRepository.findWithProfileById）。
@@ -46,7 +49,7 @@ public record ProfileResponse(
      */
     static ProfileResponse of(
             User user, long postCount, long followingCount, long followerCount, Boolean followingByMe,
-            boolean blockedByMe, ImageUrls imageUrls) {
+            boolean blockedByMe, boolean mutedByMe, ImageUrls imageUrls) {
         return new ProfileResponse(
                 user.getId(),
                 user.getUsername(),
@@ -62,6 +65,7 @@ public record ProfileResponse(
                 followerCount,
                 followingByMe == null,
                 followingByMe,
-                blockedByMe);
+                blockedByMe,
+                mutedByMe);
     }
 }

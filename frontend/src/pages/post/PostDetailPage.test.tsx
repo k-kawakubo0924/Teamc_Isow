@@ -15,6 +15,12 @@ vi.mock('../../api/posts', () => ({
 vi.mock('../../auth/authContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
 const blockUser = vi.fn<(id: number) => Promise<void>>()
 vi.mock('../../api/blocks', () => ({ blockUser: (id: number) => blockUser(id) }))
+const muteUser = vi.fn<(id: number) => Promise<void>>()
+const unmuteUser = vi.fn<(id: number) => Promise<void>>()
+vi.mock('../../api/mutes', () => ({
+  muteUser: (id: number) => muteUser(id),
+  unmuteUser: (id: number) => unmuteUser(id),
+}))
 vi.mock('../../api/reports', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/reports')>()),
   reportTarget: vi.fn(),
@@ -24,6 +30,8 @@ afterEach(() => {
   cleanup()
   fetchPost.mockReset()
   deletePost.mockReset()
+  muteUser.mockReset()
+  unmuteUser.mockReset()
 })
 
 function post(overrides: Partial<PostResponse> = {}, author: Partial<PostResponse['author']> = {}): PostResponse {
@@ -45,6 +53,7 @@ function post(overrides: Partial<PostResponse> = {}, author: Partial<PostRespons
     editedAt: null,
     hidden: false,
     hiddenReason: null,
+    authorMutedByMe: false,
     ...overrides,
   }
 }
@@ -272,13 +281,17 @@ describe('投稿の編集', () => {
   })
 })
 
-describe('他人の投稿の「…」（通報・ブロック）', () => {
-  it('他人の投稿の「…」には「通報」と「ブロック」がある', async () => {
+describe('他人の投稿の「…」（通報・ミュート・ブロック）', () => {
+  it('他人の投稿の「…」には「通報」「非表示」「ブロック」がある', async () => {
     await open(post({ ownedByMe: false }))
 
     fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['通報', 'ブロック'])
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      '通報',
+      '非表示',
+      'ブロック',
+    ])
   })
 
   it('「通報」で、この投稿を対象にした通報の入力を出す', async () => {
@@ -303,6 +316,57 @@ describe('他人の投稿の「…」（通報・ブロック）', () => {
 
     expect(await screen.findByText('ホーム画面')).toBeTruthy()
     expect(blockUser).toHaveBeenCalledWith(2)
+  })
+})
+
+/*
+ * 他人の投稿の「…」からのミュート（投稿の非表示。docs/profile.md「ミュート（投稿の非表示）」）。
+ * 確認を出さず、その場に留まり（ブロックのようにホームへ移らない。見ていたものが消える理由がない）、したことを知らせる
+ */
+describe('他人の投稿の「…」からのミュート', () => {
+  it('「非表示」は確認を出さずにすぐミュートし、ホームへ移らずに投稿を見せたまま、したことを知らせる', async () => {
+    muteUser.mockResolvedValue(undefined)
+    await openFromHome(post({ ownedByMe: false }))
+
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '非表示' }))
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    const notice = await screen.findByText(/@haru_st さんの投稿を/, { selector: '[role="status"]' })
+    expect(notice.textContent).toContain('出さないように')
+    expect(muteUser).toHaveBeenCalledWith(2)
+    // その場に留まり、見ていた投稿はそのまま見える
+    expect(screen.queryByText('ホーム画面')).toBeNull()
+    expect(screen.getByText('秋の羽織りもの')).toBeTruthy()
+    // メニューの文言がその場で変わる
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    expect(screen.getByRole('menuitem', { name: '非表示を解除' })).toBeTruthy()
+  })
+
+  it('投稿者をミュートしていれば「非表示を解除」を出し、押すと確認を出さずに解除して知らせる', async () => {
+    unmuteUser.mockResolvedValue(undefined)
+    await openFromHome(post({ ownedByMe: false, authorMutedByMe: true }))
+
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '非表示を解除' }))
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    const notice = await screen.findByText(/@haru_st さんの投稿を/, { selector: '[role="status"]' })
+    expect(notice.textContent).toContain('出すように')
+    expect(unmuteUser).toHaveBeenCalledWith(2)
+    expect(screen.queryByText('ホーム画面')).toBeNull()
+  })
+
+  it('ミュートに失敗したら、そのことを出し、メニューの文言は変えない', async () => {
+    muteUser.mockRejectedValue(new Error('時間をおいて再度お試しください。'))
+    await openFromHome(post({ ownedByMe: false }))
+
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '非表示' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('時間をおいて再度お試しください。')
+    fireEvent.click(screen.getByRole('button', { name: '投稿のメニュー' }))
+    expect(screen.getByRole('menuitem', { name: '非表示' })).toBeTruthy()
   })
 })
 

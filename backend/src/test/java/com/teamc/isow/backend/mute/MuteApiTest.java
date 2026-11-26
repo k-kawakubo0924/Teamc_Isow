@@ -168,6 +168,39 @@ class MuteApiTest {
         assertThat(mutes(a, b)).isEqualTo(1);
     }
 
+    @Test
+    void プロフィールのmutedByMeは_ミュートした本人から見たときだけtrueで_解除するとfalseに戻る() throws Exception {
+        f.as(a, get("/api/users/" + b.getId())).andExpect(jsonPath("$.mutedByMe").value(false));
+
+        mute(a, b).andExpect(status().isNoContent());
+
+        f.as(a, get("/api/users/" + b.getId())).andExpect(status().isOk()).andExpect(jsonPath("$.mutedByMe").value(true));
+        // ミュートされた人・第三者・自分のプロフィールでは false（相手に分からない）
+        f.as(b, get("/api/users/" + a.getId())).andExpect(jsonPath("$.mutedByMe").value(false));
+        f.as(c, get("/api/users/" + b.getId())).andExpect(jsonPath("$.mutedByMe").value(false));
+        f.as(a, get("/api/users/" + a.getId())).andExpect(jsonPath("$.mutedByMe").value(false));
+
+        unmute(a, b).andExpect(status().isNoContent());
+        f.as(a, get("/api/users/" + b.getId())).andExpect(jsonPath("$.mutedByMe").value(false));
+    }
+
+    @Test
+    void 投稿の詳細のauthorMutedByMeは_投稿者をミュートした本人から見たときだけtrue() throws Exception {
+        Post postOfA = f.createPost(a, "ミュート確認Aの投稿");
+        Post postOfB = f.createPost(b, "ミュート確認Bの投稿");
+        f.as(a, get("/api/posts/" + postOfB.getId())).andExpect(jsonPath("$.authorMutedByMe").value(false));
+
+        mute(a, b).andExpect(status().isNoContent());
+
+        // ミュートしても投稿の詳細は見える（自分から探しに行った場所）。画面のメニューを「この人の投稿を表示する」にするための値
+        f.as(a, get("/api/posts/" + postOfB.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorMutedByMe").value(true));
+        // ミュートされた人・第三者・自分の投稿では false（相手に分からない）
+        f.as(b, get("/api/posts/" + postOfA.getId())).andExpect(jsonPath("$.authorMutedByMe").value(false));
+        f.as(c, get("/api/posts/" + postOfB.getId())).andExpect(jsonPath("$.authorMutedByMe").value(false));
+        f.as(a, get("/api/posts/" + postOfA.getId())).andExpect(jsonPath("$.authorMutedByMe").value(false));
+    }
+
     // ---- ミュートは何も消さない（ブロックとの違いの中心。1つずつ確かめる） ----
 
     @Test

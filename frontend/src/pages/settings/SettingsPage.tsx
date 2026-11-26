@@ -97,6 +97,18 @@ function SettingsPage() {
           }
           onClick={() => navigate('/settings/blocks')}
         />
+        {/* ミュート（投稿の非表示）している人の一覧と解除（docs/profile.md「ミュート（投稿の非表示）」）。画面画像にはない項目。
+            「ミュート」「非表示」を単独の語で使わず、範囲が伝わる名前にする */}
+        <MenuItem
+          label="投稿を非表示にしている人"
+          icon={
+            <svg {...ICON_PROPS}>
+              <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" />
+              <path d="m4 4 16 16" />
+            </svg>
+          }
+          onClick={() => navigate('/settings/mutes')}
+        />
         {/* お問い合わせ（docs/settings.md「お問い合わせ」）。画面画像にはない項目 */}
         <MenuItem
           label="お問い合わせ"

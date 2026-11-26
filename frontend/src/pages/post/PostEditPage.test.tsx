@@ -59,6 +59,7 @@ function post(overrides: Partial<PostResponse> = {}): PostResponse {
     editedAt: null,
     hidden: false,
     hiddenReason: null,
+    authorMutedByMe: false,
     ...overrides,
   }
 }

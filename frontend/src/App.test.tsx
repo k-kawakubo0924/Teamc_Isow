@@ -62,6 +62,7 @@ vi.mock('./pages/dm/DmChatPage', () => ({ default: stub('チャット') }))
 vi.mock('./pages/post/PostPage', () => ({ default: stub('投稿作成') }))
 vi.mock('./pages/settings/SettingsPage', () => ({ default: stub('詳細設定') }))
 vi.mock('./pages/settings/ProfileEditPage', () => ({ default: stub('プロフィール編集') }))
+vi.mock('./pages/settings/MuteListPage', () => ({ default: stub('投稿を非表示にしている人') }))
 vi.mock('./pages/LoginPage', () => ({ default: stub('ログイン') }))
 vi.mock('./pages/SignUpPage', () => ({ default: stub('新規会員登録') }))
 vi.mock('./pages/HealthCheckPage', () => ({ default: stub('ヘルスチェック') }))
@@ -103,6 +104,8 @@ describe('既存の利用者アプリの画面（ページが見つからない�
     ['/post', '投稿作成', false],
     ['/settings', '詳細設定', false],
     ['/settings/profile', 'プロフィール編集', false],
+    // ミュート（投稿の非表示）している人の一覧（docs/profile.md「ミュート（投稿の非表示）」）
+    ['/settings/mutes', '投稿を非表示にしている人', false],
     ['/health', 'ヘルスチェック', false],
   ]
 

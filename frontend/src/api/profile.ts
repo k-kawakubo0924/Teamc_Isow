@@ -13,6 +13,8 @@ export type ProfileResponse = {
   profileImageUrl: string | null
   /** ログイン中のユーザーがブロックしているか（docs/profile.md「ブロック」）。true なら、プロフィールの代わりにブロック中の表示を出す */
   blockedByMe: boolean
+  /** ログイン中のユーザーがミュート（投稿の非表示）しているか（docs/profile.md「ミュート（投稿の非表示）」）。自分のプロフィールでは false */
+  mutedByMe: boolean
   gender: string | null
   heightCm: number | null
   ageGroup: string | null

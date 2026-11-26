@@ -4,15 +4,33 @@ import type { ProfileResponse } from '../../api/profile'
 import { useAuth } from '../../auth/authContext'
 import { BlockConfirmDialog } from '../../components/block/BlockConfirmDialog'
 import { blockConfirmText, unblockConfirmText } from '../../components/block/blockText'
+import { MuteNotice } from '../../components/mute/MuteNotice'
+import { muteMenuLabel } from '../../components/mute/muteText'
+import { useMuteToggle } from '../../components/mute/useMuteToggle'
 import { ReportDialog } from '../../components/report/ReportDialog'
 
 /**
- * 相手のプロフィールの右上の⋮（docs/profile.md「ブロック」・docs/admin.md「通報」）。
- * profile.md の当初の設計では「通報・非表示・ブロック」を並べる想定だったが、非表示（ミュート）は作っていないため、
- * 「通報」と「ブロック」を置く
+ * 相手のプロフィールの右上の⋮（docs/profile.md「ブロック」「ミュート（投稿の非表示）」・docs/admin.md「通報」）。
+ * 「通報」「非表示（ミュート中は「非表示を解除」）」「ブロック」を置く（当初の設計の「通報・非表示・ブロック」）。
+ * ミュートは確認を出さずにすぐ切り替え、その場に留まって、したことを短く知らせる（何も壊さず、いつでも戻せる軽い手段のため）
  */
-export function ProfileBlockMenu({ profile, onBlocked }: { profile: ProfileResponse; onBlocked: () => void }) {
+export function ProfileBlockMenu({
+  profile,
+  onBlocked,
+  onMutedChange,
+}: {
+  profile: ProfileResponse
+  onBlocked: () => void
+  onMutedChange: (muted: boolean) => void
+}) {
   const { token } = useAuth()
+  const mute = useMuteToggle({
+    userId: profile.id,
+    username: profile.username,
+    initialMuted: profile.mutedByMe,
+    token,
+    onChange: onMutedChange,
+  })
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [reporting, setReporting] = useState(false)
@@ -85,6 +103,18 @@ export function ProfileBlockMenu({ profile, onBlocked }: { profile: ProfileRespo
           <button
             type="button"
             role="menuitem"
+            className="profile-menu-item"
+            disabled={mute.busy}
+            onClick={() => {
+              setMenuOpen(false)
+              void mute.toggle()
+            }}
+          >
+            {muteMenuLabel(mute.muted)}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             className="profile-menu-item profile-menu-danger"
             onClick={() => {
               setMenuOpen(false)
@@ -96,6 +126,7 @@ export function ProfileBlockMenu({ profile, onBlocked }: { profile: ProfileRespo
           </button>
         </div>
       )}
+      <MuteNotice notice={mute.notice} error={mute.error} />
       {reporting && (
         <ReportDialog
           targetType="USER"
