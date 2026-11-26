@@ -45,6 +45,8 @@ export type PostResponse = {
   hidden: boolean
   /** 非公開にした理由（通報の理由の定数名）。投稿者本人にだけ返り、それ以外は null */
   hiddenReason: string | null
+  /** ログイン中のユーザーが投稿者をミュート（投稿の非表示）しているか。詳細（GET /api/posts/{id}）でだけ入る。「…」の文言の出し分けに使う */
+  authorMutedByMe: boolean
 }
 
 /** ホームの投稿一覧のタブ */

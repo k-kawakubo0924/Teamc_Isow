@@ -129,8 +129,9 @@ class PostListQueryCountTest {
         System.out.printf("### SQL の本数（投稿の詳細。写真1枚・タグ1つ → 写真10枚・タグ10個）: %d → %d%n",
                 smallCount, largeCount);
         assertThat(largeCount).isEqualTo(smallCount);
-        // ログイン確認1、投稿・投稿者・ファッションの種類1、ブロックの確認1（docs/profile.md「ブロック」）、写真1、タグ1、いいね・お気に入り3
-        assertThat(largeCount).isEqualTo(8);
+        // ログイン確認1、投稿・投稿者・ファッションの種類1、ブロックの確認1（docs/profile.md「ブロック」）、写真1、タグ1、いいね・お気に入り3、
+        // 投稿者をミュートしているかの確認1（authorMutedByMe。docs/profile.md「ミュート（投稿の非表示）」）
+        assertThat(largeCount).isEqualTo(9);
         PostResponse detail = postService.get(subject, large.getId());
         assertThat(detail.imageUrls()).hasSize(Post.MAX_IMAGES);
         assertThat(detail.tags()).hasSize(10);

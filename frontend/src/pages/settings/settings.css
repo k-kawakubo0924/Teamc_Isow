@@ -435,3 +435,11 @@
   border-color: var(--color-error);
   color: var(--color-error);
 }
+
+/* 投稿を非表示にしている人（/settings/mutes）の説明。一覧の形はブロック中のアカウントと同じ（blocks-*） */
+.mutes-lead {
+  margin: 12px 16px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}

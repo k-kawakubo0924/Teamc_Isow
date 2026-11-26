@@ -7,6 +7,9 @@ import { reportReasonLabel } from '../../api/reports'
 import { useAuth } from '../../auth/authContext'
 import { BlockConfirmDialog } from '../../components/block/BlockConfirmDialog'
 import { blockConfirmText } from '../../components/block/blockText'
+import { MuteNotice } from '../../components/mute/MuteNotice'
+import { muteMenuLabel } from '../../components/mute/muteText'
+import { useMuteToggle } from '../../components/mute/useMuteToggle'
 import { ReportDialog } from '../../components/report/ReportDialog'
 import { formatHeight } from '../../utils/height'
 import { HeartIcon, StarIcon } from '../home/PostCard'
@@ -81,7 +84,7 @@ function PostDetailView({ postId }: { postId: number | null }) {
 
   // 自分の投稿のときだけ、編集・削除のメニューを出す（表示を分けるだけで、できるかはサーバーが確かめる）
   const ownPost = state.phase === 'ready' && state.post.ownedByMe ? state.post : null
-  // 他人の投稿には、通報・ブロックのメニューを出す（docs/admin.md「通報」・docs/profile.md「ブロック」）
+  // 他人の投稿には、通報・ミュート・ブロックのメニューを出す（docs/admin.md「通報」・docs/profile.md「ブロック」「ミュート（投稿の非表示）」）
   const otherPost = state.phase === 'ready' && !state.post.ownedByMe ? state.post : null
 
   return (
@@ -241,10 +244,18 @@ function PostMenu({ postId, token }: { postId: number; token: string }) {
 }
 
 /**
- * 他人の投稿の「…」メニュー（通報・ブロック）。ブロックしたら、その投稿は見えなくなるため、履歴を置き換えてホームへ移る
+ * 他人の投稿の「…」メニュー（通報・ミュート・ブロック）。ブロックしたら、その投稿は見えなくなるため、履歴を置き換えてホームへ移る。
+ * ミュート（「非表示」）は確認を出さずにすぐ切り替え、**その場に留まる**（見ていた投稿は見えたまま。
+ * 流れてくる一覧に出なくなるだけで、見ていたものが消える理由がない）。したことは短く知らせる（docs/profile.md「ミュート（投稿の非表示）」）
  */
 function OtherPostMenu({ post, token }: { post: PostResponse; token: string }) {
   const navigate = useNavigate()
+  const mute = useMuteToggle({
+    userId: post.author.id,
+    username: post.author.username,
+    initialMuted: post.authorMutedByMe,
+    token,
+  })
   const [menuOpen, setMenuOpen] = useState(false)
   const [dialog, setDialog] = useState<'report' | 'block' | null>(null)
   const [blocking, setBlocking] = useState(false)
@@ -289,12 +300,25 @@ function OtherPostMenu({ post, token }: { post: PostResponse; token: string }) {
             <button type="button" role="menuitem" className="post-detail-menu-delete" onClick={() => open('report')}>
               通報
             </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="post-detail-menu-edit"
+              disabled={mute.busy}
+              onClick={() => {
+                setMenuOpen(false)
+                void mute.toggle()
+              }}
+            >
+              {muteMenuLabel(mute.muted)}
+            </button>
             <button type="button" role="menuitem" className="post-detail-menu-delete" onClick={() => open('block')}>
               ブロック
             </button>
           </div>
         )}
       </div>
+      <MuteNotice notice={mute.notice} error={mute.error} />
       {dialog === 'report' && (
         <ReportDialog
           targetType="POST"

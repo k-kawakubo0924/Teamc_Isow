@@ -2,6 +2,7 @@ package com.teamc.isow.backend.profile;
 
 import com.teamc.isow.backend.auth.AuthService;
 import com.teamc.isow.backend.block.BlockRepository;
+import com.teamc.isow.backend.mute.UserMuteRepository;
 import com.teamc.isow.backend.block.UserVisibility;
 import com.teamc.isow.backend.follow.FollowRepository;
 import com.teamc.isow.backend.image.ImageUrls;
@@ -38,6 +39,7 @@ public class ProfileService {
     private final BlockRepository blockRepository;
     private final UserVisibility userVisibility;
     private final ImageUrls imageUrls;
+    private final UserMuteRepository muteRepository;
 
     public ProfileService(
             UserRepository userRepository,
@@ -49,7 +51,8 @@ public class ProfileService {
             BlockRepository blockRepository,
             UserVisibility userVisibility,
             Clock clock,
-            ImageUrls imageUrls) {
+            ImageUrls imageUrls,
+            UserMuteRepository muteRepository) {
         this.userRepository = userRepository;
         this.followRepository = followRepository;
         this.postRepository = postRepository;
@@ -60,6 +63,7 @@ public class ProfileService {
         this.blockRepository = blockRepository;
         this.userVisibility = userVisibility;
         this.imageUrls = imageUrls;
+        this.muteRepository = muteRepository;
     }
 
     /** ログイン中のユーザー自身のプロフィール */
@@ -140,6 +144,7 @@ public class ProfileService {
                 followRepository.countVisibleFollowers(userId, viewerId, now),
                 me ? null : followRepository.existsActive(viewerId, userId),
                 blockedByMe,
+                !me && muteRepository.existsByMuterIdAndMutedId(viewerId, userId),
                 imageUrls);
     }
 

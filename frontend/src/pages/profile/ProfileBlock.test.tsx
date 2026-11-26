@@ -62,6 +62,7 @@ function profile(overrides: Partial<ProfileResponse> = {}): ProfileResponse {
     me: false,
     followingByMe: false,
     blockedByMe: false,
+    mutedByMe: false,
     ...overrides,
   }
 }
@@ -101,14 +102,19 @@ function openBlockConfirm() {
 }
 
 describe('相手のプロフィールの⋮', () => {
-  it('⋮のメニューには「通報」と「ブロック」を置く（非表示は作っていない）', async () => {
+  it('⋮のメニューには「通報」「非表示」「ブロック」を置く', async () => {
     fetchProfile.mockResolvedValue(profile())
     renderOther()
     await screen.findByText('@haru_st')
 
     fireEvent.click(screen.getByRole('button', { name: 'メニュー' }))
 
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['通報', 'ブロック'])
+    // ミュート（投稿の非表示）は ProfileMute.test.tsx で確かめる
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      '通報',
+      '非表示',
+      'ブロック',
+    ])
   })
 
   it('「通報」で、このユーザーを対象にした通報の入力を出す', async () => {

@@ -1,0 +1,26 @@
+/* ミュート（投稿の非表示）を切り替えたことの知らせ。画面の下、下部ナビゲーションの上に短く出す */
+.mute-notice-area {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  z-index: 30;
+  width: calc(100% - 32px);
+  max-width: 358px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.mute-notice {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--color-text);
+  font-size: 13px;
+  line-height: 1.5;
+  color: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+}
+
+.mute-notice-error {
+  background: #a33a2c;
+}
