@@ -136,6 +136,11 @@ class VisibilityInventoryTest {
         target("POST /api/users/{userId}/block");
         own("DELETE /api/users/{userId}/block", "自分がしたブロックを解除するだけ");
         own("GET /api/blocks", "自分がブロックした人の一覧（ブロックした相手を出すための画面）");
+        // ---- ミュート（投稿の非表示。docs/profile.md「ミュート（投稿の非表示）」） ----
+        // ブロックの間柄・利用停止中の相手は 404 にすることは、BlockApiTest ではなく MuteApiTest で確かめている
+        target("POST /api/users/{userId}/mute");
+        own("DELETE /api/users/{userId}/mute", "自分がしたミュートを解除するだけ");
+        own("GET /api/mutes", "自分がミュートした人の一覧。ブロックの間柄・利用停止中の相手は出さない（MuteApiTest）");
 
         // ---- 通報（docs/admin.md「通報」） ----
         target("POST /api/reports");

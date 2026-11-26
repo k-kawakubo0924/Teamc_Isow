@@ -4,6 +4,7 @@ import com.teamc.isow.backend.admin.AnnouncementAlreadyWithdrawnException;
 import com.teamc.isow.backend.announcement.AnnouncementNotFoundException;
 import com.teamc.isow.backend.auth.DuplicateRegistrationException;
 import com.teamc.isow.backend.block.SelfBlockException;
+import com.teamc.isow.backend.mute.SelfMuteException;
 import com.teamc.isow.backend.contact.AdminContactConflictException;
 import com.teamc.isow.backend.contact.AppealTokenInvalidException;
 import com.teamc.isow.backend.contact.ContactLimitExceededException;
@@ -212,6 +213,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiErrorResponse handleSelfBlock(SelfBlockException e) {
         return new ApiErrorResponse("自分自身はブロックできません。", Map.of());
+    }
+
+    @ExceptionHandler(SelfMuteException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiErrorResponse handleSelfMute(SelfMuteException e) {
+        // 画面では「ミュート」の語を単独で使わない（docs/profile.md「ミュート（投稿の非表示）」の「用語」）
+        return new ApiErrorResponse("自分の投稿は非表示にできません。", Map.of());
     }
 
     @ExceptionHandler(SelfFollowException.class)
